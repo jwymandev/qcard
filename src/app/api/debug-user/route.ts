@@ -58,7 +58,7 @@ export async function GET() {
         ]);
         
         // Safely try to get the profile images separately
-        let images = [];
+        let images: any[] = [];
         try {
           images = await prisma.profileImage.findMany({
             where: { profileId: profile.id }
