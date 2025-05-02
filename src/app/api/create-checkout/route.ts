@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import stripe from '@/lib/stripe';
 import { prisma } from '@/lib/db';
+import crypto from 'crypto';
 
 export async function POST(req: Request) {
   try {
@@ -56,9 +57,11 @@ export async function POST(req: Request) {
     // Create payment record
     await prisma.payment.create({
       data: {
+        id: crypto.randomUUID(),
         amount: totalAmount / 100, // Convert to dollars
         userId: userId,
         stripeId: checkoutSession.id,
+        updatedAt: new Date(),
       },
     });
     
