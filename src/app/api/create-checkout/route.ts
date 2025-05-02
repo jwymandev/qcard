@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     
     const totalAmount = basePrice + ((locationIds.length - 1) * additionalLocationPrice);
     
-    const session = await stripe.checkout.sessions.create({
+    const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
@@ -58,11 +58,11 @@ export async function POST(req: Request) {
       data: {
         amount: totalAmount / 100, // Convert to dollars
         userId: userId,
-        stripeId: session.id,
+        stripeId: checkoutSession.id,
       },
     });
     
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {
     console.error('Error creating checkout session:', error);
     return new NextResponse('Internal Error', { status: 500 });
