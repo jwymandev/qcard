@@ -90,7 +90,7 @@ export async function GET() {
         id: session.user.id,
         email: session.user.email,
         name: session.user.name,
-        tenantType: session.user.tenantType
+        tenantType: (session.user as any).tenantType
       }
     });
   } catch (error) {
