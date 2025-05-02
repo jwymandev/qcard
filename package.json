@@ -12,7 +12,9 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "setup-uploads": "node scripts/init-uploads.js",
-    "predev": "npm run setup-uploads"
+    "predev": "npm run setup-uploads",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.0",
