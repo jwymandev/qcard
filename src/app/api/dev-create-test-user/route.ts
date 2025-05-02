@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 
 // This endpoint is for development purposes only!
 // It should be removed in production or secured behind an admin authentication
@@ -34,8 +35,10 @@ export async function POST(request: Request) {
     // Create tenant
     const tenant = await prisma.tenant.create({
       data: {
+        id: crypto.randomUUID(),
         name: `${firstName || ''} ${lastName || ''}`.trim() || email,
-        type: tenantType || 'TALENT'
+        type: tenantType || 'TALENT',
+        updatedAt: new Date()
       }
     });
     
@@ -45,12 +48,14 @@ export async function POST(request: Request) {
     // Create user
     const newUser = await prisma.user.create({
       data: {
+        id: crypto.randomUUID(),
         email,
         password: hashedPassword,
         firstName: firstName || null,
         lastName: lastName || null,
         tenantId: tenant.id,
-        role: 'USER'
+        role: 'USER',
+        updatedAt: new Date()
       }
     });
     
