@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import crypto from 'crypto';
 
 // This endpoint initializes a profile for a user if they don't have one yet
 export async function POST() {
@@ -26,13 +27,15 @@ export async function POST() {
     // Create a new profile for the user
     const newProfile = await prisma.profile.create({
       data: {
+        id: crypto.randomUUID(),
         userId: session.user.id,
         availability: true, // Default to available
+        updatedAt: new Date()
       },
       include: {
-        locations: true,
-        skills: true,
-        images: true,
+        Location: true,
+        Skill: true,
+        ProfileImage: true,
       },
     });
     
@@ -43,6 +46,9 @@ export async function POST() {
     
   } catch (error) {
     console.error("Error initializing profile:", error);
-    return NextResponse.json({ error: "Failed to initialize profile" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to initialize profile",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
