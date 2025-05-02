@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+  // This ensures the client matches the exact DB shape, important for SQLite
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Account {
+  id                String  @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Application {
+  id            String      @id
+  status        String      @default("PENDING")
+  message       String?
+  profileId     String
+  castingCallId String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime
+  CastingCall   CastingCall @relation(fields: [castingCallId], references: [id])
+  Profile       Profile     @relation(fields: [profileId], references: [id])
+}
+
+model CastingCall {
+  id           String        @id
+  title        String
+  description  String
+  requirements String?
+  compensation String?
+  startDate    DateTime?
+  endDate      DateTime?
+  status       String        @default("OPEN")
+  studioId     String
+  locationId   String?
+  projectId    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime
+  Application  Application[]
+  Project      Project?      @relation(fields: [projectId], references: [id])
+  Location     Location?     @relation(fields: [locationId], references: [id])
+  Studio       Studio        @relation(fields: [studioId], references: [id])
+  Skill        Skill[]
+}
+
+model Location {
+  id          String        @id
+  name        String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  CastingCall CastingCall[]
+  Scene       Scene[]
+  Profile     Profile[]
+  Studio      Studio[]
+}
+
+model Message {
+  id                                        String   @id
+  content                                   String
+  subject                                   String   @default("New Message")
+  isRead                                    Boolean  @default(false)
+  isArchived                                Boolean  @default(false)
+  studioSenderId                            String?
+  talentReceiverId                          String?
+  talentSenderId                            String?
+  studioReceiverId                          String?
+  relatedToProjectId                        String?
+  relatedToCastingCallId                    String?
+  createdAt                                 DateTime @default(now())
+  Studio_Message_studioReceiverIdToStudio   Studio?  @relation("Message_studioReceiverIdToStudio", fields: [studioReceiverId], references: [id])
+  Profile_Message_talentSenderIdToProfile   Profile? @relation("Message_talentSenderIdToProfile", fields: [talentSenderId], references: [id])
+  Profile_Message_talentReceiverIdToProfile Profile? @relation("Message_talentReceiverIdToProfile", fields: [talentReceiverId], references: [id])
+  Studio_Message_studioSenderIdToStudio     Studio?  @relation("Message_studioSenderIdToStudio", fields: [studioSenderId], references: [id])
+}
+
+model Payment {
+  id        String   @id
+  amount    Float
+  currency  String   @default("usd")
+  status    String   @default("PENDING")
+  studioId  String?
+  userId    String?
+  stripeId  String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  User      User?    @relation(fields: [userId], references: [id])
+  Studio    Studio?  @relation(fields: [studioId], references: [id])
+}
+
+model Profile {
+  id                                        String          @id
+  userId                                    String          @unique
+  headshotUrl                               String?
+  bio                                       String?
+  height                                    String?
+  weight                                    String?
+  hairColor                                 String?
+  eyeColor                                  String?
+  availability                              Boolean         @default(true)
+  createdAt                                 DateTime        @default(now())
+  updatedAt                                 DateTime
+  age                                       Int?
+  ethnicity                                 String?
+  experience                                String?
+  gender                                    String?
+  languages                                 String?
+  Application                               Application[]
+  Message_Message_talentSenderIdToProfile   Message[]       @relation("Message_talentSenderIdToProfile")
+  Message_Message_talentReceiverIdToProfile Message[]       @relation("Message_talentReceiverIdToProfile")
+  User                                      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ProfileImage                              ProfileImage[]
+  ProjectMember                             ProjectMember[]
+  SceneTalent                               SceneTalent[]
+  StudioNote                                StudioNote[]
+  Location                                  Location[]
+  Skill                                     Skill[]
+}
+
+model ProfileImage {
+  id        String   @id
+  url       String
+  isPrimary Boolean  @default(false)
+  profileId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id            String          @id
+  title         String
+  description   String?
+  startDate     DateTime?
+  endDate       DateTime?
+  status        String          @default("PLANNING")
+  studioId      String
+  isArchived    Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime
+  CastingCall   CastingCall[]
+  Studio        Studio          @relation(fields: [studioId], references: [id])
+  ProjectMember ProjectMember[]
+  Scene         Scene[]
+}
+
+model ProjectMember {
+  id        String   @id
+  role      String?
+  notes     String?
+  projectId String
+  profileId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Profile   Profile  @relation(fields: [profileId], references: [id])
+  Project   Project  @relation(fields: [projectId], references: [id])
+}
+
+model Scene {
+  id           String        @id
+  projectId    String
+  title        String
+  description  String?
+  locationId   String?
+  shootDate    DateTime?
+  duration     Int?
+  talentNeeded Int?
+  status       String        @default("PLANNING")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime
+  Location     Location?     @relation(fields: [locationId], references: [id])
+  Project      Project       @relation(fields: [projectId], references: [id])
+  SceneTalent  SceneTalent[]
+}
+
+model SceneTalent {
+  id        String   @id
+  sceneId   String
+  profileId String
+  role      String?
+  notes     String?
+  status    String   @default("CONFIRMED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Profile   Profile  @relation(fields: [profileId], references: [id])
+  Scene     Scene    @relation(fields: [sceneId], references: [id])
+}
+
+model Session {
+  id           String   @id
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Skill {
+  id          String        @id
+  name        String        @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  CastingCall CastingCall[]
+  Profile     Profile[]
+}
+
+model Studio {
+  id                                       String        @id
+  name                                     String
+  description                              String?
+  tenantId                                 String        @unique
+  contactName                              String?
+  contactEmail                             String?
+  contactPhone                             String?
+  website                                  String?
+  createdAt                                DateTime      @default(now())
+  updatedAt                                DateTime
+  CastingCall                              CastingCall[]
+  Message_Message_studioReceiverIdToStudio Message[]     @relation("Message_studioReceiverIdToStudio")
+  Message_Message_studioSenderIdToStudio   Message[]     @relation("Message_studioSenderIdToStudio")
+  Payment                                  Payment[]
+  Project                                  Project[]
+  Tenant                                   Tenant        @relation(fields: [tenantId], references: [id])
+  StudioNote                               StudioNote[]
+  Location                                 Location[]
+}
+
+model StudioNote {
+  id        String   @id
+  content   String
+  studioId  String
+  profileId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  Studio    Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+}
+
+model Tenant {
+  id        String   @id
+  name      String
+  type      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Studio    Studio?
+  User      User[]
+}
+
+model User {
+  id        String    @id
+  email     String    @unique
+  password  String?
+  firstName String?
+  lastName  String?
+  role      String    @default("USER")
+  tenantId  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime
+  Account   Account[]
+  Payment   Payment[]
+  Profile   Profile?
+  Session   Session[]
+  Tenant    Tenant?   @relation(fields: [tenantId], references: [id])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
