@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     }
     
     // Create tenant
-    const tenant = await prisma.Tenant.create({
+    const tenant = await prisma.tenant.create({
       data: {
         name: `${firstName || ''} ${lastName || ''}`.trim() || email,
         type: tenantType || 'TALENT'
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     console.error("Create test user error:", error);
     return NextResponse.json({ 
       error: "Failed to create test user", 
-      details: error.toString() 
+      details: error instanceof Error ? error.message : String(error) 
     }, { status: 500 });
   }
 }
