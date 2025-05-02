@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     console.error("Auth debug error:", error);
     return NextResponse.json({ 
       error: "Failed to process authentication debug",
-      errorDetails: error.toString()
+      errorDetails: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
   }
 }
