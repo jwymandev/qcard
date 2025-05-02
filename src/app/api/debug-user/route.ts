@@ -39,7 +39,7 @@ export async function GET() {
         const [locations, skills] = await Promise.all([
           prisma.location.findMany({
             where: {
-              profiles: {
+              Profile: {
                 some: {
                   id: profile.id
                 }
@@ -48,7 +48,7 @@ export async function GET() {
           }),
           prisma.skill.findMany({
             where: {
-              profiles: {
+              Profile: {
                 some: {
                   id: profile.id
                 }
@@ -97,8 +97,8 @@ export async function GET() {
     console.error("Error fetching debug user info:", error);
     return NextResponse.json({ 
       error: "Failed to fetch debug user info",
-      errorDetails: error.toString(),
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      errorDetails: error instanceof Error ? error.message : String(error),
+      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
     }, { status: 500 });
   }
 }
