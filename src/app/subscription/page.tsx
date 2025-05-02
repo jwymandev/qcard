@@ -52,7 +52,7 @@ export default function SubscriptionPage() {
         <div className="bg-white shadow rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4">Select Locations</h2>
           <p className="mb-6 text-gray-600">
-            Choose the locations where you'd like to be considered for casting opportunities.
+            Choose the locations where you&apos;d like to be considered for casting opportunities.
             Pricing is based on the number of locations selected.
           </p>
           

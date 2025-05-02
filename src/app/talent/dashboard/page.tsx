@@ -155,7 +155,7 @@ export default function TalentDashboard() {
         <div className="bg-orange-50 p-4 rounded-md shadow">
           <h3 className="font-medium text-lg mb-2">Projects</h3>
           <p className="text-gray-600 mb-3">
-            View projects you're involved in
+            View projects you&apos;re involved in
           </p>
           <Link 
             href="/talent/projects" 

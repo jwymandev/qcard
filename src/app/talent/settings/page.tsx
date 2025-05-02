@@ -389,7 +389,7 @@ export default function TalentSettingsPage() {
               <div>
                 <h3 className="text-lg font-medium text-gray-900">Email Notifications</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Configure which emails you'd like to receive
+                  Configure which emails you&apos;d like to receive
                 </p>
               </div>
               
@@ -548,7 +548,7 @@ export default function TalentSettingsPage() {
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="delete-confirmation" className="block text-sm font-medium text-gray-700">
-                      To confirm, type "DELETE" in the box below
+                      To confirm, type &quot;DELETE&quot; in the box below
                     </label>
                     <input
                       type="text"

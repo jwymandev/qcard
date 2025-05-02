@@ -13,7 +13,7 @@ export default function Onboarding() {
         
         <div className="space-y-6">
           <p className="text-gray-600">
-            Let's set up your account to help you get the most out of QCard. Please select what type of account you'd like to create:
+            Let&apos;s set up your account to help you get the most out of QCard. Please select what type of account you&apos;d like to create:
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
