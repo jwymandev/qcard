@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 
 export default function Navigation() {
@@ -15,7 +15,7 @@ export default function Navigation() {
   const user = session?.user || { name: '', image: null };
   
   // Only log session state changes in development and when status changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       console.log("Navigation session state:", { 
         status, 
@@ -24,7 +24,7 @@ export default function Navigation() {
         tenantType: session?.user?.tenantType || 'unknown'
       });
     }
-  }, [status]);
+  }, [status, session, isAuthenticated]);
   
   // Hide navigation on home page when user is not authenticated
   if (pathname === '/' && !isAuthenticated) {

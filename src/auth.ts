@@ -32,30 +32,32 @@ export const {
   },
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === "production" ? `__Secure-next-auth.session-token` : `next-auth.session-token`,
+      name: `next-auth.session-token`, // Same name regardless of environment for consistency
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
-        // Don't set domain - let the browser set it automatically
+        secure: false, // Allow non-HTTPS for development
+        domain: undefined, // Don't set domain to avoid issues
       },
     },
     callbackUrl: {
-      name: process.env.NODE_ENV === "production" ? `__Secure-next-auth.callback-url` : `next-auth.callback-url`,
+      name: `next-auth.callback-url`, // Same name regardless of environment
       options: {
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: false,
+        domain: undefined, // Don't set domain to avoid issues
       },
     },
     csrfToken: {
-      name: process.env.NODE_ENV === "production" ? `__Host-next-auth.csrf-token` : `next-auth.csrf-token`,
+      name: `next-auth.csrf-token`, // Same name regardless of environment
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: false,
+        domain: undefined, // Don't set domain to avoid issues
       },
     },
   },

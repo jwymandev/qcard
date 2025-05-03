@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { cookies } from 'next/headers';
 
 export async function middleware(request: NextRequest) {
   // Get the pathname of the request
@@ -38,20 +39,64 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // Enhanced token retrieval with selective logging
+  // Check if user is authenticated from session cookie directly
   let token = null;
+  let isAuthenticated = false;
+  
   try {
-    token = await getToken({ 
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET || "development-secret",
-      secureCookie: process.env.NODE_ENV === "production",
-    });
-    
-    // Only log on key paths to reduce console spam
+    // Debug cookie details to diagnose the issue
     if (isKeyPath) {
-      console.log(`Token status: ${token ? 'authenticated' : 'unauthenticated'}`);
+      const cookieHeader = request.headers.get('cookie') || 'none';
+      console.log(`Cookie header: ${cookieHeader !== 'none' ? 'present' : 'missing'}`);
+    }
+    
+    // Look for session cookie directly
+    const hasSessionCookie = request.cookies.has('next-auth.session-token');
+    
+    // Try to get token with explicit cookie name
+    const tokenOptions = {
+      req: request,
+      cookieName: 'next-auth.session-token',
+      secret: process.env.NEXTAUTH_SECRET || "development-secret",
+      secureCookie: false,
+    };
+    
+    token = await getToken(tokenOptions);
+    isAuthenticated = !!token;
+    
+    // Debug info
+    if (isKeyPath) {
+      console.log(`Session cookie: ${hasSessionCookie ? 'present' : 'missing'}`);
+      console.log(`Token status: ${isAuthenticated ? 'authenticated' : 'unauthenticated'}`);
+      
       if (token) {
         console.log(`Token details: id=${token.id}, tenant=${token.tenantType || 'undefined'}`);
+      }
+    }
+    
+    // Special handling for protected routes without auth
+    if (!isAuthenticated && !isPublicPath) {
+      // Check if there's an API session but middleware can't see it
+      // This helps us understand if it's a cross-domain cookie issue
+      const apiSessionUrl = new URL('/api/auth/debug-token', request.url); 
+      try {
+        const apiResponse = await fetch(apiSessionUrl.toString(), {
+          headers: { 
+            cookie: request.headers.get('cookie') || '',
+          },
+        });
+        
+        if (apiResponse.ok) {
+          const sessionData = await apiResponse.json();
+          if (sessionData.tokenNoSecure) {
+            // We have a session in the API but not middleware - this is a middleware cookie issue
+            console.log('Session detected in API but not middleware - using fallback authentication');
+            isAuthenticated = true;
+            token = sessionData.tokenNoSecure;
+          }
+        }
+      } catch (apiError) {
+        console.error('Error checking API session:', apiError);
       }
     }
   } catch (error) {
@@ -70,7 +115,7 @@ export async function middleware(request: NextRequest) {
   }
   
   // If trying to access protected routes without auth, redirect to sign-in
-  if (!token && !isPublicPath && (
+  if (!isAuthenticated && !isPublicPath && (
     path.startsWith('/studio/') || 
     path.startsWith('/talent/') ||
     path.startsWith('/opportunities/')
