@@ -9,21 +9,50 @@
 
 const fs = require('fs');
 const path = require('path');
-const dotenv = require('dotenv');
+
+// Parse .env file manually - simple implementation without dotenv
+function parseEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return {};
+  
+  const fileContent = fs.readFileSync(filePath, 'utf8');
+  return fileContent.split('\n').reduce((acc, line) => {
+    // Skip comments and empty lines
+    if (!line || line.startsWith('#')) return acc;
+    
+    // Parse KEY=VALUE format
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+    if (match) {
+      const key = match[1];
+      let value = match[2] || '';
+      
+      // Remove quotes if present
+      if (value.startsWith('"') && value.endsWith('"')) {
+        value = value.slice(1, -1);
+      }
+      
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+}
 
 // Load environment variables
 console.log('Loading environment variables...');
 let envConfig = {};
 try {
   // Try to load .env.production first
-  if (fs.existsSync(path.resolve(process.cwd(), '.env.production'))) {
-    envConfig = dotenv.parse(fs.readFileSync(path.resolve(process.cwd(), '.env.production')));
+  const productionEnvPath = path.resolve(process.cwd(), '.env.production');
+  if (fs.existsSync(productionEnvPath)) {
+    envConfig = parseEnvFile(productionEnvPath);
     console.log('Loaded .env.production');
   }
   // Then load .env as fallback
-  else if (fs.existsSync(path.resolve(process.cwd(), '.env'))) {
-    envConfig = dotenv.parse(fs.readFileSync(path.resolve(process.cwd(), '.env')));
-    console.log('Loaded .env');
+  else {
+    const envPath = path.resolve(process.cwd(), '.env');
+    if (fs.existsSync(envPath)) {
+      envConfig = parseEnvFile(envPath);
+      console.log('Loaded .env');
+    }
   }
 } catch (error) {
   console.error('Error loading environment variables:', error);

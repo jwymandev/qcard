@@ -20,10 +20,19 @@ export async function middleware(request: NextRequest) {
   }
   
   // Check if the user is authenticated for all routes
+  // Add debugging info to help diagnose issues
+  console.log(`Middleware processing path: ${path}`);
+  
   const token = await getToken({ 
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
   });
+  
+  // Debug token without exposing sensitive data
+  console.log(`Token status: ${token ? 'authenticated' : 'unauthenticated'}`);
+  if (token) {
+    console.log(`Token tenant type: ${token.tenantType || 'undefined'}`);
+  }
   
   // Skip middleware for role-redirect page (avoids infinite loops)
   if (path === '/role-redirect') {
