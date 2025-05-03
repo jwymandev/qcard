@@ -30,6 +30,8 @@ STRIPE_WEBHOOK_SECRET=<your-stripe-webhook-secret>
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<your-stripe-publishable-key>
 ```
 
+⚠️ **CRITICAL**: The `NEXTAUTH_URL` environment variable MUST include the `https://` protocol and match your production domain exactly. This is the most common cause of authentication issues in production.
+
 ### Build Command
 
 In your DigitalOcean App Platform settings, set the build command to:
@@ -54,6 +56,24 @@ npm start
 
 ## Troubleshooting
 
+### Authentication Issues
+
+If you're experiencing authentication issues in production:
+
+1. Verify that `NEXTAUTH_URL` matches your production domain exactly (including https://)
+2. Check that `NEXTAUTH_SECRET` is properly set and is a strong secret key
+3. Review browser console for any authentication errors
+4. Make sure cookies are being set correctly (check browser developer tools)
+
+### Navigation Issues (Dashboard/Profile Not Working)
+
+If the Dashboard or Profile links don't work:
+
+1. Check that the user's tenant type is correctly set in the session
+2. Verify that the middleware is correctly handling route redirections
+3. Make sure the proper role-based URLs are being generated for navigation links
+4. Review browser console for any routing errors
+
 ### Database Issues
 
 If you're experiencing database-related errors on deployment:
@@ -63,6 +83,7 @@ If you're experiencing database-related errors on deployment:
    ```
    npx prisma migrate deploy
    ```
+3. Check for any database locks or migration issues
 
 ### Dynamic Route Errors
 
@@ -101,9 +122,12 @@ When deploying for the first time:
 
 ## Deployment Checklist
 
-- [ ] Environment variables configured
+- [ ] Environment variables configured, especially `NEXTAUTH_URL` with https:// prefix
 - [ ] Build command set to `npm install --force && npm run deploy`
 - [ ] Run command set to `npm start`
 - [ ] Database connection string is correct
 - [ ] All dynamic routes properly configured
 - [ ] Initial data seeded
+- [ ] Test authentication flow end-to-end after deployment
+- [ ] Verify Dashboard and Profile links are working correctly
+- [ ] Check that tenant type (STUDIO/TALENT) is correctly detected
