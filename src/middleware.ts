@@ -89,5 +89,6 @@ export const config = {
     '/sign-up',
     '/studio/:path*',
     '/talent/:path*',
+    '/role-redirect',
   ],
 };

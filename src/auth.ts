@@ -97,7 +97,7 @@ export const {
           // Find user with a simple query
           console.log(`Finding user with email: ${email}`);
           const user = await prisma.user.findUnique({
-            where: { email },
+            where: { email: email as string },
             select: {
               id: true,
               email: true,
@@ -124,7 +124,10 @@ export const {
           console.log("User found, checking password...");
           
           // Check password
-          const passwordMatch = await bcrypt.compare(password, user.password);
+          const passwordMatch = await bcrypt.compare(
+            password as string, 
+            user.password as string
+          );
           if (!passwordMatch) {
             console.error("Password does not match for user:", email);
             return null;
