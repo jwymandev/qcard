@@ -28,14 +28,26 @@ export const {
   adapter: PrismaAdapter(prisma) as any,
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
   },
   pages: {
     signIn: "/sign-in",
-    // signUp is not a valid option, remove it
     error: "/auth-error",
   },
   // This is critical for development testing
   secret: process.env.NEXTAUTH_SECRET || "development-secret",
+  debug: process.env.NODE_ENV !== "production",
   trustHost: true,
   providers: [
     CredentialsProvider({

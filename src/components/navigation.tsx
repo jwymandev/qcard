@@ -14,6 +14,14 @@ export default function Navigation() {
   const isAuthenticated = status === 'authenticated';
   const user = session?.user || { name: '', image: null };
   
+  // Add debug logging for session state
+  console.log("Navigation session state:", { 
+    status, 
+    isAuthenticated,
+    hasUser: !!session?.user,
+    tenantType: session?.user?.tenantType || 'unknown'
+  });
+  
   // Hide navigation on home page when user is not authenticated
   if (pathname === '/' && !isAuthenticated) {
     return null;
