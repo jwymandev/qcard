@@ -34,6 +34,8 @@ export const {
     // signUp is not a valid option, remove it
     error: "/auth-error",
   },
+  // This is critical for development testing
+  secret: process.env.NEXTAUTH_SECRET || "development-secret",
   trustHost: true,
   providers: [
     CredentialsProvider({

@@ -24,21 +24,9 @@ export default function SignInPage() {
       setIsLoading(true);
       setError('');
       
-      // First try our debugging endpoint to see if we can diagnose the issue
-      console.log("Checking auth debug...");
-      const debugResponse = await fetch('/api/auth-debug', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-      
-      const debugData = await debugResponse.json();
-      console.log("Auth debug response:", debugData);
-      
-      // Now try to sign in with next-auth
+      // Simplified approach: just use NextAuth directly
       console.log("Attempting sign-in with next-auth...");
+      
       const result = await signIn('credentials', {
         redirect: false,
         email,
@@ -49,39 +37,16 @@ export default function SignInPage() {
       
       if (result?.error) {
         console.error("Authentication error:", result.error);
-        
-        // Try to provide a more specific error message
-        if (result.error.includes("tenant") || result.error.includes("schema")) {
-          // Database schema issue - help the user
-          setError('Authentication server error. Please try refreshing the page or use the development tools to reset your password.');
-        } else if (debugData.emailExists === false) {
-          setError('Email not found. Please check your email or sign up for an account.');
-        } else if (debugData.userHasPassword === false) {
-          setError('This account does not have a password set. Try another sign-in method.');
-        } else {
-          setError('Invalid email or password. Please try again.');
-        }
+        setError('Invalid email or password. Please try again.');
         setIsLoading(false);
         return;
       }
       
-      // After successful login, check session to determine redirect
-      console.log("Sign-in successful, checking session...");
-      const session = await fetch('/api/auth/session');
-      const sessionData = await session.json();
-      console.log("Session data:", sessionData);
-      
-      if (sessionData && sessionData.user) {
-        // Redirect to role-redirect page to determine the correct dashboard
-        console.log("Redirecting to role redirect...");
-        router.push('/role-redirect');
-        router.refresh();
-      } else {
-        // Fallback to role-redirect if session data is unavailable
-        console.log("Session data incomplete, using fallback redirect...");
-        router.push('/role-redirect');
-        router.refresh();
-      }
+      // On success, simply redirect to the role redirect page
+      // No need to check session again here
+      console.log("Sign-in successful, redirecting to role redirect page");
+      router.push('/role-redirect');
+      // Removed router.refresh() to prevent continuous reloads
     } catch (error) {
       console.error("Sign-in error:", error);
       setError('An error occurred during sign in. Please try again.');

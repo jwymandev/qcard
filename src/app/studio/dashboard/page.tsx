@@ -19,31 +19,21 @@ export default function StudioDashboard() {
       
       if (status === 'authenticated' && session?.user?.id) {
         try {
-          // Get user tenant information
-          const response = await fetch(`/api/users/${session.user.id}/tenant`);
-          
-          if (response.ok) {
-            const userData = await response.json();
-            
-            // Ensure this is a studio account
-            if (userData.tenantType !== 'STUDIO') {
-              window.location.href = '/talent/dashboard';
-              return;
-            }
-            
-            // Get studio data
-            const studioResponse = await fetch('/api/studio/profile');
-            if (studioResponse.ok) {
-              setStudioData(await studioResponse.json());
-            }
-            
-            setIsLoading(false);
-          } else {
-            // If API call fails, redirect to general dashboard
-            window.location.href = '/dashboard';
+          // Check tenant type directly from the session
+          if (session?.user?.tenantType !== 'STUDIO') {
+            window.location.href = '/talent/dashboard';
+            return;
           }
+          
+          // Get studio data
+          const studioResponse = await fetch('/api/studio/profile');
+          if (studioResponse.ok) {
+            setStudioData(await studioResponse.json());
+          }
+          
+          setIsLoading(false);
         } catch (error) {
-          console.error("Error checking user role:", error);
+          console.error("Error loading studio dashboard:", error);
           window.location.href = '/dashboard';
         }
       }

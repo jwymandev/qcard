@@ -53,7 +53,9 @@ export default function SignUpPage() {
       setIsLoading(true);
       setError('');
       
-      // Register user
+      console.log("Registering new user...");
+      
+      // Register user with a simplified approach
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
@@ -68,11 +70,12 @@ export default function SignUpPage() {
         }),
       });
       
-      const data = await response.json();
-      
       if (!response.ok) {
+        const data = await response.json();
         throw new Error(data.error || 'Registration failed');
       }
+      
+      console.log("Registration successful, signing in...");
       
       // Sign in the user automatically
       const signInResult = await signIn('credentials', {
@@ -83,14 +86,16 @@ export default function SignUpPage() {
       
       if (signInResult?.error) {
         console.error('Auto sign-in failed:', signInResult.error);
-        // Continue anyway - we'll redirect to sign-in page
+        // Redirect to sign-in page with registered flag
         router.push('/sign-in?registered=true');
         return;
       }
       
-      // Redirect to role-redirect
+      console.log("Sign-in successful, redirecting to role-redirect page");
+      // Redirect to role-redirect for proper dashboard routing
       router.push('/role-redirect');
     } catch (error: any) {
+      console.error("Registration error:", error);
       setError(error.message || 'An error occurred during registration');
       setIsLoading(false);
     }

@@ -22,9 +22,25 @@ const searchDir = 'src';
 console.log('🔍 Scanning for case sensitivity issues in Prisma models...');
 
 // Find files with issues
-const grep1 = execSync(`grep -r "${modelPattern}" ${searchDir}/ --include="*.ts" --include="*.tsx"`, { encoding: 'utf8' }).trim();
-const grep2 = execSync(`grep -r "${includePattern}" ${searchDir}/ --include="*.ts" --include="*.tsx"`, { encoding: 'utf8' }).trim();
-const grep3 = execSync(`grep -r "${propertyPattern}" ${searchDir}/ --include="*.ts" --include="*.tsx"`, { encoding: 'utf8' }).trim();
+let grep1 = '', grep2 = '', grep3 = '';
+
+try {
+  grep1 = execSync(`grep -r "${modelPattern}" ${searchDir}/ --include="*.ts" --include="*.tsx"`, { encoding: 'utf8' }).trim();
+} catch (error) {
+  console.log('No direct model references found.');
+}
+
+try {
+  grep2 = execSync(`grep -r "${includePattern}" ${searchDir}/ --include="*.ts" --include="*.tsx"`, { encoding: 'utf8' }).trim();
+} catch (error) {
+  console.log('No include patterns found.');
+}
+
+try {
+  grep3 = execSync(`grep -r "${propertyPattern}" ${searchDir}/ --include="*.ts" --include="*.tsx"`, { encoding: 'utf8' }).trim();
+} catch (error) {
+  console.log('No property access patterns found.');
+}
 
 // Combine results and filter duplicates
 const allResults = [...grep1.split('\n'), ...grep2.split('\n'), ...grep3.split('\n')]
@@ -50,14 +66,38 @@ for (const [filePath, results] of fileMap.entries()) {
   results.forEach(r => console.log(`  - ${r.split(':').slice(1).join(':').trim()}`));
 }
 
-// Ask if user wants to fix the issues automatically
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
+// In CI/CD environments or when running as part of scripts, 
+// we'll automatically decide based on whether issues were found
+if (allResults.length === 0) {
+  console.log('\n✅ No issues found, nothing to fix!');
+  process.exit(0);
+}
 
-rl.question('\n🛠️ Do you want to attempt to fix these issues automatically? (yes/no): ', (answer) => {
-  if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
+// For interactive mode, ask the user
+// But for automation (e.g. when run from npm scripts), bypass the prompt
+const isNonInteractive = process.env.CI || process.argv.includes('--auto');
+
+if (isNonInteractive || process.argv.includes('--yes')) {
+  console.log('\n🔧 Automatically fixing issues...');
+  processFixing(true);
+} else if (process.argv.includes('--no')) {
+  console.log('\n📝 Skipping fixes as requested.');
+  process.exit(0);
+} else {
+  // Interactive mode
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  rl.question('\n🛠️ Do you want to attempt to fix these issues automatically? (yes/no): ', (answer) => {
+    processFixing(answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y');
+    rl.close();
+  });
+}
+
+function processFixing(shouldFix) {
+  if (shouldFix) {
     console.log('\n🔧 Fixing issues...');
     
     // Create mapping for replacements
@@ -126,6 +166,4 @@ rl.question('\n🛠️ Do you want to attempt to fix these issues automatically?
   } else {
     console.log('\n📝 No changes made. Review the issues manually using the report above.');
   }
-  
-  rl.close();
-});
+}

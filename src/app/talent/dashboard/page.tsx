@@ -34,19 +34,11 @@ export default function TalentDashboard() {
           return;
         }
         
-        // Instead of using tenantType directly, we'll fetch the user's tenant type
-        try {
-          const response = await fetch('/api/debug-user');
-          if (response.ok) {
-            const userData = await response.json();
-            if (userData.tenant?.type !== 'TALENT') {
-              console.log("User is not a talent account, redirecting");
-              router.push('/studio/dashboard');
-              return;
-            }
-          }
-        } catch (error) {
-          console.error("Error checking user type:", error);
+        // Check tenant type directly from the session
+        if (session?.user?.tenantType !== 'TALENT') {
+          console.log("User is not a talent account, redirecting");
+          router.push('/studio/dashboard');
+          return;
         }
         
         console.log("Fetching profile data for talent dashboard");
