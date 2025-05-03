@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 // Validation schema for updating an application
 const updateApplicationSchema = z.object({
@@ -32,10 +33,10 @@ async function canAccessApplication(userId: string, applicationId: string) {
   
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
-    include: { castingCall: true },
+    include: { CastingCall: true },
   });
   
-  return application && application.castingCall.studioId === studio.id;
+  return application && application.CastingCall.studioId === studio.id;
 }
 
 // GET /api/studio/applications/[id] - Get a specific application
@@ -59,22 +60,22 @@ export async function GET(
     const application = await prisma.application.findUnique({
       where: { id },
       include: {
-        profile: {
+        Profile: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,
                 email: true,
               }
             },
-            skills: true,
-            locations: true,
+            Skill: true,
+            Location: true,
           }
         },
-        castingCall: {
+        CastingCall: {
           include: {
-            project: true,
+            Project: true,
           }
         }
       },
@@ -87,7 +88,10 @@ export async function GET(
     return NextResponse.json(application);
   } catch (error) {
     console.error("Error fetching application:", error);
-    return NextResponse.json({ error: "Failed to fetch application" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to fetch application",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -131,10 +135,10 @@ export async function PATCH(
           message: validatedData.message,
         },
         include: {
-          profile: true,
-          castingCall: {
+          Profile: true,
+          CastingCall: {
             include: {
-              project: true,
+              Project: true,
             }
           }
         },
@@ -144,12 +148,12 @@ export async function PATCH(
       if (
         validatedData.status === "APPROVED" && 
         validatedData.addToProject === true && 
-        application.castingCall.projectId
+        application.CastingCall.projectId
       ) {
         // Check if already a project member
         const existingMember = await tx.projectMember.findFirst({
           where: {
-            projectId: application.castingCall.projectId,
+            projectId: application.CastingCall.projectId,
             profileId: application.profileId,
           },
         });
@@ -158,9 +162,11 @@ export async function PATCH(
         if (!existingMember) {
           await tx.projectMember.create({
             data: {
-              projectId: application.castingCall.projectId,
+              id: crypto.randomUUID(),
+              projectId: application.CastingCall.projectId,
               profileId: application.profileId,
-              role: validatedData.projectRole || `Talent for ${application.castingCall.title}`,
+              role: validatedData.projectRole || `Talent for ${application.CastingCall.title}`,
+              updatedAt: new Date()
             },
           });
         }
@@ -172,6 +178,9 @@ export async function PATCH(
     return NextResponse.json(updatedApplication);
   } catch (error) {
     console.error("Error updating application:", error);
-    return NextResponse.json({ error: "Failed to update application" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to update application",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

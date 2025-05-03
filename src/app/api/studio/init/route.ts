@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import crypto from 'crypto';
 
 // POST /api/studio/init - Initialize a studio account for existing users
 export async function POST() {
@@ -43,9 +44,11 @@ export async function POST() {
     
     const studio = await prisma.studio.create({
       data: {
+        id: crypto.randomUUID(),
         name: studioName,
         tenantId: user.Tenant.id,
         description: `Studio for ${studioName}`,
+        updatedAt: new Date()
       },
     });
     
@@ -55,6 +58,9 @@ export async function POST() {
     });
   } catch (error) {
     console.error("Error initializing studio:", error);
-    return NextResponse.json({ error: "Failed to initialize studio" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to initialize studio",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

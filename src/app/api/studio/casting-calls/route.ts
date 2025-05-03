@@ -83,7 +83,10 @@ export async function GET() {
     return NextResponse.json(formattedCastingCalls);
   } catch (error) {
     console.error("Error fetching casting calls:", error);
-    return NextResponse.json({ error: "Failed to fetch casting calls" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to fetch casting calls",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -171,6 +174,9 @@ export async function POST(request: Request) {
     }, { status: 201 });
   } catch (error) {
     console.error("Error creating casting call:", error);
-    return NextResponse.json({ error: "Failed to create casting call" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to create casting call",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

@@ -64,13 +64,13 @@ export async function GET(
     const castingCall = await prisma.castingCall.findUnique({
       where: { id },
       include: {
-        location: true,
-        skillsRequired: true,
-        applications: {
+        Location: true,
+        Skill: true,
+        Application: {
           include: {
-            profile: {
+            Profile: {
               include: {
-                user: {
+                User: {
                   select: {
                     firstName: true,
                     lastName: true,
@@ -81,8 +81,8 @@ export async function GET(
             }
           }
         },
-        project: true,
-        studio: true,
+        Project: true,
+        Studio: true,
       },
     });
     
@@ -93,7 +93,10 @@ export async function GET(
     return NextResponse.json(castingCall);
   } catch (error) {
     console.error("Error fetching casting call:", error);
-    return NextResponse.json({ error: "Failed to fetch casting call" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to fetch casting call",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -137,19 +140,19 @@ export async function PATCH(
       // Get current skills
       const currentCastingCall = await prisma.castingCall.findUnique({
         where: { id },
-        include: { skillsRequired: true },
+        include: { Skill: true },
       });
       
       if (currentCastingCall) {
         // Disconnect all current skills
-        updateData.skillsRequired = {
-          disconnect: currentCastingCall.skillsRequired.map(skill => ({ id: skill.id })),
+        updateData.Skill = {
+          disconnect: currentCastingCall.Skill.map(skill => ({ id: skill.id })),
         };
         
         // Connect new skills
         if (validatedData.skillIds.length > 0) {
-          updateData.skillsRequired = {
-            ...updateData.skillsRequired,
+          updateData.Skill = {
+            ...updateData.Skill,
             connect: validatedData.skillIds.map(id => ({ id })),
           };
         }
@@ -164,17 +167,20 @@ export async function PATCH(
       where: { id },
       data: updateData,
       include: {
-        location: true,
-        skillsRequired: true,
-        applications: true,
-        project: true,
+        Location: true,
+        Skill: true,
+        Application: true,
+        Project: true,
       },
     });
     
     return NextResponse.json(updatedCastingCall);
   } catch (error) {
     console.error("Error updating casting call:", error);
-    return NextResponse.json({ error: "Failed to update casting call" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to update casting call",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -204,6 +210,9 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting casting call:", error);
-    return NextResponse.json({ error: "Failed to delete casting call" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to delete casting call",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

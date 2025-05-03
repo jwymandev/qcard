@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 // Validation schema for sending a message
 const messageSchema = z.object({
@@ -57,33 +58,15 @@ export async function GET(request: Request) {
       // Get sent messages
       messages = await prisma.message.findMany({
         where: {
-          senderId: studio.id,
-          senderType: "STUDIO",
+          studioSenderId: studio.id,
         },
         include: {
-          recipient: {
+          Profile_Message_talentReceiverIdToProfile: {
             include: {
-              user: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                }
-              }
+              User: true
             }
           },
-          relatedToProject: {
-            select: {
-              id: true,
-              title: true,
-            }
-          },
-          relatedToCastingCall: {
-            select: {
-              id: true,
-              title: true,
-            }
-          },
+          Studio_Message_studioSenderIdToStudio: true,
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -91,13 +74,12 @@ export async function GET(request: Request) {
       // Get received messages
       messages = await prisma.message.findMany({
         where: {
-          recipientId: studio.id,
-          recipientType: "STUDIO",
+          studioReceiverId: studio.id,
         },
         include: {
-          sender: {
+          Profile_Message_talentSenderIdToProfile: {
             include: {
-              user: {
+              User: {
                 select: {
                   firstName: true,
                   lastName: true,
@@ -106,18 +88,7 @@ export async function GET(request: Request) {
               }
             }
           },
-          relatedToProject: {
-            select: {
-              id: true,
-              title: true,
-            }
-          },
-          relatedToCastingCall: {
-            select: {
-              id: true,
-              title: true,
-            }
-          },
+          Studio_Message_studioReceiverIdToStudio: true,
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -126,7 +97,10 @@ export async function GET(request: Request) {
     return NextResponse.json(messages);
   } catch (error) {
     console.error("Error fetching messages:", error);
-    return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to fetch messages",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -197,24 +171,23 @@ export async function POST(request: Request) {
       // Create invitation message
       const message = await prisma.message.create({
         data: {
+          id: crypto.randomUUID(),
           subject,
           content,
-          sender: { connect: { id: studio.id } },
-          senderType: "STUDIO",
-          recipient: { connect: { id: talentReceiverId } },
-          recipientType: "PROFILE",
+          studioSenderId: studio.id,
+          talentReceiverId: talentReceiverId,
           isRead: false,
           ...(relatedToProjectId && {
-            relatedToProject: { connect: { id: relatedToProjectId } },
+            relatedToProjectId,
           }),
           ...(relatedToCastingCallId && {
-            relatedToCastingCall: { connect: { id: relatedToCastingCallId } },
+            relatedToCastingCallId,
           }),
         },
         include: {
-          recipient: {
+          Profile_Message_talentReceiverIdToProfile: {
             include: {
-              user: {
+              User: {
                 select: {
                   firstName: true,
                   lastName: true,
@@ -223,18 +196,7 @@ export async function POST(request: Request) {
               }
             }
           },
-          relatedToProject: {
-            select: {
-              id: true,
-              title: true,
-            }
-          },
-          relatedToCastingCall: {
-            select: {
-              id: true,
-              title: true,
-            }
-          },
+          Studio_Message_studioSenderIdToStudio: true,
         },
       });
       
@@ -263,24 +225,23 @@ export async function POST(request: Request) {
       // Create the message
       const message = await prisma.message.create({
         data: {
+          id: crypto.randomUUID(),
           subject,
           content,
-          sender: { connect: { id: studio.id } },
-          senderType: "STUDIO",
-          recipient: { connect: { id: recipientId } },
-          recipientType: "PROFILE",
+          studioSenderId: studio.id,
+          talentReceiverId: recipientId,
           isRead: false,
           ...(relatedToProjectId && {
-            relatedToProject: { connect: { id: relatedToProjectId } },
+            relatedToProjectId,
           }),
           ...(relatedToCastingCallId && {
-            relatedToCastingCall: { connect: { id: relatedToCastingCallId } },
+            relatedToCastingCallId,
           }),
         },
         include: {
-          recipient: {
+          Profile_Message_talentReceiverIdToProfile: {
             include: {
-              user: {
+              User: {
                 select: {
                   firstName: true,
                   lastName: true,
@@ -289,18 +250,7 @@ export async function POST(request: Request) {
               }
             }
           },
-          relatedToProject: {
-            select: {
-              id: true,
-              title: true,
-            }
-          },
-          relatedToCastingCall: {
-            select: {
-              id: true,
-              title: true,
-            }
-          },
+          Studio_Message_studioSenderIdToStudio: true,
         },
       });
     
@@ -308,6 +258,9 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error("Error sending message:", error);
-    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to send message",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

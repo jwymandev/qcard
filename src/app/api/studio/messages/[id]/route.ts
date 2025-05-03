@@ -13,15 +13,15 @@ const messageUpdateSchema = z.object({
 async function canAccessMessage(userId: string, messageId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { tenant: true },
+    include: { Tenant: true },
   });
   
-  if (!user?.tenant || user.tenant.type !== "STUDIO") {
+  if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
     return false;
   }
   
   const studio = await prisma.studio.findFirst({
-    where: { tenantId: user.tenant.id },
+    where: { tenantId: user.Tenant.id },
   });
   
   if (!studio) {
@@ -32,8 +32,8 @@ async function canAccessMessage(userId: string, messageId: string) {
     where: {
       id: messageId,
       OR: [
-        { senderId: studio.id, senderType: "STUDIO" },
-        { recipientId: studio.id, recipientType: "STUDIO" },
+        { studioSenderId: studio.id },
+        { studioReceiverId: studio.id },
       ],
     },
   });
@@ -59,42 +59,26 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const message = await prisma.message.findUnique({
       where: { id },
       include: {
-        sender: {
+        Studio_Message_studioSenderIdToStudio: {
           include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true,
-              }
-            }
+            Tenant: true
           }
         },
-        recipient: {
+        Studio_Message_studioReceiverIdToStudio: {
           include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true,
-              }
-            }
+            Tenant: true
           }
         },
-        relatedToProject: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
+        Profile_Message_talentSenderIdToProfile: {
+          include: {
+            User: true
           }
         },
-        relatedToCastingCall: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
+        Profile_Message_talentReceiverIdToProfile: {
+          include: {
+            User: true
           }
-        },
+        }
       },
     });
     
@@ -102,8 +86,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
     
-    // If this is an incoming message and it's not read, mark as read
-    if (message.recipientType === "STUDIO" && !message.isRead) {
+    // If this is an incoming message to studio and it's not read, mark as read
+    if (message.studioReceiverId && !message.isRead) {
       await prisma.message.update({
         where: { id },
         data: { isRead: true },
@@ -113,7 +97,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return NextResponse.json(message);
   } catch (error) {
     console.error("Error fetching message:", error);
-    return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to fetch message",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -153,7 +140,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return NextResponse.json(updatedMessage);
   } catch (error) {
     console.error("Error updating message:", error);
-    return NextResponse.json({ error: "Failed to update message" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to update message",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -180,6 +170,9 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("Error deleting message:", error);
-    return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to delete message",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

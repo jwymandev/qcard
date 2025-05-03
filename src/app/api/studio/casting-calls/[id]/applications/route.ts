@@ -48,20 +48,20 @@ export async function GET(
     const applications = await prisma.application.findMany({
       where: { castingCallId },
       include: {
-        profile: {
+        Profile: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,
                 email: true,
               }
             },
-            skills: true,
-            locations: true,
+            Skill: true,
+            Location: true,
           }
         },
-        castingCall: {
+        CastingCall: {
           select: {
             title: true,
           }
@@ -73,6 +73,9 @@ export async function GET(
     return NextResponse.json(applications);
   } catch (error) {
     console.error("Error fetching applications:", error);
-    return NextResponse.json({ error: "Failed to fetch applications" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to fetch applications",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
