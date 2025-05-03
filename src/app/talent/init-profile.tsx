@@ -36,7 +36,13 @@ export default function InitProfile({ onSuccess }: { onSuccess?: () => void } = 
       
       // Log detailed response information regardless of success/failure
       console.log("Profile initialization response status:", response.status);
-      console.log("Profile initialization response headers:", Object.fromEntries([...response.headers.entries()]));
+      
+      // Log headers in a way that's compatible with the tsconfig target
+      const headerObj: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        headerObj[key] = value;
+      });
+      console.log("Profile initialization response headers:", headerObj);
       
       const responseText = await response.text();
       console.log("Raw response text:", responseText);
@@ -71,14 +77,17 @@ export default function InitProfile({ onSuccess }: { onSuccess?: () => void } = 
       }
     } catch (error) {
       console.error('Error initializing profile:', error);
-      setError(error.message || 'An error occurred while initializing profile');
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while initializing profile';
+      setError(errorMessage);
       
       // Additional diagnostic information in the console
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+      }
     } finally {
       setLoading(false);
     }

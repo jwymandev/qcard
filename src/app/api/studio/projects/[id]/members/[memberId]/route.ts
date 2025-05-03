@@ -14,15 +14,15 @@ const updateMemberSchema = z.object({
 async function canAccessProjectMember(userId: string, projectId: string, memberId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { tenant: true },
+    include: { Tenant: true },
   });
   
-  if (!user?.tenant || user.tenant.type !== "STUDIO") {
+  if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
     return false;
   }
   
   const studio = await prisma.studio.findFirst({
-    where: { tenantId: user.tenant.id },
+    where: { tenantId: user.Tenant.id },
   });
   
   if (!studio) {
@@ -32,7 +32,7 @@ async function canAccessProjectMember(userId: string, projectId: string, memberI
   const projectMember = await prisma.projectMember.findFirst({
     where: {
       id: memberId,
-      project: {
+      Project: {
         id: projectId,
         studioId: studio.id,
       },
@@ -63,19 +63,19 @@ export async function GET(
     const member = await prisma.projectMember.findUnique({
       where: { id: memberId },
       include: {
-        profile: {
+        Profile: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,
                 email: true,
               }
             },
-            skills: true,
+            Skill: true,
           }
         },
-        project: true,
+        Project: true,
       },
     });
     
@@ -125,9 +125,9 @@ export async function PATCH(
       where: { id: memberId },
       data: validatedData,
       include: {
-        profile: {
+        Profile: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,

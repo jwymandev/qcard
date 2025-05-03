@@ -16,12 +16,8 @@ export default function DashboardRedirect() {
       return;
     }
     
-    // Redirect based on tenant type
-    if (session?.user?.tenantType === 'STUDIO') {
-      router.push('/studio/dashboard');
-    } else {
-      router.push('/talent/dashboard');
-    }
+    // Redirect to role redirect page to determine the appropriate dashboard
+    router.push('/role-redirect');
   }, [status, session, router]);
   
   return (

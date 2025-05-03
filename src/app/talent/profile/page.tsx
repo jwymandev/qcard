@@ -102,7 +102,8 @@ export default function TalentProfilePage() {
       await fetchProfile();
     } catch (error) {
       console.error('Error initializing profile:', error);
-      setError(`Failed to initialize profile: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to initialize profile: ${errorMessage}`);
     }
   };
   
@@ -200,7 +201,7 @@ export default function TalentProfilePage() {
       if (profileData) {
         // Handle languages
         if (typeof profileData.languages === 'string' && profileData.languages) {
-          profileData.languages = profileData.languages.split(',').map(lang => lang.trim());
+          profileData.languages = profileData.languages.split(',').map((lang: string) => lang.trim());
         }
         
         // Ensure arrays exist for skills, locations and images
@@ -230,7 +231,8 @@ export default function TalentProfilePage() {
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
-      setError(`Failed to load profile: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to load profile: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -482,7 +484,7 @@ export default function TalentProfilePage() {
       
       // Fix languages format for display if needed
       if (updatedProfile && typeof updatedProfile.languages === 'string' && updatedProfile.languages) {
-        updatedProfile.languages = updatedProfile.languages.split(',').map(lang => lang.trim());
+        updatedProfile.languages = updatedProfile.languages.split(',').map((lang: string) => lang.trim());
       }
       
       setProfile(updatedProfile);
@@ -497,7 +499,8 @@ export default function TalentProfilePage() {
       }, 5000);
     } catch (error) {
       console.error('Error updating profile:', error);
-      setError(`Failed to update profile: ${error.message || 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to update profile: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -530,7 +533,8 @@ export default function TalentProfilePage() {
       await fetchProfile(); // Fetch the profile again
     } catch (error) {
       console.error('Debug error:', error);
-      alert(`Debug error: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Debug error: ${errorMessage}`);
     }
   };
   

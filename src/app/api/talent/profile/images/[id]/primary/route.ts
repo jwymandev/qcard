@@ -6,10 +6,10 @@ import { auth } from '@/auth';
 async function userOwnsImage(userId: string, imageId: string) {
   const image = await prisma.profileImage.findUnique({
     where: { id: imageId },
-    include: { profile: { include: { user: true } } },
+    include: { Profile: { include: { User: true } } },
   });
   
-  return image?.profile?.user?.id === userId;
+  return image?.Profile?.User?.id === userId;
 }
 
 // PATCH /api/talent/profile/images/[id]/primary - Set an image as primary
@@ -34,7 +34,7 @@ export async function PATCH(
     // Get the image
     const image = await prisma.profileImage.findUnique({
       where: { id },
-      include: { profile: true },
+      include: { Profile: true },
     });
     
     if (!image) {

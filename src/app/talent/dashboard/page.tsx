@@ -9,8 +9,8 @@ export default function TalentDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [profileData, setProfileData] = useState(null);
-  const [error, setError] = useState(null);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     // Skip if still loading or no session available
@@ -34,11 +34,19 @@ export default function TalentDashboard() {
           return;
         }
         
-        // Check if we already know the tenant type from the session
-        if (session.user.tenantType && session.user.tenantType !== 'TALENT') {
-          console.log("User is not a talent account, redirecting");
-          router.push('/studio/dashboard');
-          return;
+        // Instead of using tenantType directly, we'll fetch the user's tenant type
+        try {
+          const response = await fetch('/api/debug-user');
+          if (response.ok) {
+            const userData = await response.json();
+            if (userData.tenant?.type !== 'TALENT') {
+              console.log("User is not a talent account, redirecting");
+              router.push('/studio/dashboard');
+              return;
+            }
+          }
+        } catch (error) {
+          console.error("Error checking user type:", error);
         }
         
         console.log("Fetching profile data for talent dashboard");

@@ -35,7 +35,8 @@ export default function InitStudio() {
       }, 2000);
     } catch (error) {
       console.error('Error initializing studio:', error);
-      setError(error.message || 'An error occurred while initializing studio account');
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while initializing studio account';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -20,16 +20,16 @@ export async function GET(
     const profile = await prisma.profile.findUnique({
       where: { id },
       include: {
-        user: {
+        User: {
           select: {
             firstName: true,
             lastName: true,
             email: true,
           }
         },
-        locations: true,
-        skills: true,
-        images: {
+        Location: true,
+        Skill: true,
+        ProfileImage: {
           orderBy: { isPrimary: 'desc' }, // Primary image first
         },
       },

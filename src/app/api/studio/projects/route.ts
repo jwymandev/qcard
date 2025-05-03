@@ -29,16 +29,16 @@ export async function GET(request: Request) {
     // Find the user and their tenant
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { tenant: true },
+      include: { Tenant: true },
     });
     
-    if (!user?.tenant || user.tenant.type !== "STUDIO") {
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
       return NextResponse.json({ error: "Only studio accounts can access this endpoint" }, { status: 403 });
     }
     
     // Find the studio associated with this tenant
     const studio = await prisma.studio.findFirst({
-      where: { tenantId: user.tenant.id },
+      where: { tenantId: user.Tenant.id },
     });
     
     if (!studio) {
@@ -56,11 +56,11 @@ export async function GET(request: Request) {
     const projects = await prisma.project.findMany({
       where: whereClause,
       include: {
-        projectMember: {
+        ProjectMember: {
           include: {
-            profile: {
+            Profile: {
               include: {
-                user: {
+                User: {
                   select: {
                     firstName: true,
                     lastName: true,
@@ -71,14 +71,14 @@ export async function GET(request: Request) {
             }
           }
         },
-        castingCall: {
+        CastingCall: {
           select: {
             id: true,
             title: true,
             status: true,
             _count: {
               select: {
-                application: true,
+                Application: true,
               }
             }
           }
@@ -90,18 +90,18 @@ export async function GET(request: Request) {
     // Map fields for frontend compatibility
     const mappedProjects = projects.map(project => ({
       ...project,
-      members: project.projectMember?.map(member => ({
+      members: project.ProjectMember?.map(member => ({
         ...member,
         profile: {
-          ...member.profile,
-          user: member.profile?.user
+          ...member.Profile,
+          user: member.Profile?.User
         }
       })),
-      castingCalls: project.castingCall?.map(call => ({
+      castingCalls: project.CastingCall?.map(call => ({
         ...call,
         // Map the count correctly
         _count: {
-          applications: call._count.application
+          applications: call._count.Application
         }
       }))
     }));
@@ -141,24 +141,24 @@ export async function POST(request: Request) {
     // Find the user and their tenant
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { tenant: true },
+      include: { Tenant: true },
     });
     
-    if (!user?.tenant || user.tenant.type !== "STUDIO") {
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
       return NextResponse.json({ error: "Only studio accounts can create projects" }, { status: 403 });
     }
     
     // Find the studio associated with this tenant
     const studio = await prisma.studio.findFirst({
-      where: { tenantId: user.tenant.id },
+      where: { tenantId: user.Tenant.id },
     });
     
     if (!studio) {
       return NextResponse.json({ error: "Studio not found" }, { status: 404 });
     }
     
-    // Prepare the data object
-    const projectData = {
+    // Prepare the data object with proper typing
+    const projectData: any = {
       title: validatedData.title,
       studioId: studio.id,
     };

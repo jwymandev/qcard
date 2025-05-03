@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import crypto from 'crypto';
 
 // This endpoint initializes a profile for a talent user if they don't have one yet
 export async function POST() {
@@ -14,8 +15,7 @@ export async function POST() {
     // Log session info for debugging
     console.log("Initializing profile for user:", {
       userId: session.user.id,
-      email: session.user.email,
-      tenantType: session.user.tenantType
+      email: session.user.email
     });
     
     // Check if user has a profile
@@ -24,13 +24,13 @@ export async function POST() {
     const existingProfile = await prisma.profile.findUnique({
       where: { userId: session.user.id },
       include: {
-        locations: true,
-        skills: true,
+        Location: true,
+        Skill: true,
       }
     });
     
     // If profile exists, get images separately to avoid schema issues
-    let profileImages = [];
+    let profileImages: any[] = [];
     if (existingProfile) {
       try {
         profileImages = await prisma.profileImage.findMany({
@@ -72,12 +72,14 @@ export async function POST() {
       // Create profile without trying to include images in the response
       const newProfile = await prisma.profile.create({
         data: {
+          id: crypto.randomUUID(),
           userId: session.user.id,
           availability: true, // Default to available
+          updatedAt: new Date(),
         },
         include: {
-          locations: true,
-          skills: true,
+          Location: true,
+          Skill: true,
         },
       });
       
@@ -94,7 +96,7 @@ export async function POST() {
       console.error("Database error creating profile:", createError);
       
       // Additional info for error diagnosis
-      if (createError.code === 'P2002') {
+      if (createError instanceof Error && 'code' in createError && createError.code === 'P2002') {
         return NextResponse.json({ 
           error: "Profile already exists but could not be found (unique constraint violation)",
           details: createError.message
@@ -104,12 +106,22 @@ export async function POST() {
       throw createError; // Re-throw to be caught by outer catch
     }
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error initializing profile:", error);
+    let errorMessage = "Unknown error";
+    let errorCode = "unknown";
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      if ('code' in error) {
+        errorCode = (error as any).code || 'unknown';
+      }
+    }
+    
     return NextResponse.json({ 
       error: "Failed to initialize profile",
-      message: error.message,
-      code: error.code || 'unknown'
+      message: errorMessage,
+      code: errorCode
     }, { status: 500 });
   }
 }

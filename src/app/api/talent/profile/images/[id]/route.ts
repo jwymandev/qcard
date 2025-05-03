@@ -8,10 +8,10 @@ import path from 'path';
 async function userOwnsImage(userId: string, imageId: string) {
   const image = await prisma.profileImage.findUnique({
     where: { id: imageId },
-    include: { profile: { include: { user: true } } },
+    include: { Profile: { include: { User: true } } },
   });
   
-  return image?.profile?.user?.id === userId;
+  return image?.Profile?.User?.id === userId;
 }
 
 // DELETE /api/talent/profile/images/[id] - Delete a profile image

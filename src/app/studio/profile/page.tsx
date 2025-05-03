@@ -95,7 +95,8 @@ export default function StudioProfilePage() {
       console.log("Studio profile loaded successfully");
     } catch (error) {
       console.error('Error fetching studio profile:', error);
-      setError(`Failed to load profile: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to load profile: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -116,7 +117,8 @@ export default function StudioProfilePage() {
       await fetchProfile();
     } catch (error) {
       console.error('Error initializing studio profile:', error);
-      setError(`Failed to initialize studio: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to initialize studio: ${errorMessage}`);
     }
   };
   
@@ -132,6 +134,7 @@ export default function StudioProfilePage() {
       setAvailableLocations(data);
     } catch (error) {
       console.error('Error fetching locations:', error);
+      // We don't set an error state here as this is less critical
     }
   };
   
@@ -191,7 +194,8 @@ export default function StudioProfilePage() {
       }, 5000);
     } catch (error) {
       console.error('Error updating studio profile:', error);
-      setError(`Failed to update profile: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to update profile: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

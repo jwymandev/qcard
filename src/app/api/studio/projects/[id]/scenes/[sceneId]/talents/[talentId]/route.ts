@@ -14,15 +14,15 @@ const updateTalentSchema = z.object({
 async function canAccessSceneTalent(userId: string, sceneTalentId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { tenant: true },
+    include: { Tenant: true },
   });
   
-  if (!user?.tenant || user.tenant.type !== "STUDIO") {
+  if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
     return false;
   }
   
   const studio = await prisma.studio.findFirst({
-    where: { tenantId: user.tenant.id },
+    where: { tenantId: user.Tenant.id },
   });
   
   if (!studio) {
@@ -32,8 +32,8 @@ async function canAccessSceneTalent(userId: string, sceneTalentId: string) {
   const sceneTalent = await prisma.sceneTalent.findFirst({
     where: {
       id: sceneTalentId,
-      scene: {
-        project: {
+      Scene: {
+        Project: {
           studioId: studio.id,
         },
       },
@@ -64,25 +64,25 @@ export async function GET(
     const sceneTalent = await prisma.sceneTalent.findUnique({
       where: { id: talentId },
       include: {
-        profile: {
+        Profile: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,
                 email: true,
               }
             },
-            skills: true,
+            Skill: true,
           }
         },
-        scene: {
+        Scene: {
           select: {
             id: true,
             title: true,
             shootDate: true,
-            location: true,
-            project: {
+            Location: true,
+            Project: {
               select: {
                 id: true,
                 title: true,
@@ -139,9 +139,9 @@ export async function PATCH(
       where: { id: talentId },
       data: validatedData,
       include: {
-        profile: {
+        Profile: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,

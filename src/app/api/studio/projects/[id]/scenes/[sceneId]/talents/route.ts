@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 // Validation schema for adding a talent to a scene
 const addTalentSchema = z.object({
@@ -15,15 +16,15 @@ const addTalentSchema = z.object({
 async function canAccessScene(userId: string, sceneId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { tenant: true },
+    include: { Tenant: true },
   });
   
-  if (!user?.tenant || user.tenant.type !== "STUDIO") {
+  if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
     return false;
   }
   
   const studio = await prisma.studio.findFirst({
-    where: { tenantId: user.tenant.id },
+    where: { tenantId: user.Tenant.id },
   });
   
   if (!studio) {
@@ -33,7 +34,7 @@ async function canAccessScene(userId: string, sceneId: string) {
   const scene = await prisma.scene.findFirst({
     where: {
       id: sceneId,
-      project: {
+      Project: {
         studioId: studio.id,
       },
     },
@@ -63,20 +64,20 @@ export async function GET(
     const sceneTalents = await prisma.sceneTalent.findMany({
       where: { sceneId },
       include: {
-        profile: {
+        Profile: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,
                 email: true,
               }
             },
-            images: {
+            ProfileImage: {
               where: { isPrimary: true },
               take: 1,
             },
-            skills: true,
+            Skill: true,
           }
         },
       },
@@ -146,23 +147,25 @@ export async function POST(
     // Add talent to the scene
     const sceneTalent = await prisma.sceneTalent.create({
       data: {
-        scene: { connect: { id: sceneId } },
-        profile: { connect: { id: profileId } },
+        id: crypto.randomUUID(),
+        Scene: { connect: { id: sceneId } },
+        Profile: { connect: { id: profileId } },
         role,
         notes,
         status,
+        updatedAt: new Date(),
       },
       include: {
-        profile: {
+        Profile: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,
                 email: true,
               }
             },
-            images: {
+            ProfileImage: {
               where: { isPrimary: true },
               take: 1,
             },
@@ -183,9 +186,11 @@ export async function POST(
       // Add the talent to the project members if not already a member
       await prisma.projectMember.create({
         data: {
-          project: { connect: { id: projectId } },
-          profile: { connect: { id: profileId } },
+          id: crypto.randomUUID(),
+          Project: { connect: { id: projectId } },
+          Profile: { connect: { id: profileId } },
           role: role || "Cast Member",
+          updatedAt: new Date(),
         },
       });
     }

@@ -23,7 +23,7 @@ export const {
   },
   pages: {
     signIn: "/sign-in",
-    signUp: "/sign-up",
+    // signUp is not a valid option, remove it
     error: "/auth-error",
   },
   providers: [
@@ -41,7 +41,7 @@ export const {
         
         console.log("Authorize attempt with:", { 
           email: credentials.email,
-          passwordLength: credentials.password?.length || 0
+          passwordLength: typeof credentials.password === 'string' ? credentials.password.length : 0
         });
         
         try {

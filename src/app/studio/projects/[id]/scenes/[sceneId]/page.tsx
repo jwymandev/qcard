@@ -234,7 +234,8 @@ export default function SceneDetailPage({
       }
     } catch (error) {
       console.error('Error saving scene:', error);
-      setError(error.message || 'An error occurred while saving the scene');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(errorMessage || 'An error occurred while saving the scene');
     }
   };
   

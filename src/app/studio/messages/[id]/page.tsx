@@ -10,14 +10,18 @@ type Message = {
   subject: string;
   content: string;
   sender?: {
+    id?: string;
     user: {
+      id?: string;
       firstName: string;
       lastName: string;
       email: string;
     }
   };
   recipient?: {
+    id?: string;
     user: {
+      id?: string;
       firstName: string;
       lastName: string;
       email: string;
@@ -107,7 +111,13 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
   
   const replyToMessage = () => {
     if (message?.sender) {
-      router.push(`/studio/messages/new?recipientId=${message.sender.user.id}`);
+      // Use the profile ID of the sender if available (likely the talent profile ID)
+      const recipientId = message.sender.id || message.sender.user.id;
+      if (recipientId) {
+        router.push(`/studio/messages/new?recipientId=${recipientId}`);
+      } else {
+        console.error('Cannot reply: No recipient ID available');
+      }
     }
   };
   
@@ -262,7 +272,7 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
               )}
               {!isSent && (
                 <Link
-                  href={`/studio/messages/new?recipientId=${message.sender?.user.id}`}
+                  href={`/studio/messages/new?recipientId=${message.sender?.id || message.sender?.user.id || ''}`}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   Forward

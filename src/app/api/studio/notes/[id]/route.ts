@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 // Validation schema for studio notes
 const noteSchema = z.object({
@@ -12,15 +13,15 @@ const noteSchema = z.object({
 async function canAccessNote(userId: string, noteId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { tenant: true },
+    include: { Tenant: true },
   });
   
-  if (!user?.tenant || user.tenant.type !== "STUDIO") {
+  if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
     return false;
   }
   
   const studio = await prisma.studio.findFirst({
-    where: { tenantId: user.tenant.id },
+    where: { tenantId: user.Tenant.id },
   });
   
   if (!studio) {
@@ -51,15 +52,15 @@ export async function GET(
   try {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { tenant: true },
+      include: { Tenant: true },
     });
     
-    if (!user?.tenant || user.tenant.type !== "STUDIO") {
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
       return NextResponse.json({ error: "Only studio users can access notes" }, { status: 403 });
     }
     
     const studio = await prisma.studio.findFirst({
-      where: { tenantId: user.tenant.id },
+      where: { tenantId: user.Tenant.id },
     });
     
     if (!studio) {
@@ -97,15 +98,15 @@ export async function POST(
   try {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { tenant: true },
+      include: { Tenant: true },
     });
     
-    if (!user?.tenant || user.tenant.type !== "STUDIO") {
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
       return NextResponse.json({ error: "Only studio users can create notes" }, { status: 403 });
     }
     
     const studio = await prisma.studio.findFirst({
-      where: { tenantId: user.tenant.id },
+      where: { tenantId: user.Tenant.id },
     });
     
     if (!studio) {
@@ -138,9 +139,11 @@ export async function POST(
     // Create the note
     const note = await prisma.studioNote.create({
       data: {
+        id: crypto.randomUUID(),
         content,
-        studio: { connect: { id: studio.id } },
-        profile: { connect: { id: profileId } },
+        Studio: { connect: { id: studio.id } },
+        Profile: { connect: { id: profileId } },
+        updatedAt: new Date(),
       },
     });
     

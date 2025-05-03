@@ -75,14 +75,9 @@ export default function SignInPage() {
       console.log("Session data:", sessionData);
       
       if (sessionData && sessionData.user) {
-        // Redirect based on tenant type
-        if (sessionData.user.tenantType === 'STUDIO') {
-          console.log("Redirecting to studio dashboard...");
-          router.push('/studio/dashboard');
-        } else {
-          console.log("Redirecting to talent dashboard...");
-          router.push('/talent/dashboard');
-        }
+        // Redirect to role-redirect page to determine the correct dashboard
+        console.log("Redirecting to role redirect...");
+        router.push('/role-redirect');
         router.refresh();
       } else {
         // Fallback to role-redirect if session data is unavailable
@@ -116,7 +111,8 @@ export default function SignInPage() {
       const data = await response.json();
       setDevMessage(data.message || data.error || "Password reset completed");
     } catch (error) {
-      setDevMessage("Error: " + error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setDevMessage("Error: " + errorMessage);
     }
   };
   
@@ -144,7 +140,8 @@ export default function SignInPage() {
       const data = await response.json();
       setDevMessage(data.message || data.error || "User creation completed");
     } catch (error) {
-      setDevMessage("Error: " + error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setDevMessage("Error: " + errorMessage);
     }
   };
   

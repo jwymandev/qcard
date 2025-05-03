@@ -30,11 +30,11 @@ export async function GET() {
     
     // List all fields directly from the profile to verify what's in the DB
     const profileFields = Object.keys(profile);
-    const fieldsWithTypes = {};
+    const fieldsWithTypes: Record<string, string> = {};
     
     // Create a map of fields and their types
     profileFields.forEach(field => {
-      fieldsWithTypes[field] = typeof profile[field];
+      fieldsWithTypes[field] = typeof (profile as any)[field];
     });
     
     return NextResponse.json({

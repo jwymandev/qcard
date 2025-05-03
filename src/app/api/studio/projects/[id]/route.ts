@@ -16,15 +16,15 @@ const projectUpdateSchema = z.object({
 async function canAccessProject(userId: string, projectId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { tenant: true },
+    include: { Tenant: true },
   });
   
-  if (!user?.tenant || user.tenant.type !== "STUDIO") {
+  if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
     return false;
   }
   
   const studio = await prisma.studio.findFirst({
-    where: { tenantId: user.tenant.id },
+    where: { tenantId: user.Tenant.id },
   });
   
   if (!studio) {
@@ -59,29 +59,29 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
-        projectMember: {
+        ProjectMember: {
           include: {
-            profile: {
+            Profile: {
               include: {
-                user: {
+                User: {
                   select: {
                     firstName: true,
                     lastName: true,
                     email: true,
                   }
                 },
-                skill: true,
+                Skill: true,
               }
             }
           }
         },
-        castingCall: {
+        CastingCall: {
           include: {
-            application: {
+            Application: {
               include: {
-                profile: {
+                Profile: {
                   include: {
-                    user: {
+                    User: {
                       select: {
                         firstName: true,
                         lastName: true,
@@ -94,7 +94,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
             }
           }
         },
-        studio: true,
+        Studio: true,
       },
     });
     
@@ -105,25 +105,25 @@ export async function GET(request: Request, { params }: { params: { id: string }
     // Map fields for frontend compatibility
     return NextResponse.json({
       ...project,
-      members: project.projectMember?.map(member => ({
+      members: project.ProjectMember?.map(member => ({
         ...member,
         profile: {
-          ...member.profile,
-          user: member.profile?.user,
-          skills: member.profile?.skill
+          ...member.Profile,
+          user: member.Profile?.User,
+          skills: member.Profile?.Skill
         }
       })),
-      castingCalls: project.castingCall?.map(call => ({
+      castingCalls: project.CastingCall?.map(call => ({
         ...call,
-        applications: call.application?.map(app => ({
+        applications: call.Application?.map(app => ({
           ...app,
           profile: {
-            ...app.profile,
-            user: app.profile?.user
+            ...app.Profile,
+            user: app.Profile?.User
           }
         }))
       })),
-      studio: project.studio
+      studio: project.Studio
     });
   } catch (error) {
     console.error("Error fetching project:", error);

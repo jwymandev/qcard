@@ -18,15 +18,15 @@ const sceneUpdateSchema = z.object({
 async function canAccessScene(userId: string, sceneId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { tenant: true },
+    include: { Tenant: true },
   });
   
-  if (!user?.tenant || user.tenant.type !== "STUDIO") {
+  if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
     return false;
   }
   
   const studio = await prisma.studio.findFirst({
-    where: { tenantId: user.tenant.id },
+    where: { tenantId: user.Tenant.id },
   });
   
   if (!studio) {
@@ -36,7 +36,7 @@ async function canAccessScene(userId: string, sceneId: string) {
   const scene = await prisma.scene.findFirst({
     where: {
       id: sceneId,
-      project: {
+      Project: {
         studioId: studio.id,
       },
     },
@@ -66,31 +66,31 @@ export async function GET(
     const scene = await prisma.scene.findUnique({
       where: { id: sceneId },
       include: {
-        project: {
+        Project: {
           select: {
             id: true,
             title: true,
           }
         },
-        location: true,
-        talents: {
+        Location: true,
+        SceneTalent: {
           include: {
-            profile: {
+            Profile: {
               include: {
-                user: {
+                User: {
                   select: {
                     firstName: true,
                     lastName: true,
                     email: true,
                   }
                 },
-                images: {
+                ProfileImage: {
                   where: {
                     isPrimary: true
                   },
                   take: 1
                 },
-                skills: true,
+                Skill: true,
               }
             }
           }
@@ -162,7 +162,7 @@ export async function PATCH(
         ...(validatedData.status && { status: validatedData.status }),
       },
       include: {
-        location: true,
+        Location: true,
       },
     });
     

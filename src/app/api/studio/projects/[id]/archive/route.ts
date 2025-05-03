@@ -97,10 +97,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       project: updatedProject
     });
   } catch (error) {
-    console.error(`Error ${body?.archive ? 'archiving' : 'unarchiving'} project:`, error);
+    console.error("Error archiving/unarchiving project:", error);
     return NextResponse.json({ 
-      error: `Failed to ${body?.archive ? 'archive' : 'unarchive'} project`,
-      details: error.message
+      error: "Failed to update project archive status",
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
   }
 }

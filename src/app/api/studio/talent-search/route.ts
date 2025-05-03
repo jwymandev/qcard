@@ -6,8 +6,18 @@ import { auth } from '@/auth';
 export async function GET(request: Request) {
   const session = await auth();
   
-  if (!session?.user?.id || session.user.tenantType !== 'STUDIO') {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  // Check if the user belongs to a studio tenant
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { Tenant: true },
+  });
+  
+  if (!user?.Tenant || user.Tenant.type !== 'STUDIO') {
+    return NextResponse.json({ error: "Only studio accounts can access this endpoint" }, { status: 403 });
   }
   
   try {

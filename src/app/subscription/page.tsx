@@ -32,7 +32,7 @@ export default function SubscriptionPage() {
   
   // Mock subscription data
   const hasActiveSubscription = false;
-  const currentLocations = [];
+  const currentLocations: { id: string; name: string; }[] = [];
   
   return (
     <div className="max-w-4xl mx-auto p-6">

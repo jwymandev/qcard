@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   // Handle the event
   switch (event.type) {
     case 'checkout.session.completed':
-      const session = event.data.object as Stripe.Checkout.Session;
+      const session = event.data.object as any;
       
       if (session.metadata?.userId) {
         await prisma.payment.update({
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       break;
       
     case 'invoice.paid':
-      const invoice = event.data.object as Stripe.Invoice;
+      const invoice = event.data.object as any;
       
       if (invoice.customer) {
         // Handle studio subscription payment

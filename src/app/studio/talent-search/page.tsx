@@ -103,7 +103,7 @@ export default function TalentSearchPage() {
         console.log('Raw talent data:', data);
         
         // Make sure profiles exist and handle each talent to ensure it has required fields
-        const safeProfiles = (data.profiles || []).map(profile => ({
+        const safeProfiles = (data.profiles || []).map((profile: any) => ({
           id: profile.id || '',
           userId: profile.userId || '',
           name: profile.name || '',

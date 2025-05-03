@@ -73,7 +73,7 @@ export async function POST(request: Request) {
         await writeFile(path.join(uploadsDir, fileName), buffer);
         
         // Determine if this should be the primary image
-        const isPrimary = profileImages.length === 0 && uploadedImages.length === 0;
+        const isPrimary: boolean = profileImages.length === 0 && uploadedImages.length === 0;
         
         // Generate a unique ID for the image
         const imageId = uuidv4();
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
         console.log(`Creating database record for image ${imageId}`);
         
         // Create image record in database
-        const imageRecord = await prisma.profileImage.create({
+        const imageRecord: any = await prisma.profileImage.create({
           data: {
             id: imageId,
             profileId: profile.id,

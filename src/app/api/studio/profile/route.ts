@@ -128,16 +128,19 @@ export async function PATCH(request: Request) {
     });
     
     // Return the updated studio profile
-    return NextResponse.json({
-      ...updatedStudio,
-      locations: updatedStudio.Location,
-    });
+    if (updatedStudio) {
+      return NextResponse.json({
+        ...updatedStudio,
+        locations: updatedStudio.Location,
+      });
+    } else {
+      return NextResponse.json({ error: "Failed to retrieve updated studio" }, { status: 500 });
+    }
   } catch (error) {
     console.error("Error updating studio profile:", error);
     return NextResponse.json({ 
       error: "Failed to update studio profile",
-      message: error.message,
-      code: error.code || 'unknown'
+      details: error instanceof Error ? error.message : String(error),
     }, { status: 500 });
   }
 }

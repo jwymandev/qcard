@@ -16,12 +16,8 @@ export default function ProfileRedirect() {
       return;
     }
     
-    // Redirect based on tenant type
-    if (session?.user?.tenantType === 'STUDIO') {
-      router.push('/studio/profile');
-    } else {
-      router.push('/talent/profile');
-    }
+    // Redirect to role redirect page to determine the appropriate profile
+    router.push('/role-redirect?destination=profile');
   }, [status, session, router]);
   
   return (

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 // Validation schema for adding a member to a project
 const addMemberSchema = z.object({
@@ -14,15 +15,15 @@ const addMemberSchema = z.object({
 async function canAccessProject(userId: string, projectId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { tenant: true },
+    include: { Tenant: true },
   });
   
-  if (!user?.tenant || user.tenant.type !== "STUDIO") {
+  if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
     return false;
   }
   
   const studio = await prisma.studio.findFirst({
-    where: { tenantId: user.tenant.id },
+    where: { tenantId: user.Tenant.id },
   });
   
   if (!studio) {
@@ -57,16 +58,16 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const members = await prisma.projectMember.findMany({
       where: { projectId: id },
       include: {
-        profile: {
+        Profile: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,
                 email: true,
               }
             },
-            skills: true,
+            Skill: true,
           }
         }
       },
@@ -133,15 +134,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
     // Add member to project
     const member = await prisma.projectMember.create({
       data: {
-        project: { connect: { id: projectId } },
-        profile: { connect: { id: profileId } },
+        id: crypto.randomUUID(),
+        Project: { connect: { id: projectId } },
+        Profile: { connect: { id: profileId } },
         role,
         notes,
+        updatedAt: new Date(),
       },
       include: {
-        profile: {
+        Profile: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,

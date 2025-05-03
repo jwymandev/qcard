@@ -48,7 +48,8 @@ export default function ProjectArchiveButton({
       }
     } catch (error) {
       console.error('Error toggling project archive status:', error);
-      setError(error.message || 'An error occurred');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(errorMessage || 'An error occurred');
     } finally {
       setLoading(false);
     }

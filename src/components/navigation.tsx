@@ -12,7 +12,7 @@ export default function Navigation() {
   const { data: session, status } = useSession();
   
   const isAuthenticated = status === 'authenticated';
-  const user = session?.user || { name: '', avatar: null };
+  const user = session?.user || { name: '', image: null };
   
   // Hide navigation on home page when user is not authenticated
   if (pathname === '/' && !isAuthenticated) {
@@ -100,10 +100,10 @@ export default function Navigation() {
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                     <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                      {user.avatar ? (
+                      {user.image ? (
                         <img
                           className="h-8 w-8 rounded-full"
-                          src={user.avatar as string}
+                          src={user.image}
                           alt=""
                         />
                       ) : (
@@ -277,10 +277,10 @@ export default function Navigation() {
                 <div className="flex items-center px-4">
                   <div className="flex-shrink-0">
                     <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                      {user.avatar ? (
+                      {user.image ? (
                         <img
                           className="h-10 w-10 rounded-full"
-                          src={user.avatar as string}
+                          src={user.image}
                           alt=""
                         />
                       ) : (

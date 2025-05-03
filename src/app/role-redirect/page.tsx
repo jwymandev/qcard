@@ -23,36 +23,20 @@ export default function RoleRedirect() {
       }
       
       try {
-        // Check if we already have tenant type in the session
-        if (session.user?.tenantType) {
-          if (session.user.tenantType === 'STUDIO') {
-            console.log("User is studio, redirecting to studio dashboard");
-            router.push('/studio/dashboard');
-          } else {
-            console.log("User is talent, redirecting to talent dashboard");
-            router.push('/talent/dashboard');
-          }
-          return;
-        }
+        // Call debug endpoint to check the user's tenant type
+        const response = await fetch('/api/debug-user');
+        const userData = await response.json();
         
-        // Fallback: Try to get tenant info from API
-        console.log("No tenant type in session, trying API");
-        try {
-          // Simplified API call - avoid direct DB access in components
-          const response = await fetch('/api/auth/session');
-          const freshSession = await response.json();
-          
-          if (freshSession?.user?.tenantType === 'STUDIO') {
-            router.push('/studio/dashboard');
-          } else {
-            // Default to talent if we can't determine
-            router.push('/talent/dashboard');
-          }
-        } catch (apiError) {
-          console.error("API error:", apiError);
-          // Default to talent dashboard if API fails
+        console.log("Debug user data:", userData);
+        
+        if (userData.tenant?.type === 'STUDIO') {
+          console.log("User is studio, redirecting to studio dashboard");
+          router.push('/studio/dashboard');
+        } else {
+          console.log("User is talent, redirecting to talent dashboard");
           router.push('/talent/dashboard');
         }
+        return;
       } catch (error) {
         console.error("Redirect error:", error);
         setError("An error occurred during redirection. Please try signing in again.");

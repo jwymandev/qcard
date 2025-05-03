@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 // Validation schema for updating a profile
 // Adjusted to match the actual database schema
@@ -64,8 +65,8 @@ export async function GET() {
     const profile = await prisma.profile.findUnique({
       where: { userId: user.id },
       include: {
-        skill: true,
-        location: true
+        Skill: true,
+        Location: true
       }
     });
     
@@ -73,13 +74,13 @@ export async function GET() {
       console.log("Found profile with relations:", {
         id: profile.id,
         fields: Object.keys(profile),
-        skillCount: profile.skill?.length || 0,
-        locationCount: profile.location?.length || 0
+        skillCount: profile.Skill?.length || 0,
+        locationCount: profile.Location?.length || 0
       });
     }
     
     // Get profile images separately
-    let profileImages = [];
+    let profileImages: any[] = [];
     
     if (profile) {
       // Fetch images
@@ -109,8 +110,8 @@ export async function GET() {
     // Construct a complete profile response with properly mapped relation fields
     const completeProfile = {
       ...profile,
-      skills: profile.skill || [],
-      locations: profile.location || [],
+      skills: profile.Skill || [],
+      locations: profile.Location || [],
       images: profileImages
     };
     
@@ -176,16 +177,19 @@ export async function PATCH(request: Request) {
       try {
         profile = await prisma.profile.create({
           data: {
+            id: crypto.randomUUID(),
             userId: session.user.id,
             availability: true, // Default to available
+            updatedAt: new Date(),
           },
         });
         console.log("Created new profile during update for user", session.user.id);
-      } catch (createError) {
+      } catch (error) {
+        const createError = error as any;
         console.error("Failed to create profile during update:", createError);
         
         // Handle unique constraint violations
-        if (createError.code === 'P2002') {
+        if (createError && createError.code === 'P2002') {
           return NextResponse.json({ 
             error: "Profile already exists but could not be found (unique constraint violation)",
             details: createError.message
@@ -237,7 +241,7 @@ export async function PATCH(request: Request) {
     // Try a minimal update first with just one field to see if it works
     try {
       console.log("Attempting minimal update with just bio field");
-      const minimalProfileData = { bio: profileData.bio || null };
+      const minimalProfileData: any = { bio: profileData.bio || null };
       
       // Update profile without including any relations
       const updatedProfile = await prisma.profile.update({
@@ -252,7 +256,7 @@ export async function PATCH(request: Request) {
           console.log("Updating age field");
           await prisma.profile.update({
             where: { id: profile.id },
-            data: { age: profileData.age },
+            data: { age: typeof profileData.age === 'number' ? profileData.age : null },
           });
         } catch (error) {
           console.error("Failed to update age field:", error);
@@ -265,7 +269,7 @@ export async function PATCH(request: Request) {
           console.log("Updating availability field");
           await prisma.profile.update({
             where: { id: profile.id },
-            data: { availability: profileData.availability },
+            data: { availability: profileData.availability } as any,
           });
         } catch (error) {
           console.error("Failed to update availability field:", error);
@@ -279,7 +283,7 @@ export async function PATCH(request: Request) {
             console.log(`Updating ${field} field`);
             await prisma.profile.update({
               where: { id: profile.id },
-              data: { [field]: profileData[field] },
+              data: { [field]: profileData[field] } as any,
             });
           } catch (error) {
             console.error(`Failed to update ${field} field:`, error);
@@ -293,7 +297,7 @@ export async function PATCH(request: Request) {
           console.log("Updating experience field");
           await prisma.profile.update({
             where: { id: profile.id },
-            data: { experience: profileData.experience },
+            data: { experience: profileData.experience } as any,
           });
         } catch (error) {
           console.error("Failed to update experience field:", error);
@@ -306,7 +310,7 @@ export async function PATCH(request: Request) {
           console.log("Updating languages field");
           await prisma.profile.update({
             where: { id: profile.id },
-            data: { languages },
+            data: { languages } as any,
           });
         } catch (error) {
           console.error("Failed to update languages field:", error);
@@ -320,10 +324,10 @@ export async function PATCH(request: Request) {
           await prisma.profile.update({
             where: { id: profile.id },
             data: {
-              skill: {
+              Skill: {
                 set: skillIds.map(id => ({ id })),
               },
-            },
+            } as any,
           });
         } catch (error) {
           console.error("Failed to update skills relation:", error);
@@ -336,10 +340,10 @@ export async function PATCH(request: Request) {
           await prisma.profile.update({
             where: { id: profile.id },
             data: {
-              location: {
+              Location: {
                 set: locationIds.map(id => ({ id })),
               },
-            },
+            } as any,
           });
         } catch (error) {
           console.error("Failed to update locations relation:", error);
@@ -350,36 +354,47 @@ export async function PATCH(request: Request) {
       const fullProfile = await prisma.profile.findUnique({
         where: { id: profile.id },
         include: {
-          location: true,
-          skill: true,
+          Location: true,
+          Skill: true,
         },
       });
       
       // Fetch images separately
-      let profileImages = [];
+      let profileImages: any[] = [];
       try {
-        profileImages = await prisma.profileImage.findMany({
-          where: { profileId: fullProfile.id },
-          orderBy: { isPrimary: 'desc' } // Primary image first
-        });
+        if (fullProfile && fullProfile.id) {
+          profileImages = await prisma.profileImage.findMany({
+            where: { profileId: fullProfile.id },
+            orderBy: { isPrimary: 'desc' } // Primary image first
+          });
+        }
       } catch (imgErr) {
         console.error("Error fetching profile images after update:", imgErr);
       }
       
       console.log("Profile updated successfully for user", session.user.id);
       
+      // Check if profile exists after updates
+      if (!fullProfile) {
+        return NextResponse.json({ 
+          error: "Could not find updated profile",
+          userId: session.user.id
+        }, { status: 404 });
+      }
+      
       // Map Prisma's relation fields for frontend compatibility
       return NextResponse.json({
         ...fullProfile,
         images: profileImages,
-        skills: fullProfile.skill || [],
-        locations: fullProfile.location || []
+        skills: fullProfile.Skill || [],
+        locations: fullProfile.Location || []
       });
-    } catch (updateError) {
+    } catch (error) {
+      const updateError = error as any;
       console.error("Error during profile update operation:", updateError);
       
       // Handle foreign key constraint failures (likely invalid skill or location IDs)
-      if (updateError.code === 'P2003') {
+      if (updateError && updateError.code === 'P2003') {
         return NextResponse.json({ 
           error: "Invalid reference: one or more skills or locations do not exist",
           details: updateError.message
