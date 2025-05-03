@@ -35,10 +35,6 @@ export const {
     error: "/auth-error",
   },
   trustHost: true,
-  // Ensure URL has protocol for all environments
-  ...(process.env.NEXTAUTH_URL && { 
-    basePath: ensureAbsoluteUrl(process.env.NEXTAUTH_URL)
-  }),
   providers: [
     CredentialsProvider({
       name: "Credentials",
