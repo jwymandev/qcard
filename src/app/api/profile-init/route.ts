@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import crypto from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 // This endpoint initializes a profile for a user if they don't have one yet
 export async function POST() {
   const session = await auth();

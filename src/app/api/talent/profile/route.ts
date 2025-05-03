@@ -4,6 +4,8 @@ import { auth } from '@/auth';
 import { z } from 'zod';
 import crypto from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 // Validation schema for updating a profile
 // Adjusted to match the actual database schema
 const profileUpdateSchema = z.object({
@@ -15,7 +17,8 @@ const profileUpdateSchema = z.object({
   // Field 'gender' might be causing issues - we'll still accept it but handle it specially
   gender: z.string().optional().nullable(),
   ethnicity: z.string().optional().nullable(),
-  age: z.number().int().min(0).max(120).optional().nullable(),
+  // age field has been removed from the schema
+  // age: z.number().int().min(0).max(120).optional().nullable(),
   // Languages is actually stored as a string in the database according to the schema
   languages: z.union([
     z.array(z.string()),
@@ -208,7 +211,7 @@ export async function PATCH(request: Request) {
     // Added back 'ethnicity' and 'gender' since they exist in the Profile schema
     const safeFields = [
       'bio', 'height', 'weight', 'hairColor', 'eyeColor', 
-      'age', 'experience', 'availability', 'headshotUrl',
+      'experience', 'availability', 'headshotUrl',
       'gender', 'ethnicity'
     ];
     
@@ -250,18 +253,18 @@ export async function PATCH(request: Request) {
       });
       
       // If bio update works, try to update other fields one by one
-      // Age field
-      if (profileData.age !== undefined) {
-        try {
-          console.log("Updating age field");
-          await prisma.profile.update({
-            where: { id: profile.id },
-            data: { age: typeof profileData.age === 'number' ? profileData.age : null },
-          });
-        } catch (error) {
-          console.error("Failed to update age field:", error);
-        }
-      }
+      // Age field has been removed from the schema
+      // if (profileData.age !== undefined) {
+      //   try {
+      //     console.log("Updating age field");
+      //     await prisma.profile.update({
+      //       where: { id: profile.id },
+      //       data: { age: typeof profileData.age === 'number' ? profileData.age : null },
+      //     });
+      //   } catch (error) {
+      //     console.error("Failed to update age field:", error);
+      //   }
+      // }
       
       // Availability field
       if (profileData.availability !== undefined) {

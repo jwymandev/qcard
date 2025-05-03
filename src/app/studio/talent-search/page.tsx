@@ -109,7 +109,7 @@ export default function TalentSearchPage() {
           name: profile.name || '',
           email: profile.email || '',
           bio: profile.bio || '',
-          age: profile.age || null,
+          // age field has been removed from schema
           gender: profile.gender || null,
           availability: profile.availability !== undefined ? profile.availability : true,
           skills: Array.isArray(profile.skills) ? profile.skills : [],

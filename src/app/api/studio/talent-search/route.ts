@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/studio/talent/search - Search for talent based on query parameters
 export async function GET(request: Request) {
   const session = await auth();
@@ -26,8 +28,9 @@ export async function GET(request: Request) {
     const query = searchParams.get('query') || '';
     const locationId = searchParams.get('locationId');
     const skillId = searchParams.get('skillId');
-    const minAge = searchParams.get('minAge') ? parseInt(searchParams.get('minAge')!) : undefined;
-    const maxAge = searchParams.get('maxAge') ? parseInt(searchParams.get('maxAge')!) : undefined;
+    // Age field has been removed from the schema
+    // const minAge = searchParams.get('minAge') ? parseInt(searchParams.get('minAge')!) : undefined;
+    // const maxAge = searchParams.get('maxAge') ? parseInt(searchParams.get('maxAge')!) : undefined;
     const gender = searchParams.get('gender');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -72,19 +75,20 @@ export async function GET(request: Request) {
       };
     }
     
-    if (minAge !== undefined) {
-      whereClause.age = {
-        ...whereClause.age,
-        gte: minAge,
-      };
-    }
+    // Age field has been removed from the schema
+    // if (minAge !== undefined) {
+    //   whereClause.age = {
+    //     ...whereClause.age,
+    //     gte: minAge,
+    //   };
+    // }
     
-    if (maxAge !== undefined) {
-      whereClause.age = {
-        ...whereClause.age,
-        lte: maxAge,
-      };
-    }
+    // if (maxAge !== undefined) {
+    //   whereClause.age = {
+    //     ...whereClause.age,
+    //     lte: maxAge,
+    //   };
+    // }
     
     if (gender) {
       whereClause.gender = gender;
@@ -128,7 +132,6 @@ export async function GET(request: Request) {
       name: `${profile.User.firstName || ''} ${profile.User.lastName || ''}`.trim(),
       email: profile.User.email,
       bio: profile.bio,
-      age: profile.age,
       gender: profile.gender,
       availability: profile.availability,
       skills: profile.Skill,

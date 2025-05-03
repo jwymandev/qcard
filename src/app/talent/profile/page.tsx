@@ -36,7 +36,7 @@ type Profile = {
   eyeColor: string | null;
   gender: string | null;
   ethnicity: string | null;
-  age: number | null;
+  // age field has been removed from schema
   // Languages can be either a string (from DB) or array (converted for UI)
   languages: string | string[] | null;
   experience: string | null;
@@ -74,7 +74,7 @@ export default function TalentProfilePage() {
     eyeColor: '',
     gender: '',
     ethnicity: '',
-    age: '',
+    // age field has been removed from schema
     languages: '',
     experience: '',
     availability: true,
@@ -134,7 +134,7 @@ export default function TalentProfilePage() {
         eyeColor: profile.eyeColor || '',
         gender: profile.gender || '',
         ethnicity: profile.ethnicity || '',
-        age: profile.age ? profile.age.toString() : '',
+        // age field has been removed from schema
         languages: profile.languages ? (typeof profile.languages === 'string' ? profile.languages : profile.languages.join(', ')) : '',
         experience: profile.experience || '',
         availability: profile.availability,
@@ -445,7 +445,7 @@ export default function TalentProfilePage() {
       // Prepare profile data, handling the languages field specially
       const profileData = {
         ...formData,
-        age: formData.age ? parseInt(formData.age) : null,
+        // age field has been removed from schema
         // Store languages as a string to match the database schema
         languages: formData.languages || null,
       };
@@ -726,20 +726,7 @@ export default function TalentProfilePage() {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Age
-                    </label>
-                    <input
-                      type="number"
-                      name="age"
-                      value={formData.age}
-                      onChange={handleChange}
-                      min="0"
-                      max="120"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+                  {/* Age field has been removed from schema */}
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1108,12 +1095,7 @@ export default function TalentProfilePage() {
                 </div>
                 
                 <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
-                  {profile.age && (
-                    <div>
-                      <span className="text-gray-500 text-sm">Age:</span>
-                      <span className="ml-2">{profile.age}</span>
-                    </div>
-                  )}
+                  {/* Age field has been removed from schema */}
                   {profile.gender && (
                     <div>
                       <span className="text-gray-500 text-sm">Gender:</span>

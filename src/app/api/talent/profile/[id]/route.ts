@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/talent/profile/[id] - Get a specific talent profile by ID
 export async function GET(
   request: Request,

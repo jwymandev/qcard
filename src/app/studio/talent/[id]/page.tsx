@@ -41,7 +41,7 @@ type Profile = {
   eyeColor: string | null;
   gender: string | null;
   ethnicity: string | null;
-  age: number | null;
+  // age field has been removed from schema
   languages: string[] | null;
   experience: string | null;
   availability: boolean;
@@ -303,12 +303,7 @@ export default function TalentProfilePage({ params }: { params: { id: string } }
                 </div>
                 
                 <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
-                  {profile.age && (
-                    <div>
-                      <span className="text-gray-500 text-sm">Age:</span>
-                      <span className="ml-2">{profile.age}</span>
-                    </div>
-                  )}
+                  {/* Age field has been removed from schema */}
                   {profile.gender && (
                     <div>
                       <span className="text-gray-500 text-sm">Gender:</span>
