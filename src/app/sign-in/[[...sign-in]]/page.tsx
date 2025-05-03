@@ -10,9 +10,6 @@ export default function SignInPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showDevTools, setShowDevTools] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [devMessage, setDevMessage] = useState('');
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,110 +89,10 @@ export default function SignInPage() {
     }
   };
 
-  // Development helper functions
-  const resetPassword = async () => {
-    if (!email || !newPassword) {
-      setDevMessage("Email and new password are required");
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/dev-reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, newPassword }),
-      });
-      
-      const data = await response.json();
-      setDevMessage(data.message || data.error || "Password reset completed");
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setDevMessage("Error: " + errorMessage);
-    }
-  };
-  
-  const createTestUser = async () => {
-    if (!email || !password) {
-      setDevMessage("Email and password are required");
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/dev-create-test-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email, 
-          password,
-          firstName: "Test",
-          lastName: "User",
-          tenantType: "TALENT"
-        }),
-      });
-      
-      const data = await response.json();
-      setDevMessage(data.message || data.error || "User creation completed");
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setDevMessage("Error: " + errorMessage);
-    }
-  };
   
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Development mode tools */}
-        <div className="text-center">
-          <button 
-            className="text-xs text-gray-400 hover:text-gray-600"
-            onClick={() => setShowDevTools(!showDevTools)}
-          >
-            {showDevTools ? 'Hide Development Tools' : 'Show Development Tools'}
-          </button>
-          
-          {showDevTools && (
-            <div className="mt-4 p-4 border border-yellow-300 bg-yellow-50 rounded">
-              <h3 className="font-bold text-yellow-700">Development Tools</h3>
-              <p className="text-xs text-yellow-600 mb-2">These tools are for development only</p>
-              
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-xs">New Password</label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-2 py-1 text-xs border rounded"
-                    placeholder="Enter new password"
-                  />
-                </div>
-                
-                <div className="flex space-x-2">
-                  <button
-                    onClick={resetPassword}
-                    className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
-                  >
-                    Reset Password
-                  </button>
-                  <button
-                    onClick={createTestUser}
-                    className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                  >
-                    Create Test User
-                  </button>
-                </div>
-                
-                {devMessage && (
-                  <p className="text-xs p-1 bg-gray-100 rounded">{devMessage}</p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
       
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
