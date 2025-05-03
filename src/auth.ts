@@ -5,6 +5,14 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 
+// Make sure URLs always have protocol
+function ensureAbsoluteUrl(url: string): string {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  return `https://${url}`;
+}
+
 // Define validation schema for credentials - but make it more lenient with error messages
 const credentialsSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -26,6 +34,11 @@ export const {
     // signUp is not a valid option, remove it
     error: "/auth-error",
   },
+  trustHost: true,
+  // Ensure URL has protocol for all environments
+  ...(process.env.NEXTAUTH_URL && { 
+    basePath: ensureAbsoluteUrl(process.env.NEXTAUTH_URL)
+  }),
   providers: [
     CredentialsProvider({
       name: "Credentials",

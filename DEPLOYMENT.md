@@ -15,13 +15,13 @@ Ensure the following environment variables are set in your DigitalOcean App sett
 
 ```
 # App
-NEXT_PUBLIC_APP_URL=<your-app-url>
+NEXT_PUBLIC_APP_URL=https://<your-app-url>
 
 # Database - use your DigitalOcean database connection string
 DATABASE_URL=<connection-string>
 
-# NextAuth.js
-NEXTAUTH_URL=<your-app-url>
+# NextAuth.js - IMPORTANT: Include https:// prefix!
+NEXTAUTH_URL=https://<your-app-url>
 NEXTAUTH_SECRET=<your-secret-key>
 
 # Stripe

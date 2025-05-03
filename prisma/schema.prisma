@@ -116,7 +116,6 @@ model Profile {
   availability                              Boolean         @default(true)
   createdAt                                 DateTime        @default(now())
   updatedAt                                 DateTime
-  age                                       Int?
   ethnicity                                 String?
   experience                                String?
   gender                                    String?
