@@ -124,7 +124,7 @@ export const {
           
           if (userData?.tenantId) {
             // Then fetch the tenant separately
-            const tenantData = await prisma.Tenant.findUnique({
+            const tenantData = await prisma.tenant.findUnique({
               where: { id: userData.tenantId },
               select: { type: true }
             });

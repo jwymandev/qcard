@@ -16,15 +16,15 @@ const projectUpdateSchema = z.object({
 async function canAccessProject(userId: string, projectId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { Tenant: true },
+    include: { tenant: true },
   });
   
-  if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
+  if (!user?.tenant || user.tenant.type !== "STUDIO") {
     return false;
   }
   
   const studio = await prisma.studio.findFirst({
-    where: { tenantId: user.Tenant.id },
+    where: { tenantId: user.tenant.id },
   });
   
   if (!studio) {
@@ -59,29 +59,29 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
-        ProjectMember: {
+        projectMember: {
           include: {
-            Profile: {
+            profile: {
               include: {
-                User: {
+                user: {
                   select: {
                     firstName: true,
                     lastName: true,
                     email: true,
                   }
                 },
-                Skill: true,
+                skill: true,
               }
             }
           }
         },
-        CastingCall: {
+        castingCall: {
           include: {
-            Application: {
+            application: {
               include: {
-                Profile: {
+                profile: {
                   include: {
-                    User: {
+                    user: {
                       select: {
                         firstName: true,
                         lastName: true,
@@ -94,7 +94,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
             }
           }
         },
-        Studio: true,
+        studio: true,
       },
     });
     
@@ -102,32 +102,35 @@ export async function GET(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
     
-    // Map capitalized fields to lowercase for frontend compatibility
+    // Map fields for frontend compatibility
     return NextResponse.json({
       ...project,
-      members: project.ProjectMember?.map(member => ({
+      members: project.projectMember?.map(member => ({
         ...member,
         profile: {
-          ...member.Profile,
-          user: member.Profile?.User,
-          skills: member.Profile?.Skill
+          ...member.profile,
+          user: member.profile?.user,
+          skills: member.profile?.skill
         }
       })),
-      castingCalls: project.CastingCall?.map(call => ({
+      castingCalls: project.castingCall?.map(call => ({
         ...call,
-        applications: call.Application?.map(app => ({
+        applications: call.application?.map(app => ({
           ...app,
           profile: {
-            ...app.Profile,
-            user: app.Profile?.User
+            ...app.profile,
+            user: app.profile?.user
           }
         }))
       })),
-      studio: project.Studio
+      studio: project.studio
     });
   } catch (error) {
     console.error("Error fetching project:", error);
-    return NextResponse.json({ error: "Failed to fetch project" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to fetch project",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -167,7 +170,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return NextResponse.json(updatedProject);
   } catch (error) {
     console.error("Error updating project:", error);
-    return NextResponse.json({ error: "Failed to update project" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to update project",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -194,6 +200,9 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("Error deleting project:", error);
-    return NextResponse.json({ error: "Failed to delete project" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to delete project",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

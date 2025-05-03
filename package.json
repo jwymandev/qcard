@@ -16,7 +16,9 @@
     "predev": "npm run setup-uploads",
     "typecheck": "tsc --noEmit",
     "validate": "npm run lint && npm run typecheck && npm run build",
-    "find-case-issues": "grep -r \"prisma\\.\\([A-Z]\\)\" src/ --include=\"*.ts\" --include=\"*.tsx\""
+    "find-case-issues": "grep -r \"prisma\\.\\([A-Z]\\)\" src/ --include=\"*.ts\" --include=\"*.tsx\"",
+    "fix-schema": "node fix-schema.mjs",
+    "prevalidate": "npm run fix-schema"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.0",

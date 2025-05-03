@@ -64,8 +64,8 @@ export async function GET() {
     const profile = await prisma.profile.findUnique({
       where: { userId: user.id },
       include: {
-        Skill: true,
-        Location: true
+        skill: true,
+        location: true
       }
     });
     
@@ -73,8 +73,8 @@ export async function GET() {
       console.log("Found profile with relations:", {
         id: profile.id,
         fields: Object.keys(profile),
-        skillCount: profile.Skill?.length || 0,
-        locationCount: profile.Location?.length || 0
+        skillCount: profile.skill?.length || 0,
+        locationCount: profile.location?.length || 0
       });
     }
     
@@ -109,8 +109,8 @@ export async function GET() {
     // Construct a complete profile response with properly mapped relation fields
     const completeProfile = {
       ...profile,
-      skills: profile.Skill || [],
-      locations: profile.Location || [],
+      skills: profile.skill || [],
+      locations: profile.location || [],
       images: profileImages
     };
     
@@ -122,8 +122,8 @@ export async function GET() {
     // Enhanced error details
     return NextResponse.json({ 
       error: "Failed to fetch profile",
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      message: error instanceof Error ? error.message : String(error),
+      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined,
       userId: session.user.id
     }, { status: 500 });
   }
@@ -320,7 +320,7 @@ export async function PATCH(request: Request) {
           await prisma.profile.update({
             where: { id: profile.id },
             data: {
-              Skill: {
+              skill: {
                 set: skillIds.map(id => ({ id })),
               },
             },
@@ -336,7 +336,7 @@ export async function PATCH(request: Request) {
           await prisma.profile.update({
             where: { id: profile.id },
             data: {
-              Location: {
+              location: {
                 set: locationIds.map(id => ({ id })),
               },
             },
@@ -350,8 +350,8 @@ export async function PATCH(request: Request) {
       const fullProfile = await prisma.profile.findUnique({
         where: { id: profile.id },
         include: {
-          Location: true,
-          Skill: true,
+          location: true,
+          skill: true,
         },
       });
       
@@ -368,12 +368,12 @@ export async function PATCH(request: Request) {
       
       console.log("Profile updated successfully for user", session.user.id);
       
-      // Map Prisma's capitalized relation fields to lowercase for frontend compatibility
+      // Map Prisma's relation fields for frontend compatibility
       return NextResponse.json({
         ...fullProfile,
         images: profileImages,
-        skills: fullProfile.Skill || [],
-        locations: fullProfile.Location || []
+        skills: fullProfile.skill || [],
+        locations: fullProfile.location || []
       });
     } catch (updateError) {
       console.error("Error during profile update operation:", updateError);
@@ -392,8 +392,8 @@ export async function PATCH(request: Request) {
     console.error("Error updating profile:", error);
     return NextResponse.json({ 
       error: "Failed to update profile",
-      message: error.message,
-      code: error.code || 'unknown',
+      message: error instanceof Error ? error.message : String(error),
+      code: error instanceof Error && 'code' in error ? error.code : 'unknown',
       userId: session.user.id
     }, { status: 500 });
   }

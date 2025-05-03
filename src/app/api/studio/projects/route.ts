@@ -29,16 +29,16 @@ export async function GET(request: Request) {
     // Find the user and their tenant
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { Tenant: true },
+      include: { tenant: true },
     });
     
-    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
+    if (!user?.tenant || user.tenant.type !== "STUDIO") {
       return NextResponse.json({ error: "Only studio accounts can access this endpoint" }, { status: 403 });
     }
     
     // Find the studio associated with this tenant
     const studio = await prisma.studio.findFirst({
-      where: { tenantId: user.Tenant.id },
+      where: { tenantId: user.tenant.id },
     });
     
     if (!studio) {
@@ -56,11 +56,11 @@ export async function GET(request: Request) {
     const projects = await prisma.project.findMany({
       where: whereClause,
       include: {
-        ProjectMember: {
+        projectMember: {
           include: {
-            Profile: {
+            profile: {
               include: {
-                User: {
+                user: {
                   select: {
                     firstName: true,
                     lastName: true,
@@ -71,14 +71,14 @@ export async function GET(request: Request) {
             }
           }
         },
-        CastingCall: {
+        castingCall: {
           select: {
             id: true,
             title: true,
             status: true,
             _count: {
               select: {
-                Application: true,
+                application: true,
               }
             }
           }
@@ -87,21 +87,21 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
     
-    // Map capitalized fields to lowercase for frontend compatibility
+    // Map fields for frontend compatibility
     const mappedProjects = projects.map(project => ({
       ...project,
-      members: project.ProjectMember?.map(member => ({
+      members: project.projectMember?.map(member => ({
         ...member,
         profile: {
-          ...member.Profile,
-          user: member.Profile?.User
+          ...member.profile,
+          user: member.profile?.user
         }
       })),
-      castingCalls: project.CastingCall?.map(call => ({
+      castingCalls: project.castingCall?.map(call => ({
         ...call,
         // Map the count correctly
         _count: {
-          applications: call._count.Application
+          applications: call._count.application
         }
       }))
     }));
@@ -109,7 +109,10 @@ export async function GET(request: Request) {
     return NextResponse.json(mappedProjects);
   } catch (error) {
     console.error("Error fetching projects:", error);
-    return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to fetch projects",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -138,16 +141,16 @@ export async function POST(request: Request) {
     // Find the user and their tenant
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { Tenant: true },
+      include: { tenant: true },
     });
     
-    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
+    if (!user?.tenant || user.tenant.type !== "STUDIO") {
       return NextResponse.json({ error: "Only studio accounts can create projects" }, { status: 403 });
     }
     
     // Find the studio associated with this tenant
     const studio = await prisma.studio.findFirst({
-      where: { tenantId: user.Tenant.id },
+      where: { tenantId: user.tenant.id },
     });
     
     if (!studio) {
@@ -207,6 +210,9 @@ export async function POST(request: Request) {
     return NextResponse.json(project, { status: 201 });
   } catch (error) {
     console.error("Error creating project:", error);
-    return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to create project",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

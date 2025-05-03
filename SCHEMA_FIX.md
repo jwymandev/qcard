@@ -1,70 +1,94 @@
-# Schema Mismatch Fix Guide
+# Schema Case Sensitivity Fixes Guide
 
-This guide helps resolve the schema mismatch issues in your application. The main issue is that some fields defined in the Prisma schema are missing from the actual database.
+This document outlines the common issues found in the codebase related to Prisma schema case sensitivity and error handling, and provides guidance on how to fix them.
 
-## Quick Fix
+## Common Issues
 
-Run the provided script to automatically fix the schema:
+1. **Prisma Model Case Sensitivity**:
+   - In Prisma queries, model names should be lowercase (`prisma.user` not `prisma.User`)
+   - For relation fields in `include` statements, use lowercase (`user`, `tenant`, etc.)
+   - This affects most API routes in the project
 
-```bash
-node fix-schema.mjs
+2. **Unsafe Error Handling**:
+   - Many catch blocks access error properties without checking the error type
+   - This can lead to runtime errors if the error isn't an Error object
+
+## How to Fix
+
+### Prisma Model Case Sensitivity
+
+Change all Prisma model references to use lowercase:
+
+```typescript
+// INCORRECT
+const user = await prisma.user.findUnique({
+  where: { id: userId },
+  include: { Tenant: true, Profile: true }
+});
+
+// CORRECT
+const user = await prisma.user.findUnique({
+  where: { id: userId },
+  include: { tenant: true, profile: true }
+});
 ```
 
-This script will:
-1. Create a backup of your current database
-2. Add missing columns to the database tables
-3. Regenerate the Prisma client
+Also fix references to relation properties:
 
-After running this script, restart your application for the changes to take effect.
+```typescript
+// INCORRECT
+const members = project.ProjectMember?.map(member => ({
+  profile: member.Profile,
+  user: member.Profile?.User
+}));
 
-## Manual Fix
+// CORRECT
+const members = project.projectMember?.map(member => ({
+  profile: member.profile,
+  user: member.profile?.user
+}));
+```
 
-If the automatic script doesn't work, you can fix the issues manually:
+### Safe Error Handling
 
-1. **Backup your database**:
-   ```bash
-   cp prisma/dev.db prisma/dev.db.backup
-   ```
+Use this pattern for all catch blocks:
 
-2. **Add missing columns using SQLite**:
-   ```bash
-   sqlite3 prisma/dev.db
-   ```
+```typescript
+try {
+  // Code that might throw
+} catch (error) {
+  console.error("Operation failed:", error);
+  return NextResponse.json({ 
+    error: "Failed to perform operation",
+    details: error instanceof Error ? error.message : String(error),
+    stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined,
+  }, { status: 500 });
+}
+```
 
-   Then in the SQLite prompt:
-   ```sql
-   -- Add gender column if it doesn't exist
-   ALTER TABLE Profile ADD COLUMN gender TEXT;
-   
-   -- Add ethnicity column if it doesn't exist
-   ALTER TABLE Profile ADD COLUMN ethnicity TEXT;
-   
-   -- Exit SQLite
-   .exit
-   ```
+## Common Model Names to Fix
 
-3. **Regenerate the Prisma client**:
-   ```bash
-   npx prisma generate
-   ```
+Here are the model names that need to be changed from uppercase to lowercase:
 
-4. **Restart your application**:
-   ```bash
-   npm run dev
-   ```
+1. `User` → `user`
+2. `Tenant` → `tenant`
+3. `Profile` → `profile`
+4. `Skill` → `skill`
+5. `Location` → `location`
+6. `Project` → `project`
+7. `ProjectMember` → `projectMember`
+8. `CastingCall` → `castingCall`
+9. `Application` → `application`
+10. `Studio` → `studio`
+11. `ProfileImage` → `profileImage`
+12. `Payment` → `payment`
 
-## Troubleshooting
+## How to Test
 
-If you encounter issues after applying these changes:
+After fixing these issues:
 
-1. Restore the database from backup:
-   ```bash
-   cp prisma/dev.db.backup prisma/dev.db
-   ```
+1. Run `npm run typecheck` to verify TypeScript is happy
+2. Run `npm run validate` to validate the entire project
+3. Run `npm run find-case-issues` to find any remaining case issues
 
-2. Try using Prisma Migrate to properly update your schema:
-   ```bash
-   npx prisma migrate dev --name fix_profile_schema
-   ```
-
-3. If all else fails, contact support or file an issue on the repository.
+These fixes should allow the application to deploy successfully to DigitalOcean.

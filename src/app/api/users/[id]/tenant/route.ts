@@ -29,7 +29,7 @@ export async function GET(
     // Get tenant separately
     let tenantType = 'TALENT'; // Default to talent
     if (user?.tenantId) {
-      const tenant = await prisma.Tenant.findUnique({
+      const tenant = await prisma.tenant.findUnique({
         where: { id: user.tenantId },
         select: { type: true }
       });
@@ -55,7 +55,10 @@ export async function GET(
   } catch (error) {
     console.error("Error fetching user tenant info:", error);
     return NextResponse.json(
-      { error: "Failed to fetch user information" },
+      { 
+        error: "Failed to fetch user information",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

@@ -53,8 +53,8 @@ export async function GET() {
     console.error("Error testing profile schema:", error);
     return NextResponse.json({ 
       error: "Failed to test profile schema",
-      details: error.toString(),
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      details: error instanceof Error ? error.message : String(error),
+      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined,
     }, { status: 500 });
   }
 }

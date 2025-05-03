@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { z } from "zod";
+import crypto from "crypto";
 
 // Validation schema for registration
 const registerSchema = z.object({
@@ -43,21 +44,25 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Create tenant first
-    const tenant = await prisma.Tenant.create({
+    const tenant = await prisma.tenant.create({
       data: {
+        id: crypto.randomUUID(),
         name: `${firstName} ${lastName}`,
         type: userType,
+        updatedAt: new Date()
       },
     });
     
     // Create user with reference to tenant
     const user = await prisma.user.create({
       data: {
+        id: crypto.randomUUID(),
         email,
         password: hashedPassword,
         firstName,
         lastName,
         tenantId: tenant.id,
+        updatedAt: new Date()
       },
     });
     
@@ -65,7 +70,10 @@ export async function POST(req: Request) {
     if (userType === "TALENT") {
       await prisma.profile.create({
         data: {
+          id: crypto.randomUUID(),
           userId: user.id,
+          availability: true, // Default to available
+          updatedAt: new Date()
         },
       });
     }
@@ -82,7 +90,10 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json(
-      { error: "An error occurred during registration" },
+      { 
+        error: "An error occurred during registration",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
