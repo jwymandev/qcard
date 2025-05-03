@@ -181,14 +181,7 @@ export default function TalentProfilePage() {
         // Handle other error statuses
         if (response.status === 500) {
           console.error("Server error with profile:", errorData);
-          // Request debug info to help troubleshoot
-          try {
-            const debugResponse = await fetch('/api/debug-user');
-            const debugData = await debugResponse.json();
-            console.log("Debug user data during error:", debugData);
-          } catch (debugError) {
-            console.error("Could not fetch debug data:", debugError);
-          }
+          // Log error but don't make additional API calls that could cause more errors
         }
         
         throw new Error(errorData?.error || `Failed to fetch profile: ${response.status}`);
@@ -509,24 +502,30 @@ export default function TalentProfilePage() {
   // Add a function to manually initialize the profile - debug only
   const debugProfile = async () => {
     try {
-      // First get debug info
-      const debugResponse = await fetch('/api/debug-user');
-      const debugData = await debugResponse.json();
-      console.log("Debug user info:", debugData);
+      // Skip debug info to prevent unnecessary API calls
+      console.log("Initializing profile directly without debug calls");
       
-      // Then try to initialize the profile
+      // Try to initialize the profile
       const response = await fetch('/api/talent-init', {
         method: 'POST',
       });
       
-      if (!response.ok) {
-        const data = await response.json();
-        console.error("Init error:", data);
-        throw new Error(data.error || 'Failed to initialize profile');
+      // Get text first to avoid double-parsing
+      const responseText = await response.text();
+      let data;
+      
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse response:", e);
       }
       
-      const initData = await response.json();
-      console.log("Init result:", initData);
+      if (!response.ok) {
+        console.error("Init error:", data || responseText);
+        throw new Error((data && data.error) || 'Failed to initialize profile');
+      }
+      
+      console.log("Init result:", data || responseText);
       
       // Refresh the data without reloading the page
       setSuccessMessage("Profile initialized successfully!");

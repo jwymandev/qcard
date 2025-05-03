@@ -11,30 +11,38 @@ export default function RoleRedirect() {
   // Create a persistent ref to track if we've already redirected
   const redirected = useRef(false);
   
-  // Simple redirect based on session.user.tenantType
+  // Improved redirect based on session.user.tenantType with stronger loop prevention
   useEffect(() => {
     // Skip if loading or if we've already redirected
     if (status === 'loading' || redirected.current) return;
     
+    // Mark as redirected immediately to prevent loops
+    redirected.current = true;
+    
     if (status === 'unauthenticated' || !session) {
       console.log("Not authenticated, redirecting to sign-in");
-      redirected.current = true;
       router.push('/sign-in');
       return;
     }
     
     console.log("Session user:", session?.user);
     
-    // Mark as redirected to prevent additional redirects
-    redirected.current = true;
+    // Cache redirect decision to localStorage to help prevent loops
+    try {
+      localStorage.setItem('lastRedirect', Date.now().toString());
+    } catch (e) {
+      // Ignore localStorage errors
+    }
     
     // Direct redirect based on session data
     if (session?.user?.tenantType === 'STUDIO') {
       console.log("User is studio, redirecting to studio dashboard");
-      router.push('/studio/dashboard');
+      // Use replace instead of push to prevent browser history accumulation
+      router.replace('/studio/dashboard');
     } else {
       console.log("User is talent, redirecting to talent dashboard");
-      router.push('/talent/dashboard');
+      // Use replace instead of push to prevent browser history accumulation
+      router.replace('/talent/dashboard');
     }
   }, [status, session, router]);
   

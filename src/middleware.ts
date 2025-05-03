@@ -6,48 +6,53 @@ export async function middleware(request: NextRequest) {
   // Get the pathname of the request
   const path = request.nextUrl.pathname;
   
-  // Debug for every request
-  console.log(`Middleware processing path: ${path}`);
+  // Skip middleware for static resources and API routes to prevent reloading
+  if (
+    path.startsWith('/api/') || 
+    path.includes('_next') || 
+    path.includes('favicon.ico') ||
+    path.includes('.') // Skip files with extensions (images, js, css)
+  ) {
+    return NextResponse.next();
+  }
+  
+  // Reduce logging in development to only key paths
+  const isKeyPath = path === '/sign-in' || 
+                    path === '/sign-up' || 
+                    path === '/dashboard' ||
+                    path === '/role-redirect' ||
+                    path.startsWith('/studio/') || 
+                    path.startsWith('/talent/');
+  
+  if (isKeyPath) {
+    console.log(`Middleware processing path: ${path}`);
+  }
   
   // Public paths that don't require authentication
   const isPublicPath = path === '/sign-in' || 
                        path === '/sign-up' || 
-                       path === '/' ||
-                       path.startsWith('/api/') ||
-                       path.includes('_next') ||
-                       path.includes('favicon.ico');
-                       
-  // Skip middleware for all API routes to prevent constant reloading
-  if (path.startsWith('/api/')) {
-    return NextResponse.next();
-  }
+                       path === '/';
   
   // Skip middleware for role-redirect page (avoids infinite loops)
   if (path === '/role-redirect') {
     return NextResponse.next();
   }
   
-  // Enhanced token retrieval with more logging
+  // Enhanced token retrieval with selective logging
   let token = null;
   try {
-    // Log cookies for debugging (without exposing values)
-    const cookieHeader = request.headers.get('cookie') || 'none';
-    console.log(`Cookie header present: ${cookieHeader !== 'none' ? 'yes' : 'no'}`);
-    
     token = await getToken({ 
       req: request,
       secret: process.env.NEXTAUTH_SECRET || "development-secret",
       secureCookie: process.env.NODE_ENV === "production",
     });
     
-    // Debug token without exposing sensitive data
-    console.log(`Token status: ${token ? 'authenticated' : 'unauthenticated'}`);
-    if (token) {
-      console.log(`Token details: id=${token.id}, role=${token.role}, tenant=${token.tenantType || 'undefined'}`);
-    } else {
-      // Check for cookie-related issues
-      console.log(`Auth cookie check: ${request.cookies.has('next-auth.session-token') ? 'present' : 'missing'}`);
-      console.log(`Secure cookie check: ${request.cookies.has('__Secure-next-auth.session-token') ? 'present' : 'missing'}`);
+    // Only log on key paths to reduce console spam
+    if (isKeyPath) {
+      console.log(`Token status: ${token ? 'authenticated' : 'unauthenticated'}`);
+      if (token) {
+        console.log(`Token details: id=${token.id}, tenant=${token.tenantType || 'undefined'}`);
+      }
     }
   } catch (error) {
     console.error('Error retrieving token:', error);
@@ -65,7 +70,7 @@ export async function middleware(request: NextRequest) {
   }
   
   // If trying to access protected routes without auth, redirect to sign-in
-  if (!token && (
+  if (!token && !isPublicPath && (
     path.startsWith('/studio/') || 
     path.startsWith('/talent/') ||
     path.startsWith('/opportunities/')

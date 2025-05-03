@@ -14,18 +14,9 @@ export default function InitProfile({ onSuccess }: { onSuccess?: () => void } = 
     setError(null);
     
     try {
-      // First get debug info to help diagnose issues
-      console.log("Attempting to fetch debug user info before initialization");
-      try {
-        const debugResponse = await fetch('/api/debug-user');
-        if (debugResponse.ok) {
-          const debugData = await debugResponse.json();
-          console.log("Debug user info before initialization:", debugData);
-        } else {
-          console.error("Failed to fetch debug info:", await debugResponse.text());
-        }
-      } catch (debugError) {
-        console.error("Error fetching debug info:", debugError);
+      // Skip debug calls in production/deployment environments
+      if (process.env.NODE_ENV === 'development') {
+        console.log("Development environment - skipping debug API calls");
       }
       
       // Now attempt to initialize the profile
@@ -71,7 +62,7 @@ export default function InitProfile({ onSuccess }: { onSuccess?: () => void } = 
       } else {
         // Otherwise, use router to navigate back to profile page after 2 seconds
         setTimeout(() => {
-          router.refresh(); // Refresh data without full reload
+          // Avoid router.refresh() which can cause unnecessary reloads
           router.push('/talent/profile'); // Navigate properly
         }, 2000);
       }
