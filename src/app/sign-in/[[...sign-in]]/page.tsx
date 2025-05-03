@@ -27,48 +27,25 @@ export default function SignInPage() {
       // Simplified approach: just use NextAuth directly
       console.log("Attempting sign-in with next-auth...");
       
-      // Wrap this in a try/catch to better handle any errors
+      // Simplest possible approach - direct signin with redirect
       try {
-        // First check if we can connect to our auth debug endpoint
-        try {
-          const debugResponse = await fetch('/api/auth/debug-session');
-          if (debugResponse.ok) {
-            const debugInfo = await debugResponse.json();
-            console.log("Auth debug info pre-login:", debugInfo);
-          }
-        } catch (debugError) {
-          console.warn("Could not fetch auth debug info:", debugError);
-        }
+        console.log(`Signing in user: ${email}`);
         
+        // Use signIn with redirect=true for the most reliable approach
+        // This uses the built-in NextAuth.js redirect handling
         const result = await signIn('credentials', {
-          redirect: false,
           email,
           password,
+          redirect: true,
           callbackUrl: '/role-redirect'
         });
         
+        // Note: with redirect=true, the code below won't execute unless there's an error
         console.log("Sign-in result:", result);
         
-        if (result?.error) {
-          console.error("Authentication error:", result.error);
-          setError('Invalid email or password. Please try again.');
-          setIsLoading(false);
-          return;
-        }
-        
-        // Check session status after login
-        try {
-          const sessionResponse = await fetch('/api/auth/session');
-          const sessionData = await sessionResponse.json();
-          console.log("Post-login session data:", sessionData);
-        } catch (sessionError) {
-          console.warn("Could not fetch session data:", sessionError);
-        }
-        
-        // On success, redirect to role redirect page
-        console.log("Sign-in successful, redirecting to role redirect page");
-        // Include redirect=false to avoid CSRF issues
-        router.push('/role-redirect');
+        // If we reach here, there was likely an error but result.error wasn't set
+        setError('Sign-in failed. Please try again.');
+        setIsLoading(false);
       } catch (signInError) {
         console.error("Sign-in process error:", signInError);
         setError('An error occurred during sign-in. Please try again.');

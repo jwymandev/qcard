@@ -32,7 +32,25 @@ export const {
   },
   cookies: {
     sessionToken: {
-      name: `next-auth.session-token`,
+      name: process.env.NODE_ENV === "production" ? `__Secure-next-auth.session-token` : `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        // Don't set domain - let the browser set it automatically
+      },
+    },
+    callbackUrl: {
+      name: process.env.NODE_ENV === "production" ? `__Secure-next-auth.callback-url` : `next-auth.callback-url`,
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    csrfToken: {
+      name: process.env.NODE_ENV === "production" ? `__Host-next-auth.csrf-token` : `next-auth.csrf-token`,
       options: {
         httpOnly: true,
         sameSite: "lax",
@@ -68,26 +86,36 @@ export const {
         });
         
         try {
-          // Validate credentials
-          const result = credentialsSchema.safeParse(credentials);
-          if (!result.success) {
-            console.error("Validation failed:", result.error.format());
+          const { email, password } = credentials;
+          
+          // Simple validation
+          if (!email || !password) {
+            console.error("Email or password missing");
             return null;
           }
 
-          const { email, password } = result.data;
-
-          // Find user
+          // Find user with a simple query
+          console.log(`Finding user with email: ${email}`);
           const user = await prisma.user.findUnique({
             where: { email },
+            select: {
+              id: true,
+              email: true,
+              password: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+              tenantId: true,
+            }
           });
 
-          // Check if user exists and has password
+          // Check if user exists
           if (!user) {
             console.error("User not found:", email);
             return null;
           }
           
+          // Check if user has password
           if (!user.password) {
             console.error("User has no password set:", email);
             return null;
@@ -95,26 +123,16 @@ export const {
           
           console.log("User found, checking password...");
           
-          // Check password - with better error handling
-          try {
-            const passwordMatch = await bcrypt.compare(password, user.password);
-            if (!passwordMatch) {
-              console.error("Password does not match for user:", email);
-              return null;
-            }
-            
-            console.log("Password matched for user:", email);
-          } catch (bcryptError) {
-            console.error("Bcrypt error:", bcryptError);
-            // Try a direct string comparison as fallback (for development/testing only)
-            if (process.env.NODE_ENV === 'development' && password === user.password) {
-              console.log("DEV MODE: Direct password match");
-            } else {
-              return null;
-            }
+          // Check password
+          const passwordMatch = await bcrypt.compare(password, user.password);
+          if (!passwordMatch) {
+            console.error("Password does not match for user:", email);
+            return null;
           }
+          
+          console.log("Password matched for user:", email);
 
-          // Return user info
+          // Return basic user info
           return {
             id: user.id,
             email: user.email,
@@ -123,6 +141,10 @@ export const {
           };
         } catch (error) {
           console.error("Authorization error:", error);
+          if (error instanceof Error) {
+            console.error(error.message);
+            console.error(error.stack);
+          }
           return null;
         }
       },
@@ -131,35 +153,49 @@ export const {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        // Set basic user fields from the user object
         token.id = user.id;
         token.role = user.role;
         
         try {
-          // Get tenant type for role-based routing
-          // Using a different approach to avoid schema issues
-          console.log("Getting tenant info for user:", user.id);
+          // For simplicity during debugging, we'll set a default tenant type
+          // This assumes your app has a user model with tenant information
+          console.log("Setting tenant type for user:", user.id);
           
-          // First get the tenantId
-          const userData = await prisma.user.findUnique({
-            where: { id: user.id },
-            select: { tenantId: true }
-          });
+          // DEFAULT to TALENT for now to keep things simple
+          // This can be changed later once the basic auth is working
+          token.tenantType = "TALENT";
           
-          if (userData?.tenantId) {
-            // Then fetch the tenant separately
-            const tenantData = await prisma.tenant.findUnique({
-              where: { id: userData.tenantId },
-              select: { type: true }
-            });
-            
-            if (tenantData) {
-              token.tenantType = tenantData.type;
-              console.log("Found tenant type:", tenantData.type);
+          // Get actual tenant info if possible - in a safer way
+          if (user.id) {
+            try {
+              // First get the tenantId with a direct query
+              const userData = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { 
+                  Tenant: {
+                    select: { type: true }
+                  }
+                }
+              });
+              
+              // If user has a tenant with a type, use that
+              if (userData?.Tenant?.type) {
+                token.tenantType = userData.Tenant.type;
+                console.log("Found tenant type:", userData.Tenant.type);
+              }
+            } catch (tenantError) {
+              console.error("Error getting tenant directly:", tenantError);
+              // Continue with default TALENT type
             }
           }
         } catch (error) {
-          console.error("Error getting tenant info:", error);
-          // Default to TALENT if we can't determine
+          console.error("Error in JWT callback:", error);
+          if (error instanceof Error) {
+            console.error(error.message);
+            console.error(error.stack);
+          }
+          // Default to TALENT as a fallback
           token.tenantType = "TALENT";
         }
       }
