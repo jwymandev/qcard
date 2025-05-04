@@ -14,7 +14,11 @@ export default function StudioDashboard() {
   
   useEffect(() => {
     async function checkUserRole() {
+      // Skip if still loading
+      if (status === 'loading') return;
+      
       if (status === 'unauthenticated') {
+        console.log("Not authenticated, redirecting to sign-in");
         window.location.href = '/sign-in';
         return;
       }
@@ -23,14 +27,21 @@ export default function StudioDashboard() {
         try {
           // Check tenant type directly from the session
           if (session?.user?.tenantType !== 'STUDIO') {
+            console.log("Not a studio user, redirecting to talent dashboard");
             window.location.href = '/talent/dashboard';
             return;
           }
           
+          console.log("Fetching studio profile data...");
+          
           // Get studio data
           const studioResponse = await fetch('/api/studio/profile');
+          console.log("Studio profile response status:", studioResponse.status);
+          
           if (studioResponse.ok) {
-            setStudioData(await studioResponse.json());
+            const data = await studioResponse.json();
+            console.log("Studio profile data received");
+            setStudioData(data);
             setIsLoading(false);
           } else if (studioResponse.status === 404) {
             // Studio data doesn't exist, needs initialization
@@ -38,12 +49,16 @@ export default function StudioDashboard() {
             setNeedsInitialization(true);
             setIsLoading(false);
           } else {
-            // Other error
-            throw new Error(`Failed to fetch studio profile: ${studioResponse.status}`);
+            // Other error - try initialization as fallback
+            console.log("Error fetching studio profile, trying initialization as fallback");
+            setNeedsInitialization(true);
+            setIsLoading(false);
           }
         } catch (error) {
           console.error("Error loading studio dashboard:", error);
-          window.location.href = '/dashboard';
+          // Show auto init instead of redirecting away
+          setNeedsInitialization(true);
+          setIsLoading(false);
         }
       }
     }

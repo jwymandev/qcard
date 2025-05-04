@@ -31,21 +31,28 @@ export default function SignInPage() {
       try {
         console.log(`Signing in user: ${email}`);
         
-        // Use signIn with redirect=true for the most reliable approach
-        // This uses the built-in NextAuth.js redirect handling
+        // Use signIn with redirect:false first to check for errors
         const result = await signIn('credentials', {
           email,
           password,
-          redirect: true,
-          callbackUrl: '/role-redirect'
+          redirect: false
         });
         
-        // Note: with redirect=true, the code below won't execute unless there's an error
         console.log("Sign-in result:", result);
         
-        // If we reach here, there was likely an error but result.error wasn't set
-        setError('Sign-in failed. Please try again.');
-        setIsLoading(false);
+        if (result?.error) {
+          // Handle specific errors
+          setError(result.error === 'CredentialsSignin' ? 'Invalid email or password' : result.error);
+          setIsLoading(false);
+        } else if (result?.ok) {
+          // Success! Now redirect
+          console.log("Sign-in successful, redirecting...");
+          window.location.href = '/role-redirect';
+        } else {
+          // Unexpected result
+          setError('An unexpected error occurred. Please try again.');
+          setIsLoading(false);
+        }
       } catch (signInError) {
         console.error("Sign-in process error:", signInError);
         setError('An error occurred during sign-in. Please try again.');

@@ -66,13 +66,25 @@ export async function POST(req: Request) {
       },
     });
     
-    // Create profile
+    // Create profile based on user type
     if (userType === "TALENT") {
       await prisma.profile.create({
         data: {
           id: crypto.randomUUID(),
           userId: user.id,
           availability: true, // Default to available
+          updatedAt: new Date()
+        },
+      });
+    } else if (userType === "STUDIO") {
+      // Create a studio record automatically
+      const studioName = `${firstName} ${lastName}`.trim() || 'New Studio';
+      await prisma.studio.create({
+        data: {
+          id: crypto.randomUUID(),
+          name: studioName,
+          tenantId: tenant.id,
+          description: `Studio for ${studioName}`,
           updatedAt: new Date()
         },
       });

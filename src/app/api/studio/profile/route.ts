@@ -29,8 +29,25 @@ export async function GET() {
       include: { Tenant: true },
     });
     
-    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
-      return NextResponse.json({ error: "Only studio accounts can access this endpoint" }, { status: 403 });
+    if (!user) {
+      return NextResponse.json({ 
+        error: "User not found, session may be corrupted", 
+        sessionUserId: session.user.id
+      }, { status: 404 });
+    }
+    
+    if (!user.Tenant) {
+      return NextResponse.json({ 
+        error: "User has no tenant associated, session may need refresh", 
+        userId: user.id
+      }, { status: 404 });
+    }
+    
+    if (user.Tenant.type !== "STUDIO") {
+      return NextResponse.json({ 
+        error: "Only studio accounts can access this endpoint",
+        tenantType: user.Tenant.type 
+      }, { status: 403 });
     }
     
     // Find the studio associated with this tenant

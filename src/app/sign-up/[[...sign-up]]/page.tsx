@@ -92,8 +92,9 @@ export default function SignUpPage() {
       }
       
       console.log("Sign-in successful, redirecting to role-redirect page");
-      // Redirect to role-redirect for proper dashboard routing
-      router.push('/role-redirect');
+      // Use window.location for a complete page reload
+      // This ensures all session data is properly initialized
+      window.location.href = '/role-redirect';
     } catch (error: any) {
       console.error("Registration error:", error);
       setError(error.message || 'An error occurred during registration');

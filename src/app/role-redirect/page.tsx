@@ -71,12 +71,12 @@ export default function RoleRedirect() {
     // Direct redirect based on session data
     if (session?.user?.tenantType === 'STUDIO') {
       console.log("User is studio, redirecting to studio dashboard");
-      // Use replace instead of push to prevent browser history accumulation
-      router.replace('/studio/dashboard');
+      // Use window.location for a hard navigation to refresh the session state completely
+      window.location.href = '/studio/dashboard';
     } else {
       console.log("User is talent, redirecting to talent dashboard");
-      // Use replace instead of push to prevent browser history accumulation
-      router.replace('/talent/dashboard');
+      // Use window.location for a hard navigation to refresh the session state completely
+      window.location.href = '/talent/dashboard';
     }
   }, [status, session, router]);
   
