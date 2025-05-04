@@ -1,0 +1,28 @@
+name: qcard
+services:
+  - name: web
+    run_command: npm start
+    build_command: npm run build
+    github:
+      branch: main
+    environment_slug: node-js
+    env:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${db.DATABASE_URL}
+    routes:
+      - path: /
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 10
+      period_seconds: 30
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3

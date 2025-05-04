@@ -35,7 +35,7 @@ export async function GET() {
     try {
       // Essential tables to check
       const essentialTables = ['User', 'Profile', 'Studio', 'Session', 'Tenant'];
-      const tableResults = {};
+      const tableResults: Record<string, any> = {};
       
       // Check each table's connectivity
       for (const table of essentialTables) {

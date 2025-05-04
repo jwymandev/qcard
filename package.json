@@ -7,10 +7,10 @@
   },
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "npx prisma generate && next build",
+    "build": "npx prisma generate && NODE_ENV=production next build",
     "build:production": "NODE_ENV=production npx prisma migrate deploy && npm run build",
     "deploy": "npx prisma migrate deploy && npm run build",
-    "start": "next start -p ${PORT:-8080}",
+    "start": "node start.js",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "setup-uploads": "node scripts/init-uploads.js",
