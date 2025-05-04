@@ -23,7 +23,9 @@
     "check-auth": "node scripts/check-auth-config.js || true",
     "clean-build": "rm -rf .next && npm run build",
     "db:migrate": "node scripts/db-migrate-production.js",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:setup-postgres": "node prisma/setup-postgres.js",
+    "do:deploy": "npm run db:setup-postgres && npm run build:production"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.0",

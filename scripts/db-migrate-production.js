@@ -32,11 +32,33 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+// Verify PostgreSQL URL
+if (!process.env.DATABASE_URL.startsWith('postgresql://') && !process.env.DATABASE_URL.startsWith('postgres://')) {
+  console.error('ERROR: The DATABASE_URL must start with postgresql:// or postgres://');
+  console.error('Current value does not appear to be a PostgreSQL connection string');
+  console.error('Please update your environment variable in DigitalOcean App settings');
+  process.exit(1);
+}
+
 // Verify database connection
 try {
   console.log('Verifying database connection...');
-  runCommand('npx prisma db pull --force');
-  console.log('✅ Database connection successful');
+  // First check if we can connect to the database at all
+  try {
+    runCommand('npx prisma db pull --force');
+    console.log('✅ Database connection successful');
+  } catch (initialError) {
+    console.log('Initial database pull failed, trying to create the database...');
+    // Try running a migration to create the database
+    try {
+      runCommand('npx prisma migrate deploy --create-only');
+      console.log('✅ Created database schema');
+    } catch (migrationError) {
+      console.error('❌ Could not connect to or create database');
+      console.error('Please check your DATABASE_URL and database permissions');
+      process.exit(1);
+    }
+  }
 } catch (error) {
   console.error('❌ Could not connect to database. Please check your DATABASE_URL');
   process.exit(1);
