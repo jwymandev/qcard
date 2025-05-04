@@ -145,6 +145,45 @@ async function main() {
         CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
       );
     `);
+    
+    // Profile table (needed for signup)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "Profile" (
+        "id" TEXT PRIMARY KEY,
+        "userId" TEXT UNIQUE NOT NULL,
+        "headshotUrl" TEXT,
+        "bio" TEXT,
+        "height" TEXT,
+        "weight" TEXT,
+        "hairColor" TEXT,
+        "eyeColor" TEXT,
+        "availability" BOOLEAN NOT NULL DEFAULT true,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP NOT NULL,
+        "ethnicity" TEXT,
+        "experience" TEXT,
+        "gender" TEXT,
+        "languages" TEXT,
+        CONSTRAINT "Profile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
+      );
+    `);
+    
+    // Add other essential tables
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "Studio" (
+        "id" TEXT PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "tenantId" TEXT UNIQUE NOT NULL,
+        "contactName" TEXT,
+        "contactEmail" TEXT,
+        "contactPhone" TEXT,
+        "website" TEXT,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP NOT NULL,
+        CONSTRAINT "Studio_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id")
+      );
+    `);
 
     console.log('Base schema created successfully');
     

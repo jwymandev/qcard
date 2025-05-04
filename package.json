@@ -27,8 +27,9 @@
     "db:studio": "prisma studio",
     "db:setup-postgres": "node prisma/setup-postgres.js",
     "db:setup-config": "node scripts/setup-db-config.js",
+    "db:full-migrate": "node scripts/run-full-migration.js",
     "do:init-db": "node scripts/setup-db-config.js && node scripts/do-db-init.js",
-    "do:deploy": "node scripts/setup-db-config.js && npm run do:init-db && npm run build",
+    "do:deploy": "node scripts/setup-db-config.js && npm run do:init-db && node scripts/run-full-migration.js && npm run build",
     "do:build": "node scripts/setup-db-config.js && npx prisma generate && next build"
   },
   "dependencies": {
