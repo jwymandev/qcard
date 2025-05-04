@@ -1,17 +1,47 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma } from '../../../lib/db';
 
 /**
  * Production-grade health check endpoint
  * Provides comprehensive system status information suitable for monitoring systems
  * Use with uptime monitoring and alerts for production reliability
  */
+
+// Type definitions to properly handle health status
+type TableStatus = {
+  [key: string]: {
+    exists: boolean;
+    count?: number;
+    status: 'healthy' | 'unhealthy';
+    error?: string;
+  };
+};
+
+type HealthStatus = {
+  status: 'initializing' | 'healthy' | 'degraded' | 'unhealthy' | 'critical';
+  database: {
+    connected: boolean;
+    tableStatus: TableStatus;
+    responseTimeMs: number;
+    error?: string;
+  };
+  memory: {
+    usage: number;
+    rss: number;
+  };
+  uptime: number;
+  environment: string;
+  timestamp: string;
+  version: string;
+  responseTimeMs?: number;
+};
+
 export async function GET() {
   // Track start time for performance monitoring
   const startTime = Date.now();
   
   // System health components
-  const healthStatus = {
+  const healthStatus: HealthStatus = {
     status: 'initializing',
     database: {
       connected: false,
@@ -35,7 +65,7 @@ export async function GET() {
     try {
       // Essential tables to check
       const essentialTables = ['User', 'Profile', 'Studio', 'Session', 'Tenant'];
-      const tableResults: Record<string, any> = {};
+      const tableResults: TableStatus = {};
       
       // Check each table's connectivity
       for (const table of essentialTables) {

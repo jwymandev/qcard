@@ -10,7 +10,7 @@
     "build": "npx prisma generate && NODE_ENV=production next build",
     "build:production": "NODE_ENV=production npx prisma migrate deploy && npm run build",
     "deploy": "npx prisma migrate deploy && npm run build",
-    "start": "node start.js",
+    "start": "node production-start.js",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "setup-uploads": "node scripts/init-uploads.js",
