@@ -1,65 +1,76 @@
 import { PrismaClient } from '@prisma/client';
-import { getDatabaseUrl } from './db-connection';
+import { ensureProperDatabaseUrl } from './database-utils';
 
-// Enhanced PrismaClient with connection handling and retries
+// Production-grade PrismaClient singleton with error handling and 
+// proper database URL configuration for any environment
 const prismaClientSingleton = () => {
-  console.log('Initializing PrismaClient...');
+  console.log('Initializing Prisma client...');
   
-  // Get the database URL from environment or construct it from components
-  const databaseUrl = getDatabaseUrl();
+  // Critical step: ensure DATABASE_URL is properly set before Prisma initializes
+  // This handles PostgreSQL URL construction in production environments
+  const databaseConfigured = ensureProperDatabaseUrl();
   
-  // Try parsing DATABASE_URL to log host info (without exposing credentials)
-  try {
-    const url = new URL(databaseUrl);
-    console.log(`Database host: ${url.hostname}, DB name: ${url.pathname.replace('/', '')}`);
-  } catch (e) {
-    console.warn('Could not parse database URL:', e instanceof Error ? e.message : String(e));
+  if (!databaseConfigured) {
+    console.error('⚠️ Database configuration issue detected - app may fail to connect');
   }
   
+  // Initialize PrismaClient with production settings
   const client = new PrismaClient({
-    log: ['error', 'warn', 'query', 'info'],
+    log: process.env.NODE_ENV === 'development' 
+      ? ['query', 'error', 'warn'] 
+      : ['error'],
     errorFormat: 'pretty',
-    datasources: {
-      db: {
-        url: databaseUrl
-      }
-    }
   });
 
-  // Setup connection handling with retries
+  // Production-grade connection handling with circuit breaker pattern
   const MAX_RETRIES = 5;
   const RETRY_DELAY_MS = 3000;
+  let connectionFailed = false;
   
   const connectWithRetry = (retries = 0) => {
-    console.log(`Attempting database connection (attempt ${retries + 1}/${MAX_RETRIES})...`);
+    if (connectionFailed) return;
+    
+    console.log(`Establishing database connection (attempt ${retries + 1}/${MAX_RETRIES})...`);
     
     return client.$connect()
       .then(() => {
-        console.log('✅ Database connection successfully established');
+        console.log('✅ Database connection established');
       })
-      .catch((e) => {
-        console.error(`❌ Failed to connect to database (attempt ${retries + 1}/${MAX_RETRIES}):`, e);
+      .catch((error) => {
+        console.error(`❌ Database connection failed (attempt ${retries + 1}/${MAX_RETRIES}):`, error.message);
         
         if (retries < MAX_RETRIES - 1) {
           console.log(`Retrying in ${RETRY_DELAY_MS/1000} seconds...`);
           setTimeout(() => connectWithRetry(retries + 1), RETRY_DELAY_MS);
         } else {
-          console.error('❌ Maximum connection attempts reached. Using PrismaClient anyway and hoping for the best.');
+          connectionFailed = true;
+          console.error('❌ Maximum connection attempts reached');
+          console.error('Database connectivity issues may affect application functionality');
+          
+          // In a production app, you might want to:
+          // 1. Emit metrics/alerts to a monitoring system
+          // 2. Implement a recovery strategy (e.g., restart connection attempts periodically)
+          // 3. Set up a health endpoint that reports connection status
         }
       });
   };
   
-  // Start the connection process
+  // Begin connection process immediately
   connectWithRetry();
 
   return client;
 };
 
-// Use PrismaClient as a singleton to prevent too many connections
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+// Use global singleton to prevent connection pool exhaustion
+type GlobalWithPrisma = typeof globalThis & {
+  prisma?: PrismaClient;
+};
+
+// Ensure a single PrismaClient instance is used across the application
+const globalForPrisma: GlobalWithPrisma = global as unknown as GlobalWithPrisma;
 export const prisma = globalForPrisma.prisma || prismaClientSingleton();
 
-// In development, use a global variable to avoid creating multiple instances
+// In development, preserve the client between hot reloads
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
