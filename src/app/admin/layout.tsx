@@ -49,6 +49,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Studios', href: '/admin/studios', icon: 'FilmIcon', current: pathname === '/admin/studios' || pathname.startsWith('/admin/studios/') },
     { name: 'Talents', href: '/admin/talents', icon: 'UserGroupIcon', current: pathname === '/admin/talents' || pathname.startsWith('/admin/talents/') },
     { name: 'Projects', href: '/admin/projects', icon: 'FolderIcon', current: pathname === '/admin/projects' || pathname.startsWith('/admin/projects/') },
+    { name: 'Schema', href: '/admin/schema', icon: 'TableIcon', current: pathname === '/admin/schema' || pathname.startsWith('/admin/schema/') },
     { name: 'Settings', href: '/admin/settings', icon: 'CogIcon', current: pathname === '/admin/settings', superAdmin: true },
     { name: 'Logs', href: '/admin/logs', icon: 'ClipboardListIcon', current: pathname === '/admin/logs', superAdmin: true },
   ];

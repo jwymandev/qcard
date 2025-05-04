@@ -1,0 +1,89 @@
+// This is an extension file for the Prisma schema
+// To be merged with the main schema.prisma file
+
+// Enum to define field types
+enum FieldType {
+  TEXT        // Single line text
+  TEXTAREA    // Multi-line text
+  NUMBER      // Numeric value
+  DROPDOWN    // Selection from options
+  BOOLEAN     // True/False toggle
+  DATE        // Date picker
+  EMAIL       // Email field
+  URL         // URL field
+  PHONE       // Phone number
+}
+
+// Enum to define which profile type the field belongs to
+enum ProfileType {
+  TALENT      // For talent profiles
+  STUDIO      // For studio profiles
+  BOTH        // For both profile types
+}
+
+// Custom field definition model
+model ProfileField {
+  id                    String          @id @default(uuid())
+  name                  String          // Database field name (machine name)
+  label                 String          // Display label for the field
+  description           String?         // Optional field description/help text
+  type                  FieldType       // Field type from the enum
+  profileType           ProfileType     // Which profile type this field applies to
+  isRequired            Boolean         @default(false) // Whether the field is required
+  isVisible             Boolean         @default(true)  // Whether the field is visible
+  defaultValue          String?         // Default value for the field
+  placeholder           String?         // Placeholder text for input fields
+  order                 Int             @default(0)     // Display order in forms
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  isSystem              Boolean         @default(false) // Whether it's a built-in field
+  groupName             String?         // Optional grouping for related fields
+  
+  // Relation to options for dropdown fields
+  options               FieldOption[]   
+  
+  // Validation rules as JSON string (min, max, pattern, etc.)
+  validationRules       String?         
+}
+
+// Option values for dropdown fields
+model FieldOption {
+  id                    String          @id @default(uuid())
+  value                 String          // The stored value
+  label                 String          // The display label
+  color                 String?         // Optional color for styling
+  order                 Int             @default(0) // Display order
+  isDefault             Boolean         @default(false) // Whether this is the default option
+  fieldId               String          // Foreign key to the parent field
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  // Relation to parent field
+  field                 ProfileField    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+}
+
+// Store field values for profiles
+model ProfileFieldValue {
+  id                    String          @id @default(uuid())
+  profileId             String          // Foreign key to profile
+  fieldId               String          // Foreign key to field definition
+  value                 String          // The value as string (converted as needed)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  // Composite index to ensure unique field values per profile
+  @@unique([profileId, fieldId])
+}
+
+// Store field values for studios
+model StudioFieldValue {
+  id                    String          @id @default(uuid())
+  studioId              String          // Foreign key to studio
+  fieldId               String          // Foreign key to field definition
+  value                 String          // The value as string (converted as needed)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  // Composite index to ensure unique field values per studio
+  @@unique([studioId, fieldId])
+}
