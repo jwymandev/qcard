@@ -4,12 +4,14 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import AutoInitProfile from '../init-profile-auto';
 
 export default function TalentDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
+  const [needsInitialization, setNeedsInitialization] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
@@ -50,8 +52,9 @@ export default function TalentDashboard() {
           if (profileResponse.ok) {
             setProfileData(await profileResponse.json());
           } else if (profileResponse.status === 404) {
-            // Profile needs initialization but that's OK for now
+            // Profile needs initialization
             console.log("Profile not found (needs initialization)");
+            setNeedsInitialization(true);
           } else {
             console.error("Error fetching profile:", await profileResponse.text());
           }
@@ -97,6 +100,11 @@ export default function TalentDashboard() {
         </div>
       </div>
     );
+  }
+  
+  // Show auto initialization screen if needed
+  if (needsInitialization) {
+    return <AutoInitProfile />;
   }
   
   return (

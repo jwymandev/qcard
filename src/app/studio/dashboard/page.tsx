@@ -4,11 +4,13 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
+import AutoInitStudio from '../init-studio-auto';
 
 export default function StudioDashboard() {
   const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const [studioData, setStudioData] = useState(null);
+  const [needsInitialization, setNeedsInitialization] = useState(false);
   
   useEffect(() => {
     async function checkUserRole() {
@@ -29,9 +31,16 @@ export default function StudioDashboard() {
           const studioResponse = await fetch('/api/studio/profile');
           if (studioResponse.ok) {
             setStudioData(await studioResponse.json());
+            setIsLoading(false);
+          } else if (studioResponse.status === 404) {
+            // Studio data doesn't exist, needs initialization
+            console.log("Studio profile not found, needs initialization");
+            setNeedsInitialization(true);
+            setIsLoading(false);
+          } else {
+            // Other error
+            throw new Error(`Failed to fetch studio profile: ${studioResponse.status}`);
           }
-          
-          setIsLoading(false);
         } catch (error) {
           console.error("Error loading studio dashboard:", error);
           window.location.href = '/dashboard';
@@ -44,6 +53,11 @@ export default function StudioDashboard() {
   
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  }
+  
+  // Show auto initialization screen if needed
+  if (needsInitialization) {
+    return <AutoInitStudio />;
   }
   
   return (
