@@ -1,0 +1,108 @@
+// This is an extension file for the Prisma schema
+// To be merged with the main schema.prisma file
+
+// Define the questionnaire model
+model Questionnaire {
+  id                     String                @id @default(uuid())
+  title                  String                // Name of the questionnaire
+  description            String?               // Optional description
+  studioId               String                // Which studio created this questionnaire
+  isActive               Boolean               @default(true)  // Whether the questionnaire is active
+  requiresApproval       Boolean               @default(false) // Whether responses need approval
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  
+  // Relationships
+  questions              QuestionnaireQuestion[] // The questions in this questionnaire
+  invitations            QuestionnaireInvitation[] // Invitations sent for this questionnaire
+  responses              QuestionnaireResponse[] // Responses to this questionnaire
+  Studio                 Studio                @relation(fields: [studioId], references: [id], onDelete: Cascade)
+}
+
+// Question types
+enum QuestionType {
+  SHORT_TEXT      // Short text answer
+  LONG_TEXT       // Long text answer
+  SINGLE_CHOICE   // Single selection from options
+  MULTIPLE_CHOICE // Multiple selection from options
+  RATING          // Rating scale (e.g., 1-5)
+  DATE            // Date input
+  FILE_UPLOAD     // File upload
+  YES_NO          // Yes/No question
+}
+
+// Define the question model
+model QuestionnaireQuestion {
+  id                     String                @id @default(uuid())
+  questionnaireId        String                // Which questionnaire this question belongs to
+  text                   String                // The question text
+  description            String?               // Optional description or help text
+  type                   QuestionType          // Type of question
+  isRequired             Boolean               @default(false) // Whether an answer is required
+  order                  Int                   // Display order
+  options                Json?                 // JSON array of options for choice questions
+  metadata               Json?                 // Additional settings (e.g., min/max for ratings)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  
+  // Relationships
+  questionnaire          Questionnaire         @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  answers                QuestionAnswer[]      // Answers to this question
+}
+
+// Define the invitation model
+model QuestionnaireInvitation {
+  id                     String                @id @default(uuid())
+  questionnaireId        String                // Which questionnaire this invitation is for
+  profileId              String                // Which talent profile is invited
+  status                 String                @default("PENDING") // PENDING, ACCEPTED, DECLINED, COMPLETED
+  sentAt                 DateTime              @default(now())
+  expiresAt              DateTime?             // Optional expiration date
+  completedAt            DateTime?             // When the questionnaire was completed
+  message                String?               // Optional message to the talent
+  
+  // Relationships
+  questionnaire          Questionnaire         @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  profile                Profile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  response               QuestionnaireResponse? // The response to this invitation
+  
+  // Only one invitation per questionnaire/profile combination
+  @@unique([questionnaireId, profileId])
+}
+
+// Define the response model (one per invitation)
+model QuestionnaireResponse {
+  id                     String                @id @default(uuid())
+  invitationId           String                @unique // One-to-one with invitation
+  questionnaireId        String                // Which questionnaire this response is for
+  profileId              String                // Which talent profile submitted this response
+  status                 String                @default("SUBMITTED") // SUBMITTED, APPROVED, REJECTED
+  submittedAt            DateTime              @default(now())
+  reviewedAt             DateTime?             // When the response was reviewed
+  reviewNotes            String?               // Optional notes from the reviewer
+  
+  // Relationships
+  invitation             QuestionnaireInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  questionnaire          Questionnaire         @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  profile                Profile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  answers                QuestionAnswer[]      // Individual answers in this response
+}
+
+// Define the answer model
+model QuestionAnswer {
+  id                     String                @id @default(uuid())
+  responseId             String                // Which response this answer belongs to
+  questionId             String                // Which question this answers
+  textValue              String?               // Text answer
+  choiceValues           Json?                 // Selected choices (array)
+  fileUrl                String?               // URL to uploaded file
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  
+  // Relationships
+  response               QuestionnaireResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question               QuestionnaireQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  // Each question can only be answered once per response
+  @@unique([responseId, questionId])
+}
