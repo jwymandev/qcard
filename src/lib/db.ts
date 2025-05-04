@@ -1,16 +1,19 @@
 import { PrismaClient } from '@prisma/client';
+import { getDatabaseUrl } from './db-connection';
 
 // Enhanced PrismaClient with connection handling and retries
 const prismaClientSingleton = () => {
   console.log('Initializing PrismaClient...');
   
+  // Get the database URL from environment or construct it from components
+  const databaseUrl = getDatabaseUrl();
+  
   // Try parsing DATABASE_URL to log host info (without exposing credentials)
   try {
-    const dbUrl = process.env.DATABASE_URL || '';
-    const url = new URL(dbUrl);
+    const url = new URL(databaseUrl);
     console.log(`Database host: ${url.hostname}, DB name: ${url.pathname.replace('/', '')}`);
   } catch (e) {
-    console.warn('Could not parse DATABASE_URL:', e instanceof Error ? e.message : String(e));
+    console.warn('Could not parse database URL:', e instanceof Error ? e.message : String(e));
   }
   
   const client = new PrismaClient({
@@ -18,7 +21,7 @@ const prismaClientSingleton = () => {
     errorFormat: 'pretty',
     datasources: {
       db: {
-        url: process.env.DATABASE_URL
+        url: databaseUrl
       }
     }
   });

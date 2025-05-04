@@ -3,6 +3,7 @@
 /**
  * Special database initialization script for DigitalOcean
  * This creates the database schema directly using SQL queries
+ * Supports both DATABASE_URL and individual connection parameters
  */
 
 const { Client } = require('pg');
@@ -11,29 +12,69 @@ const path = require('path');
 
 console.log('DigitalOcean PostgreSQL Initialization');
 
-// Parse DATABASE_URL (log without credentials)
+// Function to construct DB URL from individual parameters
+function getDatabaseUrl() {
+  // If DATABASE_URL is already provided, use it
+  if (process.env.DATABASE_URL) {
+    // Check if the URL is a PostgreSQL URL
+    if (process.env.DATABASE_URL.startsWith('postgresql://') || process.env.DATABASE_URL.startsWith('postgres://')) {
+      return process.env.DATABASE_URL;
+    }
+    
+    console.warn('DATABASE_URL is not in a PostgreSQL format, attempting to construct from components');
+  }
+  
+  // Otherwise, construct the URL from individual components
+  const host = process.env.DATABASE_HOST || 'localhost';
+  const port = process.env.DATABASE_PORT || '5432';
+  const name = process.env.DATABASE_NAME || 'defaultdb';
+  const username = process.env.DATABASE_USERNAME || 'postgres';
+  const password = process.env.DATABASE_PASSWORD || '';
+  
+  // Construct the URL with proper URL encoding for the password
+  const encodedPassword = encodeURIComponent(password);
+  
+  // Add sslmode=require for DigitalOcean managed databases
+  return `postgresql://${username}:${encodedPassword}@${host}:${port}/${name}?sslmode=require`;
+}
+
+// Function to get connection options as an object
+function getConnectionOptions() {
+  if (process.env.DATABASE_URL) {
+    return {
+      connectionString: process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false // Required for DigitalOcean managed databases
+      },
+      connectionTimeoutMillis: 30000 // 30 seconds
+    };
+  }
+  
+  return {
+    host: process.env.DATABASE_HOST || 'localhost',
+    port: parseInt(process.env.DATABASE_PORT || '5432', 10),
+    database: process.env.DATABASE_NAME || 'defaultdb',
+    user: process.env.DATABASE_USERNAME || 'postgres',
+    password: process.env.DATABASE_PASSWORD || '',
+    ssl: {
+      rejectUnauthorized: false // Required for DigitalOcean managed databases
+    },
+    connectionTimeoutMillis: 30000 // 30 seconds
+  };
+}
+
+// Get the database URL and log it (without credentials)
+const dbUrl = getDatabaseUrl();
 try {
-  const dbUrl = process.env.DATABASE_URL || '';
   const url = new URL(dbUrl);
   console.log(`Database: ${url.hostname}:${url.port}${url.pathname}`);
-  
-  if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
-    console.error('ERROR: DATABASE_URL must start with postgresql:// or postgres://');
-    process.exit(1);
-  }
 } catch (e) {
-  console.error('ERROR: Could not parse DATABASE_URL. Make sure it is set correctly.');
+  console.error('ERROR: Could not parse database URL:', e.message);
   process.exit(1);
 }
 
-// Create PostgreSQL client
-const client = new Client({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Required for DigitalOcean managed databases
-  },
-  connectionTimeoutMillis: 30000, // 30 seconds
-});
+// Create PostgreSQL client with options
+const client = new Client(getConnectionOptions());
 
 async function main() {
   try {
