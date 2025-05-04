@@ -260,13 +260,20 @@ model Tenant {
   User      User[]
 }
 
+// Define user roles
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
 model User {
   id        String    @id
   email     String    @unique
   password  String?
   firstName String?
   lastName  String?
-  role      String    @default("USER")
+  role      UserRole  @default(USER)
   tenantId  String?
   createdAt DateTime  @default(now())
   updatedAt DateTime

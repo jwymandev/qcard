@@ -23,7 +23,8 @@ export async function middleware(request: NextRequest) {
                     path === '/dashboard' ||
                     path === '/role-redirect' ||
                     path.startsWith('/studio/') || 
-                    path.startsWith('/talent/');
+                    path.startsWith('/talent/') ||
+                    path.startsWith('/admin/');
   
   if (isKeyPath) {
     console.log(`Middleware processing path: ${path}`);
@@ -33,6 +34,9 @@ export async function middleware(request: NextRequest) {
   const isPublicPath = path === '/sign-in' || 
                        path === '/sign-up' || 
                        path === '/';
+                       
+  // Admin paths that require special privileges
+  const isAdminPath = path.startsWith('/admin/');
   
   // Skip middleware for role-redirect page (avoids infinite loops)
   if (path === '/role-redirect') {
@@ -106,12 +110,32 @@ export async function middleware(request: NextRequest) {
   
   // If user is logged in and accessing sign-in or sign-up or dashboard, redirect to appropriate dashboard
   if (token && (path === '/sign-in' || path === '/sign-up' || path === '/dashboard')) {
-    // Redirect based on tenant type
-    if (token.tenantType === 'STUDIO') {
+    // Check if user is admin, redirect to admin dashboard
+    if (token.isAdmin) {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    }
+    // Otherwise redirect based on tenant type
+    else if (token.tenantType === 'STUDIO') {
       return NextResponse.redirect(new URL('/studio/dashboard', request.url));
     } else {
       return NextResponse.redirect(new URL('/talent/dashboard', request.url));
     }
+  }
+  
+  // Check admin routes access - only allow admins
+  if (isAdminPath) {
+    if (!isAuthenticated) {
+      console.log(`Admin route access denied - not authenticated`);
+      return NextResponse.redirect(new URL('/sign-in', request.url));
+    }
+    
+    if (!token?.isAdmin) {
+      console.log(`Admin route access denied - not an admin`);
+      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    }
+    
+    // Admin is authenticated, allow access
+    return NextResponse.next();
   }
   
   // If trying to access protected routes without auth, redirect to sign-in
@@ -139,6 +163,8 @@ export const config = {
     '/sign-up',
     '/studio/:path*',
     '/talent/:path*',
+    '/admin/:path*',
     '/role-redirect',
+    '/unauthorized',
   ],
 };

@@ -162,6 +162,9 @@ export const {
         token.id = user.id;
         token.role = user.role;
         
+        // Check if user is an admin
+        token.isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+        
         try {
           // For simplicity during debugging, we'll set a default tenant type
           // This assumes your app has a user model with tenant information
@@ -215,10 +218,14 @@ export const {
           session.user.role = (token.role as string) || 'USER';
           session.user.tenantType = (token.tenantType as string) || 'TALENT';
           
+          // Set admin flag
+          session.user.isAdmin = !!token.isAdmin;
+          
           console.log("Session created for user:", {
             id: session.user.id,
             role: session.user.role,
-            tenantType: session.user.tenantType
+            tenantType: session.user.tenantType,
+            isAdmin: session.user.isAdmin
           });
         }
       } catch (error) {
