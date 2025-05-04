@@ -90,7 +90,7 @@ export default function AutoInitProfile() {
         </svg>
         <h2 className="text-xl font-semibold mb-2">Setting Up Your Talent Profile</h2>
         <p className="text-gray-600 text-center max-w-sm">
-          We're getting everything ready for you. This will only take a moment.
+          We&apos;re getting everything ready for you. This will only take a moment.
         </p>
       </div>
     </div>
