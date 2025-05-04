@@ -34,8 +34,12 @@ function getDatabaseUrl() {
   // Construct the URL with proper URL encoding for the password
   const encodedPassword = encodeURIComponent(password);
   
+  // Verify database name is not being confused with host
+  const databaseName = host.includes(name) || name.includes(host) ? 'defaultdb' : name;
+  console.log(`Using database name: ${databaseName}`);
+  
   // Add sslmode=require for DigitalOcean managed databases
-  return `postgresql://${username}:${encodedPassword}@${host}:${port}/${name}?sslmode=require`;
+  return `postgresql://${username}:${encodedPassword}@${host}:${port}/${databaseName}?sslmode=require`;
 }
 
 // Function to get connection options as an object
@@ -50,10 +54,16 @@ function getConnectionOptions() {
     };
   }
   
+  const host = process.env.DATABASE_HOST || 'localhost';
+  const dbName = process.env.DATABASE_NAME || 'defaultdb';
+  
+  // Verify database name is not being confused with host
+  const databaseName = host.includes(dbName) || dbName.includes(host) ? 'defaultdb' : dbName;
+  
   return {
-    host: process.env.DATABASE_HOST || 'localhost',
+    host: host,
     port: parseInt(process.env.DATABASE_PORT || '5432', 10),
-    database: process.env.DATABASE_NAME || 'defaultdb',
+    database: databaseName,
     user: process.env.DATABASE_USERNAME || 'postgres',
     password: process.env.DATABASE_PASSWORD || '',
     ssl: {

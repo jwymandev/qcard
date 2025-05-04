@@ -34,8 +34,11 @@ export function getDatabaseUrl(): string {
   // This ensures special characters in the password are handled correctly
   const encodedPassword = encodeURIComponent(password);
   
+  // Verify database name is not the same as the host (common issue)
+  const databaseName = host.includes(name) ? 'defaultdb' : name;
+  
   // Add sslmode=require for DigitalOcean managed databases
-  return `postgresql://${username}:${encodedPassword}@${host}:${port}/${name}?sslmode=require`;
+  return `postgresql://${username}:${encodedPassword}@${host}:${port}/${databaseName}?sslmode=require`;
 }
 
 /**

@@ -67,12 +67,27 @@ if (!dbUrl) {
   process.exit(1);
 }
 
+// Ensure the database name is correct (not the hostname)
+let correctedDbUrl = dbUrl;
+try {
+  const url = new URL(dbUrl);
+  // Check if the pathname looks like a hostname (indicating an error)
+  if (url.pathname.includes('.db.ondigitalocean.com')) {
+    console.warn('Detected incorrect database name, fixing...');
+    // Set to the correct database name (defaultdb) 
+    correctedDbUrl = dbUrl.replace(url.pathname, '/defaultdb');
+    console.log('Fixed database URL to use correct database name: defaultdb');
+  }
+} catch (e) {
+  console.warn('Could not parse database URL for correction:', e.message);
+}
+
 // Set the DATABASE_URL environment variable for child processes
-process.env.DATABASE_URL = dbUrl;
+process.env.DATABASE_URL = correctedDbUrl;
 
 // Log database type without revealing credentials
 try {
-  const url = new URL(dbUrl);
+  const url = new URL(correctedDbUrl);
   const protocol = url.protocol;
   const host = url.hostname;
   const port = url.port;
