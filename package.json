@@ -28,9 +28,15 @@
     "db:setup-postgres": "node prisma/setup-postgres.js",
     "db:setup-config": "node scripts/setup-db-config.js",
     "db:full-migrate": "node scripts/run-full-migration.js",
+    "db:check": "node scripts/fix-db-url.js",
+    "db:reset": "node scripts/enhanced-full-reset-db.js",
+    "db:list-tables": "npx prisma db execute --file=./scripts/list-tables.sql",
+    "db:health": "curl -s http://localhost:3001/api/health | jq",
     "do:init-db": "node scripts/setup-db-config.js && node scripts/do-db-init.js",
     "do:deploy": "node scripts/setup-db-config.js && npm run do:init-db && node scripts/run-full-migration.js && npm run build",
-    "do:build": "node scripts/setup-db-config.js && npx prisma generate && next build"
+    "do:build": "node scripts/setup-db-config.js && npx prisma generate && next build",
+    "do:full-reset": "chmod +x scripts/enhanced-full-reset-db.js && node scripts/enhanced-full-reset-db.js",
+    "do:deploy-reset": "npm run do:full-reset && npm run build"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.0",
