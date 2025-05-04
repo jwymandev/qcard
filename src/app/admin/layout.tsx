@@ -4,7 +4,7 @@ import React, { ReactNode, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
-import { isUserAdmin, isUserSuperAdmin } from '@/lib/admin-helpers';
+import { isUserAdmin, isUserSuperAdmin } from '@/lib/client-admin-helpers';
 
 interface AdminLayoutProps {
   children: ReactNode;

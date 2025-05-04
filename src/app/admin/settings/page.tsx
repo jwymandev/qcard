@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { isUserSuperAdmin } from '@/lib/admin-helpers';
+import { isUserSuperAdmin } from '@/lib/client-admin-helpers';
 
 interface Settings {
   // Site settings

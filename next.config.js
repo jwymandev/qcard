@@ -4,7 +4,28 @@ const nextConfig = {
   images: {
     domains: ['images.clerk.dev', 'img.clerk.com'],
   },
-  // Remove custom webpack config as it's causing issues
+  // Add webpack configuration to handle Node.js native modules
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Don't resolve Node.js modules on the client to prevent errors
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        path: false,
+        os: false,
+        stream: false,
+        http: false,
+        https: false,
+        zlib: false,
+        child_process: false,
+        dns: false
+      };
+    }
+    return config;
+  },
   
   // DigitalOcean deployment settings
   env: {
@@ -14,9 +35,9 @@ const nextConfig = {
   serverRuntimeConfig: {
     port: parseInt(process.env.PORT || '8080', 10)
   },
-  // Enable experimental features for port configuration
+  // Fix experimental flag - serverComponents is deprecated in newer Next.js
   experimental: {
-    serverComponents: true
+    // Removed deprecated serverComponents
   }
 };
 

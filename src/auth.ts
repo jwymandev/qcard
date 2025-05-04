@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 import { z } from "zod";
+// Create a UserRole type without importing it
+type UserRole = "USER" | "ADMIN" | "SUPER_ADMIN";
 
 // Make sure URLs always have protocol
 function ensureAbsoluteUrl(url: string): string {
@@ -215,8 +217,8 @@ export const {
           session.user.id = token.id as string;
           
           // Set defaults if token values are missing
-          session.user.role = (token.role as string) || 'USER';
-          session.user.tenantType = (token.tenantType as string) || 'TALENT';
+          session.user.role = token.role || 'USER';
+          session.user.tenantType = token.tenantType || 'TALENT';
           
           // Set admin flag
           session.user.isAdmin = !!token.isAdmin;

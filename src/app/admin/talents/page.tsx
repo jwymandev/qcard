@@ -110,7 +110,7 @@ export default function TalentsPage() {
   }, []);
 
   // Get unique skills for filter dropdown
-  const uniqueSkills = [...new Set(talents.flatMap(talent => talent.skills))];
+  const uniqueSkills = Array.from(new Set(talents.flatMap(talent => talent.skills)));
 
   // Filter talents based on search term, skill filter, and availability filter
   const filteredTalents = talents.filter(talent => {

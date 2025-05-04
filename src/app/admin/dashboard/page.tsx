@@ -116,8 +116,8 @@ export default function AdminDashboard() {
             <div className="text-gray-600">
               <p className="mb-2">• User John Smith registered (2 hours ago)</p>
               <p className="mb-2">• Studio ABC updated their profile (5 hours ago)</p>
-              <p className="mb-2">• New project "Summer Movie" created (1 day ago)</p>
-              <p className="mb-2">• Casting call "Lead Role Needed" posted (1 day ago)</p>
+              <p className="mb-2">• New project &quot;Summer Movie&quot; created (1 day ago)</p>
+              <p className="mb-2">• Casting call &quot;Lead Role Needed&quot; posted (1 day ago)</p>
               <p>• 3 new talents created profiles (2 days ago)</p>
             </div>
           )}

@@ -2,7 +2,7 @@ import { User } from "next-auth";
 import { JWT } from "next-auth/jwt";
 
 // Define admin roles
-type UserRole = "USER" | "ADMIN" | "SUPER_ADMIN";
+export type UserRole = "USER" | "ADMIN" | "SUPER_ADMIN";
 
 declare module "next-auth" {
   interface Session {
