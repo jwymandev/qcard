@@ -8,11 +8,14 @@ A multi-tenant web application for tracking and casting Extras for video and mov
   - Create and manage casting profiles
   - Select specific locations for casting opportunities
   - Subscription-based pricing per location
+  - Complete questionnaires from studios
   
 - **For Studios:**
   - Search and find talent based on custom criteria
   - Manage casting projects and opportunities
   - Custom pricing via negotiation
+  - Create custom questionnaires for talents
+  - Custom profile fields for better talent management
 
 ## Tech Stack
 
@@ -28,7 +31,7 @@ A multi-tenant web application for tracking and casting Extras for video and mov
 ### Prerequisites
 
 - Node.js 18+ and npm
-- SQLite (for development) or PostgreSQL (for production)
+- PostgreSQL 14+
 
 ### Installation
 
@@ -50,7 +53,7 @@ A multi-tenant web application for tracking and casting Extras for video and mov
 
 4. Set up the database
    ```
-   npx prisma migrate dev --name init
+   npx prisma migrate dev
    ```
 
 5. Start the development server
@@ -98,7 +101,38 @@ NEXTAUTH_SECRET=a-strong-secret-key
 
 ## Database
 
-The development environment uses SQLite with a database file located at `prisma/dev.db`. For production, PostgreSQL is recommended. The database schema is defined in `prisma/schema.prisma`.
+The application uses PostgreSQL as the database. The database schema is defined in `prisma/schema.prisma`.
+
+## New Feature: Questionnaires
+
+A new questionnaire feature has been added to allow studios to create custom forms and gather information from talent profiles. 
+
+### Deploying the Questionnaire Feature
+
+To deploy this feature:
+
+1. Run the migration script: `./update-schema-and-migrate.sh`
+2. The script will:
+   - Update the Prisma schema with questionnaire models
+   - Create and apply the database migration
+   - Restore temporarily disabled components
+   - Verify the build passes with the new schema
+
+3. After running the migration, the feature will be fully functional
+
+### Using Questionnaires
+
+Studios can:
+- Create questionnaires with various question types (text, multiple choice, etc.)
+- Send questionnaire invitations to talent profiles
+- View and review responses
+- Use responses in talent search/selection
+
+Talents can:
+- View questionnaire invitations
+- Accept or decline invitations
+- Complete questionnaires with different response types
+- Review their submitted responses
 
 ## Troubleshooting
 
