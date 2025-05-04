@@ -78,8 +78,35 @@ function startApplication() {
   });
 }
 
+// Push database schema if tables are missing
+async function setupDatabaseSchema() {
+  console.log('Checking database schema...');
+  
+  try {
+    // Run prisma db push using child process
+    const { spawnSync } = require('child_process');
+    console.log('Pushing database schema to create missing tables...');
+    
+    const prismaResult = spawnSync('npx', ['prisma', 'db', 'push'], {
+      stdio: 'inherit',
+      env: process.env
+    });
+    
+    if (prismaResult.status === 0) {
+      console.log('✅ Database schema pushed successfully');
+      return true;
+    } else {
+      console.error('❌ Failed to push database schema');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error setting up database schema:', error.message);
+    return false;
+  }
+}
+
 // Main function
-function main() {
+async function main() {
   console.log('Starting QCard in production mode...');
   
   // Set NODE_ENV to production if not already set
@@ -87,6 +114,9 @@ function main() {
   
   // Set up database connection
   setupDatabaseConnection();
+  
+  // Set up database schema
+  await setupDatabaseSchema();
   
   // Start the application
   startApplication();

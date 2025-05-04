@@ -30,6 +30,8 @@
     "do:deploy": "npx prisma migrate deploy && npx prisma generate && next build",
     "do:fix": "node scripts/do-reset-db.js && npm run build",
     "do:push": "npx prisma db push && npm run build",
+    "do:first-deploy": "node scripts/first-deploy.js",
+    "do:deploy-with-schema": "node scripts/first-deploy.js && npm run build",
     "healthcheck": "node scripts/production-healthcheck.js",
     "healthcheck:remote": "node scripts/production-healthcheck.js --remote",
     "deploy:prod": "npm run typecheck && npm run lint && npm run build && npm run healthcheck"
