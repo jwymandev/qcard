@@ -13,20 +13,20 @@ const projectUpdateSchema = z.object({
   isArchived: z.boolean().optional(),
 });
 
-// GET /api/studio/projects/[id] - Get a specific project
+// GET /api/studio/projects/[projectId] - Get a specific project
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { projectId: string } }
 ) {
   const session = await auth();
   
-  if (\!session?.user?.id) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   
-  const { id } = params;
+  const { projectId } = params;
   
-  if (\!id) {
+  if (!projectId) {
     return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
   }
   
@@ -37,7 +37,7 @@ export async function GET(
       include: { Tenant: true },
     });
     
-    if (\!user?.Tenant || user.Tenant.type \!== "STUDIO") {
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
       return NextResponse.json({ error: "Only studio accounts can access this endpoint" }, { status: 403 });
     }
     
@@ -46,14 +46,14 @@ export async function GET(
       where: { tenantId: user.Tenant.id },
     });
     
-    if (\!studio) {
+    if (!studio) {
       return NextResponse.json({ error: "Studio not found" }, { status: 404 });
     }
     
     // Get the project with related data
     const project = await prisma.project.findUnique({
       where: {
-        id,
+        id: projectId,
         studioId: studio.id  // Ensure project belongs to the studio
       },
       include: {
@@ -87,7 +87,7 @@ export async function GET(
       },
     });
     
-    if (\!project) {
+    if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
     
@@ -120,20 +120,20 @@ export async function GET(
   }
 }
 
-// PUT /api/studio/projects/[id] - Update a project
+// PUT /api/studio/projects/[projectId] - Update a project
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { projectId: string } }
 ) {
   const session = await auth();
   
-  if (\!session?.user?.id) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   
-  const { id } = params;
+  const { projectId } = params;
   
-  if (\!id) {
+  if (!projectId) {
     return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
   }
   
@@ -142,7 +142,7 @@ export async function PUT(
     
     // Validate input data
     const result = projectUpdateSchema.safeParse(body);
-    if (\!result.success) {
+    if (!result.success) {
       return NextResponse.json(
         { error: "Invalid input data", details: result.error.format() },
         { status: 400 }
@@ -157,7 +157,7 @@ export async function PUT(
       include: { Tenant: true },
     });
     
-    if (\!user?.Tenant || user.Tenant.type \!== "STUDIO") {
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
       return NextResponse.json({ error: "Only studio accounts can update projects" }, { status: 403 });
     }
     
@@ -166,19 +166,19 @@ export async function PUT(
       where: { tenantId: user.Tenant.id },
     });
     
-    if (\!studio) {
+    if (!studio) {
       return NextResponse.json({ error: "Studio not found" }, { status: 404 });
     }
     
     // Check if the project exists and belongs to this studio
     const existingProject = await prisma.project.findFirst({
       where: {
-        id,
+        id: projectId,
         studioId: studio.id
       }
     });
     
-    if (\!existingProject) {
+    if (!existingProject) {
       return NextResponse.json({ error: "Project not found or you don't have permission to update it" }, { status: 404 });
     }
     
@@ -199,7 +199,7 @@ export async function PUT(
     
     // Update the project
     const updatedProject = await prisma.project.update({
-      where: { id },
+      where: { id: projectId },
       data: updateData,
     });
     
@@ -213,20 +213,20 @@ export async function PUT(
   }
 }
 
-// DELETE /api/studio/projects/[id] - Archive a project
+// DELETE /api/studio/projects/[projectId] - Archive a project
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { projectId: string } }
 ) {
   const session = await auth();
   
-  if (\!session?.user?.id) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   
-  const { id } = params;
+  const { projectId } = params;
   
-  if (\!id) {
+  if (!projectId) {
     return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
   }
   
@@ -237,7 +237,7 @@ export async function DELETE(
       include: { Tenant: true },
     });
     
-    if (\!user?.Tenant || user.Tenant.type \!== "STUDIO") {
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
       return NextResponse.json({ error: "Only studio accounts can delete projects" }, { status: 403 });
     }
     
@@ -246,25 +246,25 @@ export async function DELETE(
       where: { tenantId: user.Tenant.id },
     });
     
-    if (\!studio) {
+    if (!studio) {
       return NextResponse.json({ error: "Studio not found" }, { status: 404 });
     }
     
     // Check if the project exists and belongs to this studio
     const existingProject = await prisma.project.findFirst({
       where: {
-        id,
+        id: projectId,
         studioId: studio.id
       }
     });
     
-    if (\!existingProject) {
+    if (!existingProject) {
       return NextResponse.json({ error: "Project not found or you don't have permission to delete it" }, { status: 404 });
     }
     
     // Instead of actually deleting, we archive the project
     const archivedProject = await prisma.project.update({
-      where: { id },
+      where: { id: projectId },
       data: {
         isArchived: true,
         updatedAt: new Date()
@@ -283,4 +283,3 @@ export async function DELETE(
     }, { status: 500 });
   }
 }
-EOL < /dev/null
