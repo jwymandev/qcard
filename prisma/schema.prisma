@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  // This ensures the client matches the exact DB shape, important for SQLite
+  // Enable preview features for advanced PostgreSQL support
   previewFeatures = ["driverAdapters"]
 }
 

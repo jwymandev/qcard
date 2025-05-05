@@ -54,12 +54,6 @@ export function getDatabaseUrl(): string {
     return process.env.DATABASE_URL;
   }
   
-  // For local development with SQLite
-  if (process.env.NODE_ENV === 'development' && 
-      process.env.DATABASE_URL?.startsWith('file:')) {
-    return process.env.DATABASE_URL;
-  }
-  
   // If we have the required database host parameter, construct a PostgreSQL URL
   if (process.env.DATABASE_HOST) {
     const params = getDatabaseParameters();

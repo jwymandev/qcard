@@ -15,12 +15,7 @@ export function getDatabaseUrl(): string {
       return process.env.DATABASE_URL;
     }
     
-    // If it's a SQLite URL (for local development), return it as is 
-    if (process.env.DATABASE_URL.startsWith('file:')) {
-      return process.env.DATABASE_URL;
-    }
-    
-    console.warn('DATABASE_URL is not in a recognized format, attempting to construct from components');
+    console.warn('DATABASE_URL is not in a recognized PostgreSQL format, attempting to construct from components');
   }
   
   // Otherwise, construct the URL from individual components
