@@ -2,12 +2,126 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 // Validation schema for talent invitations
 const invitationSchema = z.object({
   talentIds: z.array(z.string()).min(1, "At least one talent must be selected"),
   message: z.string().optional(),
 });
+
+// GET /api/studio/projects/[projectId]/invitations - Get all invitations for a project
+export async function GET(
+  request: Request,
+  { params }: { params: { projectId: string } }
+) {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    
+    // Find the user and their tenant
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true },
+    });
+    
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
+      return NextResponse.json({ error: "Only studio accounts can access invitations" }, { status: 403 });
+    }
+    
+    // Find the studio associated with this tenant
+    const studio = await prisma.studio.findFirst({
+      where: { tenantId: user.Tenant.id },
+    });
+    
+    if (!studio) {
+      return NextResponse.json({ error: "Studio not found" }, { status: 404 });
+    }
+    
+    const { projectId } = params;
+    
+    // Check if the project belongs to this studio
+    const project = await prisma.project.findFirst({
+      where: { 
+        id: projectId,
+        studioId: studio.id
+      },
+    });
+    
+    if (!project) {
+      return NextResponse.json({ error: "Project not found or unauthorized" }, { status: 403 });
+    }
+    
+    // For projects, invitations are tracked through messages
+    const invitations = await prisma.message.findMany({
+      where: {
+        relatedToProjectId: projectId,
+        studioSenderId: studio.id,
+      },
+      include: {
+        Profile_Message_talentReceiverIdToProfile: {
+          include: {
+            User: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    // Also get information about talents that have joined the project
+    const projectMembers = await prisma.projectMember.findMany({
+      where: {
+        projectId: projectId,
+        Profile: {
+          id: {
+            in: invitations.map(inv => inv.talentReceiverId).filter(Boolean) as string[]
+          }
+        }
+      },
+      select: {
+        profileId: true,
+        role: true,
+        createdAt: true,
+      }
+    });
+    
+    // Combine invitation data with project member status
+    const invitationsWithStatus = invitations.map(invitation => {
+      const member = projectMembers.find(
+        m => m.profileId === invitation.talentReceiverId
+      );
+      
+      return {
+        ...invitation,
+        hasJoined: !!member,
+        role: member?.role || null,
+        joinDate: member?.createdAt || null,
+        talent: invitation.Profile_Message_talentReceiverIdToProfile ? {
+          id: invitation.Profile_Message_talentReceiverIdToProfile.id,
+          name: `${invitation.Profile_Message_talentReceiverIdToProfile.User.firstName} ${invitation.Profile_Message_talentReceiverIdToProfile.User.lastName}`,
+          email: invitation.Profile_Message_talentReceiverIdToProfile.User.email,
+        } : null
+      };
+    });
+    
+    return NextResponse.json(invitationsWithStatus);
+  } catch (error) {
+    console.error("Error fetching project invitations:", error);
+    return NextResponse.json({ 
+      error: "Failed to fetch project invitations",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
+  }
+}
 
 // POST /api/studio/projects/[projectId]/invitations
 export async function POST(
@@ -76,7 +190,11 @@ export async function POST(
     const talentProfiles = await prisma.profile.findMany({
       where: {
         id: { in: talentIds },
-        Tenant: { type: "TALENT" }
+        User: {
+          Tenant: {
+            type: "TALENT"
+          }
+        }
       },
       include: {
         User: {
@@ -94,30 +212,32 @@ export async function POST(
       return NextResponse.json({ error: "No valid talent profiles found" }, { status: 400 });
     }
     
-    // Create invitations for each talent
-    const invitationPromises = talentProfiles.map(profile => 
-      prisma.invitation.create({
+    // Create a personalized invite message for each talent
+    const inviteMessage = message || `You've been invited to join project: ${project.title}. Please check your dashboard for more details.`;
+    
+    // Create messages for each talent as project invitations
+    const messageTransactions = talentProfiles.map(profile => 
+      prisma.message.create({
         data: {
-          message: message || null,
-          status: "PENDING",
-          Studio: { connect: { id: studio.id } },
-          Project: { connect: { id: project.id } },
-          Profile: { connect: { id: profile.id } },
-          type: "PROJECT",
+          id: crypto.randomUUID(),
+          subject: `Invitation to join project: ${project.title}`,
+          content: inviteMessage,
+          studioSenderId: studio.id,
+          talentReceiverId: profile.id,
+          relatedToProjectId: projectId,
+          isRead: false,
         }
       })
     );
     
-    const createdInvitations = await Promise.all(invitationPromises);
-    
-    // TODO: Send email notifications to talents (not implemented in this version)
+    const createdInvitations = await prisma.$transaction(messageTransactions);
     
     return NextResponse.json({
       message: "Invitations sent successfully",
       count: createdInvitations.length,
-      invitations: createdInvitations.map(invite => ({
+      invitations: createdInvitations.map((invite) => ({
         id: invite.id,
-        status: invite.status,
+        subject: invite.subject,
         createdAt: invite.createdAt
       }))
     });
