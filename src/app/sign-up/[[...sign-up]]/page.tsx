@@ -10,6 +10,7 @@ export default function SignUpPage() {
     firstName: '',
     lastName: '',
     email: '',
+    phoneNumber: '',
     password: '',
     userType: 'TALENT', // Default to talent
     terms: false,
@@ -35,7 +36,7 @@ export default function SignUpPage() {
     
     // Validate form
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setError('All fields are required');
+      setError('First name, last name, email, and password are required');
       return;
     }
     
@@ -65,6 +66,7 @@ export default function SignUpPage() {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
+          phoneNumber: formData.phoneNumber,
           password: formData.password,
           userType: formData.userType,
         }),
@@ -89,6 +91,22 @@ export default function SignUpPage() {
         // Redirect to sign-in page with registered flag
         router.push('/sign-in?registered=true');
         return;
+      }
+      
+      // Check if there's an external actor record for this email and convert if found
+      if (formData.userType === 'TALENT') {
+        try {
+          console.log("Checking for external actor records...");
+          const externalActorResponse = await fetch('/api/auth/convert-external-actor');
+          const externalActorData = await externalActorResponse.json();
+          
+          if (externalActorData.converted) {
+            console.log('Converted from external actor:', externalActorData.message);
+          }
+        } catch (error) {
+          console.error('Error checking for external actor conversion:', error);
+          // Continue with sign-in even if conversion check fails
+        }
       }
       
       console.log("Sign-in successful, redirecting to role-redirect page");
@@ -174,6 +192,22 @@ export default function SignUpPage() {
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
                 value={formData.email}
+                onChange={handleChange}
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                Phone number (optional)
+              </label>
+              <input
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                autoComplete="tel"
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Phone number"
+                value={formData.phoneNumber}
                 onChange={handleChange}
               />
             </div>

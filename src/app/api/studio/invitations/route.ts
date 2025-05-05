@@ -170,26 +170,45 @@ async function handleProjectInvitations(studioId: string, projectId: string, tal
     throw new Error('Project not found or does not belong to this studio');
   }
   
-  // For projects, we create a project member with "INVITED" status
-  const memberTransactions = talentIds.map(talentId => 
-    prisma.projectMember.create({
+  // For project invitations, we create both a message and a project invitation entry
+  const invitationResults = [];
+  
+  for (const talentId of talentIds) {
+    // First create a message
+    const inviteMessage = message || `You've been invited to join the project: ${project.title}. Please visit your projects page to accept or decline this invitation.`;
+    
+    const newMessage = await prisma.message.create({
       data: {
         id: crypto.randomUUID(),
+        subject: `Invitation to join project: ${project.title}`,
+        content: inviteMessage,
+        studioSenderId: studioId,
+        talentReceiverId: talentId,
+        relatedToProjectId: projectId,
+        isRead: false,
+      }
+    });
+    
+    // Then create the project invitation entry
+    const invitation = await prisma.projectInvitation.create({
+      data: {
         projectId,
         profileId: talentId,
+        status: 'PENDING',
+        message: inviteMessage,
         role: 'Talent',
-        updatedAt: new Date(),
-        // Remove fields not in the schema
-        // status: 'INVITED',
-        // invitationMessage: message || null,
+        messageId: newMessage.id,
       }
-    })
-  );
-  
-  const results = await prisma.$transaction(memberTransactions);
+    });
+    
+    invitationResults.push({
+      message: newMessage,
+      invitation
+    });
+  }
   
   return {
-    count: results.length,
-    details: results
+    count: invitationResults.length,
+    details: invitationResults
   };
 }

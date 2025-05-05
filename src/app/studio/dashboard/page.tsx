@@ -141,6 +141,19 @@ export default function StudioDashboard() {
           </Link>
         </div>
         
+        <div className="bg-yellow-50 p-4 rounded-md shadow">
+          <h3 className="font-medium text-lg mb-2">External Actors</h3>
+          <p className="text-gray-600 mb-3">
+            Upload and manage external actors not on Q-Card
+          </p>
+          <Link 
+            href="/studio/external-actors" 
+            className="text-yellow-600 hover:text-yellow-800"
+          >
+            Manage External Actors →
+          </Link>
+        </div>
+        
         <div className="bg-teal-50 p-4 rounded-md shadow">
           <h3 className="font-medium text-lg mb-2">Messages</h3>
           <p className="text-gray-600 mb-3">
