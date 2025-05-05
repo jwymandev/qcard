@@ -187,6 +187,18 @@ export default function ProjectDetailPage({ params }: { params: { projectId: str
                 >
                   Manage Casting
                 </Link>
+                <Link
+                  href={`/studio/projects/${projectId}/casting/new`}
+                  className="block w-full px-4 py-2 bg-green-600 text-white rounded text-center hover:bg-green-700"
+                >
+                  Create Casting Call
+                </Link>
+                <Link
+                  href={`/studio/talent-invitation?projectId=${projectId}`}
+                  className="block w-full px-4 py-2 bg-indigo-600 text-white rounded text-center hover:bg-indigo-700"
+                >
+                  Invite Talent Directly
+                </Link>
               </div>
             </div>
           </div>

@@ -47,9 +47,23 @@ function SearchParamsExtractor({
   const searchParams = useSearchParams();
   
   useEffect(() => {
-    setInvitationType(searchParams.get('type') || '');
-    setInvitationId(searchParams.get('id') || '');
-    setInvitationTitle(searchParams.get('title') || 'Invitation');
+    // Check for direct parameters
+    const type = searchParams.get('type') || '';
+    const id = searchParams.get('id') || '';
+    const title = searchParams.get('title') || 'Invitation';
+    
+    // Check for projectId (special case for direct project invitations)
+    const projectId = searchParams.get('projectId');
+    if (projectId) {
+      setInvitationType('project');
+      setInvitationId(projectId);
+      setInvitationTitle(title || 'Project Invitation');
+    } else {
+      setInvitationType(type);
+      setInvitationId(id);
+      setInvitationTitle(title);
+    }
+    
   }, [searchParams, setInvitationType, setInvitationId, setInvitationTitle]);
   
   return null;
