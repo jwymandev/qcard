@@ -204,19 +204,50 @@ function NewMessageContent() {
                 </button>
               </div>
             ) : (
-              <select
-                value={recipientId}
-                onChange={(e) => setRecipientId(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select a recipient</option>
-                {talents.map((talent) => (
-                  <option key={talent.id} value={talent.id}>
-                    {talent.user.firstName} {talent.user.lastName} ({talent.user.email})
-                  </option>
-                ))}
-              </select>
+              <div>
+                <div className="flex mb-2">
+                  <input 
+                    type="text"
+                    placeholder="Search for talent by name..."
+                    className="flex-grow px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) => {
+                      // Simple search filter
+                      const searchTerm = e.target.value.toLowerCase();
+                      if (searchTerm.length > 0) {
+                        const filtered = talents.filter(t => 
+                          `${t.user.firstName} ${t.user.lastName}`.toLowerCase().includes(searchTerm) ||
+                          t.user.email.toLowerCase().includes(searchTerm)
+                        );
+                        // Auto-select if only one match
+                        if (filtered.length === 1) {
+                          setRecipientId(filtered[0].id);
+                        }
+                      }
+                    }}
+                  />
+                  <Link
+                    href="/studio/talent-search"
+                    className="px-4 py-2 bg-gray-100 text-gray-700 border border-l-0 border-gray-300 rounded-r-md hover:bg-gray-200"
+                    target="_blank"
+                  >
+                    Advanced Search
+                  </Link>
+                </div>
+                <select
+                  value={recipientId}
+                  onChange={(e) => setRecipientId(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                  size={5}
+                >
+                  <option value="">Select a recipient</option>
+                  {talents.map((talent) => (
+                    <option key={talent.id} value={talent.id}>
+                      {talent.user.firstName} {talent.user.lastName} ({talent.user.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
           

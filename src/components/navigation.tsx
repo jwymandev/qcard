@@ -5,11 +5,23 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 
+// Badge component for notifications
+const NotificationBadge = ({ count }: { count: number }) => {
+  if (count <= 0) return null;
+  
+  return (
+    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+      {count > 9 ? '9+' : count}
+    </span>
+  );
+};
+
 export default function Navigation() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { data: session, status } = useSession();
+  const [unreadMessages, setUnreadMessages] = useState(0);
   
   const isAuthenticated = status === 'authenticated';
   const user = session?.user || { name: '', image: null };
@@ -25,6 +37,32 @@ export default function Navigation() {
       });
     }
   }, [status, session, isAuthenticated]);
+  
+  // Fetch unread messages count
+  const fetchUnreadMessagesCount = async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      const response = await fetch('/api/messages/unread-count');
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadMessages(data.unreadCount);
+      }
+    } catch (error) {
+      console.error('Error fetching unread messages count:', error);
+    }
+  };
+  
+  // Fetch unread messages count on initial load and periodically
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUnreadMessagesCount();
+      
+      // Poll for new messages every 30 seconds
+      const interval = setInterval(fetchUnreadMessagesCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
   
   // Hide navigation on home page when user is not authenticated
   if (pathname === '/' && !isAuthenticated) {
@@ -62,6 +100,21 @@ export default function Navigation() {
               >
                 Dashboard
               </Link>
+              
+              <div className="relative">
+                <Link
+                  href={session?.user?.tenantType === 'STUDIO' ? '/studio/messages' : '/talent/messages'}
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    pathname.includes('/messages')
+                      ? 'border-blue-500 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  }`}
+                >
+                  Messages
+                  <NotificationBadge count={unreadMessages} />
+                </Link>
+              </div>
+              
               <Link
                 href={session?.user?.tenantType === 'STUDIO' ? '/studio/profile' : '/talent/profile'}
                 className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
@@ -276,6 +329,25 @@ export default function Navigation() {
             >
               Dashboard
             </Link>
+            
+            <div className="relative inline-block w-full">
+              <Link
+                href={session?.user?.tenantType === 'STUDIO' ? '/studio/messages' : '/talent/messages'}
+                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                  pathname.includes('/messages')
+                    ? 'bg-blue-50 border-blue-500 text-blue-700'
+                    : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
+                }`}
+              >
+                Messages
+                {unreadMessages > 0 && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    {unreadMessages}
+                  </span>
+                )}
+              </Link>
+            </div>
+            
             <Link
               href={session?.user?.tenantType === 'STUDIO' ? '/studio/profile' : '/talent/profile'}
               className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${

@@ -15,11 +15,11 @@ const messageSchema = z.object({
 
 // Validation schema for inviting talent to a project
 const inviteSchema = z.object({
-  talentReceiverId: z.string(),
+  talentReceiverId: z.string().uuid({ message: "Invalid talent ID format" }),
   subject: z.string().min(1, { message: "Subject is required" }),
   content: z.string().min(1, { message: "Message content is required" }),
-  relatedToProjectId: z.string().optional().nullable(),
-  relatedToCastingCallId: z.string().optional().nullable(),
+  relatedToProjectId: z.string().uuid({ message: "Invalid project ID format" }).optional().nullable(),
+  relatedToCastingCallId: z.string().uuid({ message: "Invalid casting call ID format" }).optional().nullable(),
 });
 
 // GET /api/studio/messages - Get all messages for the authenticated studio

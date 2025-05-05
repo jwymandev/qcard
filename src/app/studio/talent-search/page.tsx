@@ -42,6 +42,8 @@ export default function TalentSearchPage() {
   const [page, setPage] = useState(1);
   const [skills, setSkills] = useState<Array<{ id: string; name: string }>>([]);
   const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
+  const [projects, setProjects] = useState<Array<{ id: string; title: string }>>([]);
+  const [selectedProject, setSelectedProject] = useState('');
   
   // Search parameters
   const [searchParams, setSearchParams] = useState<SearchParams>({
@@ -135,7 +137,7 @@ export default function TalentSearchPage() {
     }
   };
 
-  // Fetch reference data (skills and locations)
+  // Fetch reference data (skills, locations, and projects)
   const fetchReferenceData = async () => {
     try {
       // Fetch skills
@@ -150,6 +152,13 @@ export default function TalentSearchPage() {
       if (locationsResponse.ok) {
         const locationsData = await locationsResponse.json();
         setLocations(locationsData);
+      }
+      
+      // Fetch projects
+      const projectsResponse = await fetch('/api/studio/projects');
+      if (projectsResponse.ok) {
+        const projectsData = await projectsResponse.json();
+        setProjects(projectsData);
       }
     } catch (error) {
       console.error('Error fetching reference data:', error);
@@ -350,7 +359,7 @@ export default function TalentSearchPage() {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Hair Color
@@ -400,8 +409,26 @@ export default function TalentSearchPage() {
               <option value="false">Not available</option>
             </select>
           </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Project (for invitations)
+            </label>
+            <select
+              value={selectedProject}
+              onChange={(e) => setSelectedProject(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select a project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>{project.title}</option>
+              ))}
+            </select>
+          </div>
           
-          <div className="flex items-end">
+          <div className="md:col-span-2 flex items-end">
             <button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -579,18 +606,18 @@ export default function TalentSearchPage() {
                   )}
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
-                      <button
-                        onClick={() => sendMessage(talent.id)}
+                      <Link
+                        href={`/studio/messages/new?recipientId=${talent.id}`}
                         className="text-indigo-600 hover:text-indigo-900"
                       >
                         Message
-                      </button>
-                      <button
-                        onClick={() => addToProject(talent.id)}
-                        className="text-green-600 hover:text-green-900"
+                      </Link>
+                      <Link
+                        href={`/studio/talent-invitation?type=project&title=Project+Invitation&id=${selectedProject}`}
+                        className={`text-green-600 hover:text-green-900 ${!selectedProject ? 'opacity-50 pointer-events-none' : ''}`}
                       >
-                        Add to Project
-                      </button>
+                        Invite
+                      </Link>
                       <Link
                         href={`/studio/talent/${talent.id}`}
                         className="text-blue-600 hover:text-blue-900"
