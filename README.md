@@ -111,12 +111,18 @@ A new questionnaire feature has been added to allow studios to create custom for
 
 To deploy this feature:
 
-#### Standard Deployments
+#### If Switching from SQLite to PostgreSQL (Important for DigitalOcean)
+```bash
+./update-schema-with-provider-switch.sh
+```
+See [PROVIDER_SWITCH_GUIDE.md](PROVIDER_SWITCH_GUIDE.md) for details on switching database providers.
+
+#### Standard Deployments (if already using PostgreSQL)
 ```bash
 ./update-schema-and-migrate-enhanced.sh
 ```
 
-#### DigitalOcean Deployments (with individual database parameters)
+#### DigitalOcean Deployments (if already using PostgreSQL)
 ```bash
 ./update-schema-and-migrate-do.sh
 ```
