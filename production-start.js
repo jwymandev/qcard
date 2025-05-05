@@ -135,7 +135,7 @@ async function setupDatabaseSchema() {
   }
 }
 
-// Function to run studio initialization fix
+// Function to run startup fixes
 async function runStartupFixes() {
   try {
     console.log('Running startup fixes...');
@@ -148,10 +148,29 @@ async function runStartupFixes() {
     });
     
     if (fixResult.status === 0) {
-      console.log('✅ Startup fixes completed successfully');
-      return true;
+      console.log('✅ Studio initialization fixes completed successfully');
     } else {
-      console.error('⚠️ Startup fixes encountered issues');
+      console.error('⚠️ Studio initialization fixes encountered issues');
+    }
+    
+    // Check for project table issues
+    console.log('Checking database for project table issues...');
+    try {
+      // Use Prisma to check project table
+      const { PrismaClient } = require('@prisma/client');
+      const prisma = new PrismaClient();
+      
+      // Verify project table exists by counting projects
+      const projectCount = await prisma.project.count();
+      console.log(`✅ Project table verified. Found ${projectCount} projects.`);
+      
+      // Close Prisma client
+      await prisma.$disconnect();
+      return true;
+    } catch (error) {
+      console.error('⚠️ Error checking project table:', error.message);
+      console.log('This might indicate database schema issues.');
+      console.log('Try running: npx prisma db push');
       return false;
     }
   } catch (error) {
