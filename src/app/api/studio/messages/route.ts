@@ -6,20 +6,20 @@ import crypto from 'crypto';
 
 // Validation schema for sending a message
 const messageSchema = z.object({
-  recipientId: z.string().uuid({ message: "Invalid recipient ID format" }),
+  recipientId: z.string().min(1, { message: "Recipient ID is required" }),
   subject: z.string().min(1, { message: "Subject is required" }),
   content: z.string().min(1, { message: "Message content is required" }),
-  relatedToProjectId: z.string().uuid({ message: "Invalid project ID format" }).optional().nullable(),
-  relatedToCastingCallId: z.string().uuid({ message: "Invalid casting call ID format" }).optional().nullable(),
+  relatedToProjectId: z.string().optional().nullable(),
+  relatedToCastingCallId: z.string().optional().nullable(),
 });
 
 // Validation schema for inviting talent to a project
 const inviteSchema = z.object({
-  talentReceiverId: z.string().uuid({ message: "Invalid talent ID format" }),
+  talentReceiverId: z.string().min(1, { message: "Talent ID is required" }),
   subject: z.string().min(1, { message: "Subject is required" }),
   content: z.string().min(1, { message: "Message content is required" }),
-  relatedToProjectId: z.string().uuid({ message: "Invalid project ID format" }).optional().nullable(),
-  relatedToCastingCallId: z.string().uuid({ message: "Invalid casting call ID format" }).optional().nullable(),
+  relatedToProjectId: z.string().optional().nullable(),
+  relatedToCastingCallId: z.string().optional().nullable(),
 });
 
 // GET /api/studio/messages - Get all messages for the authenticated studio

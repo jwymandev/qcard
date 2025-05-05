@@ -88,6 +88,10 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
     setSendingReply(true);
     
     try {
+      if (!message.sender || !message.sender.id) {
+        throw new Error("Missing sender information");
+      }
+      
       const response = await fetch('/api/talent/messages', {
         method: 'POST',
         headers: {
@@ -101,9 +105,11 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
         }),
       });
       
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to send reply');
+        console.error('Error response data:', responseData);
+        throw new Error(responseData.error || responseData.details || 'Failed to send reply');
       }
       
       setReplyContent('');
@@ -115,7 +121,7 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
       }, 2000);
     } catch (error) {
       console.error('Error sending reply:', error);
-      setError('Failed to send reply. Please try again later.');
+      setError('Failed to send reply: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setSendingReply(false);
     }

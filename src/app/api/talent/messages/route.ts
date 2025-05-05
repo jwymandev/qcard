@@ -198,6 +198,21 @@ export async function POST(request: Request) {
       }, { status: 404 });
     }
     
+    // Verify that the recipient (studio) exists
+    const studioRecipient = await prisma.studio.findUnique({
+      where: { id: recipientId },
+    });
+    
+    if (!studioRecipient) {
+      return NextResponse.json({ 
+        error: "Recipient studio not found" 
+      }, { status: 404 });
+    }
+    
+    // Get safe values for related fields
+    const relatedToProjectId = originalMessage.relatedToProjectId || null;
+    const relatedToCastingCallId = originalMessage.relatedToCastingCallId || null;
+    
     // Create a reply message
     const newMessage = await prisma.message.create({
       data: {
@@ -207,9 +222,9 @@ export async function POST(request: Request) {
         talentSenderId: profileId,
         studioReceiverId: recipientId,
         isRead: false,
-        // Carry over any related project or casting call references
-        relatedToProjectId: originalMessage.relatedToProjectId,
-        relatedToCastingCallId: originalMessage.relatedToCastingCallId,
+        // Only include related entities if they exist
+        ...(relatedToProjectId && { relatedToProjectId }),
+        ...(relatedToCastingCallId && { relatedToCastingCallId }),
       },
     });
     

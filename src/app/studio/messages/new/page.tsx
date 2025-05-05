@@ -119,6 +119,10 @@ function NewMessageContent() {
     setError('');
     
     try {
+      // Clean empty values to avoid validation issues
+      const cleanRelatedToProjectId = relatedToProjectId ? relatedToProjectId : null;
+      const cleanRelatedToCastingCallId = relatedToCastingCallId ? relatedToCastingCallId : null;
+      
       const response = await fetch('/api/studio/messages', {
         method: 'POST',
         headers: {
@@ -128,8 +132,8 @@ function NewMessageContent() {
           recipientId,
           subject,
           content: message,
-          ...(relatedToProjectId && { relatedToProjectId }),
-          ...(relatedToCastingCallId && { relatedToCastingCallId }),
+          ...(cleanRelatedToProjectId && { relatedToProjectId: cleanRelatedToProjectId }),
+          ...(cleanRelatedToCastingCallId && { relatedToCastingCallId: cleanRelatedToCastingCallId }),
         }),
       });
       
@@ -140,11 +144,12 @@ function NewMessageContent() {
         }, 2000);
       } else {
         const data = await response.json();
-        setError(data.error || 'Failed to send message');
+        console.error('Message creation error:', data);
+        setError(data.error || (data.details ? `Failed to send message: ${JSON.stringify(data.details)}` : 'Failed to send message'));
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      setError('Failed to send message');
+      setError('Failed to send message: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setLoading(false);
     }
