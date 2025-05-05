@@ -10,8 +10,10 @@ const path = require('path');
 
 // Configure database connection if needed
 function setupDatabaseConnection() {
-  if (!process.env.DATABASE_URL && process.env.DATABASE_HOST) {
-    console.log('Constructing DATABASE_URL from environment variables...');
+  // First try to use Digital Ocean style individual environment variables
+  // This is the RECOMMENDED approach for DigitalOcean deployments
+  if (process.env.DATABASE_HOST) {
+    console.log('Constructing DATABASE_URL from Digital Ocean environment variables...');
     
     const host = process.env.DATABASE_HOST;
     const port = process.env.DATABASE_PORT || '25060';
@@ -19,24 +21,38 @@ function setupDatabaseConnection() {
     const password = process.env.DATABASE_PASSWORD || '';
     const dbName = process.env.DATABASE_NAME || 'defaultdb';
     
+    // Log the host and database for debugging
+    console.log(`Database host: ${host}, Database name: ${dbName}`);
+    
     // Encode password for URL
     const encodedPassword = encodeURIComponent(password);
     
-    // Construct PostgreSQL URL with SSL
+    // Construct PostgreSQL URL with SSL required for DigitalOcean
     const url = `postgresql://${username}:${encodedPassword}@${host}:${port}/${dbName}?sslmode=require`;
     
-    // Set environment variable
+    // Set environment variable for Prisma and other tools
     process.env.DATABASE_URL = url;
     console.log(`✅ Set DATABASE_URL to PostgreSQL connection (host: ${host})`);
-  } else if (process.env.DATABASE_URL) {
+    return true;
+  } 
+  // Fallback to direct DATABASE_URL if provided (not typical on DigitalOcean)
+  else if (process.env.DATABASE_URL) {
     if (!process.env.DATABASE_URL.startsWith('postgresql://') && 
         !process.env.DATABASE_URL.startsWith('postgres://')) {
       console.log('⚠️ DATABASE_URL does not appear to be a valid PostgreSQL URL');
+      console.log('Format should be: postgresql://username:password@host:port/database?sslmode=require');
+      return false;
     } else {
       console.log('✅ Using provided DATABASE_URL');
+      return true;
     }
-  } else {
-    console.log('⚠️ No database connection parameters found. Application may fail to connect to database.');
+  } 
+  // No database connection parameters found
+  else {
+    console.log('⚠️ No database connection parameters found!');
+    console.log('Missing both DATABASE_URL and DATABASE_HOST environment variables.');
+    console.log('Application will fail to connect to database.');
+    return false;
   }
 }
 
