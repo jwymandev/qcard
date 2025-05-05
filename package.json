@@ -12,7 +12,7 @@
     "deploy": "npx prisma migrate deploy && npm run build",
     "start": "node production-start.js",
     "lint": "next lint",
-    "postinstall": "prisma generate",
+    "postinstall": "npx prisma generate",
     "setup-uploads": "node scripts/init-uploads.js",
     "predev": "npm run setup-uploads",
     "typecheck": "tsc --noEmit",
@@ -39,7 +39,7 @@
     "do:push": "npx prisma db push && npm run build",
     "do:first-deploy": "node scripts/first-deploy.js",
     "do:deploy-with-schema": "node scripts/first-deploy.js && npm run build",
-    "do:deploy-full": "node scripts/do-production-deploy.js",
+    "do:deploy-full": "npx prisma generate && NODE_ENV=production next build",
     "healthcheck": "node scripts/production-healthcheck.js",
     "healthcheck:remote": "node scripts/production-healthcheck.js --remote",
     "deploy:prod": "npm run typecheck && npm run lint && npm run build && npm run healthcheck"

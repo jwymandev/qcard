@@ -15,14 +15,43 @@ function setupDatabaseConnection() {
   if (process.env.DATABASE_HOST) {
     console.log('Constructing DATABASE_URL from Digital Ocean environment variables...');
     
-    const host = process.env.DATABASE_HOST;
-    const port = process.env.DATABASE_PORT || '25060';
-    const username = process.env.DATABASE_USERNAME || 'doadmin';
-    const password = process.env.DATABASE_PASSWORD || '';
-    const dbName = process.env.DATABASE_NAME || 'defaultdb';
+    // Extract raw values from environment
+    const hostRaw = process.env.DATABASE_HOST || '';
+    const portRaw = process.env.DATABASE_PORT || '25060';
+    const usernameRaw = process.env.DATABASE_USERNAME || 'doadmin';
+    const passwordRaw = process.env.DATABASE_PASSWORD || '';
+    const dbNameRaw = process.env.DATABASE_NAME || 'defaultdb';
+    
+    // Check for Digital Ocean placeholders that haven't been resolved yet
+    if (hostRaw.includes('${') || portRaw.includes('${') || 
+        usernameRaw.includes('${') || passwordRaw.includes('${') || 
+        dbNameRaw.includes('${')) {
+      console.error('❌ DATABASE environment variables contain unresolved placeholders');
+      console.error('This usually means the Digital Ocean App Platform is misconfigured.');
+      console.error('Please check your environment variables in Digital Ocean App Platform.');
+      
+      // Log the raw values for debugging
+      console.log('Raw Environment Variables:');
+      console.log(`- DATABASE_HOST: ${hostRaw}`);
+      console.log(`- DATABASE_PORT: ${portRaw}`);
+      console.log(`- DATABASE_USERNAME: ${usernameRaw}`);
+      console.log(`- DATABASE_NAME: ${dbNameRaw}`);
+      
+      return false;
+    }
+    
+    // Use actual values from environment
+    const host = hostRaw;
+    const port = portRaw;
+    const username = usernameRaw;
+    const password = passwordRaw;
+    const dbName = dbNameRaw;
     
     // Log the host and database for debugging
-    console.log(`Database host: ${host}, Database name: ${dbName}`);
+    console.log(`Database connection info:`);
+    console.log(`- Host: ${host}`);
+    console.log(`- Port: ${port}`);
+    console.log(`- Database: ${dbName}`);
     
     // Encode password for URL
     const encodedPassword = encodeURIComponent(password);
@@ -35,7 +64,7 @@ function setupDatabaseConnection() {
     console.log(`✅ Set DATABASE_URL to PostgreSQL connection (host: ${host})`);
     return true;
   } 
-  // Fallback to direct DATABASE_URL if provided (not typical on DigitalOcean)
+  // Fallback to direct DATABASE_URL if provided
   else if (process.env.DATABASE_URL) {
     if (!process.env.DATABASE_URL.startsWith('postgresql://') && 
         !process.env.DATABASE_URL.startsWith('postgres://')) {
