@@ -4,22 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import Button from '@/components/ui/button';
+import Card, { CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import Badge from '@/components/ui/badge';
+import Tabs, { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Spinner from '@/components/ui/spinner';
 import { 
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-  Badge,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from '@/components/ui';
-import { 
-  Loader2,
   ClipboardCheck,
   ClipboardList,
   ClockIcon,
@@ -141,7 +131,7 @@ export default function TalentQuestionnairesPage() {
   if (status === 'loading' || loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Spinner size="md" />
         <span className="ml-2">Loading questionnaires...</span>
       </div>
     );
@@ -203,7 +193,7 @@ export default function TalentQuestionnairesPage() {
               <ClipboardList className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h2 className="text-xl font-semibold mb-2">No pending questionnaires</h2>
               <p className="text-muted-foreground">
-                You don't have any pending questionnaire invitations.
+                You don&apos;t have any pending questionnaire invitations.
               </p>
             </div>
           ) : (
@@ -268,7 +258,7 @@ export default function TalentQuestionnairesPage() {
               <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h2 className="text-xl font-semibold mb-2">No completed questionnaires</h2>
               <p className="text-muted-foreground">
-                You haven't completed any questionnaires yet.
+                You haven&apos;t completed any questionnaires yet.
               </p>
             </div>
           ) : (
@@ -314,7 +304,7 @@ export default function TalentQuestionnairesPage() {
               <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h2 className="text-xl font-semibold mb-2">No declined questionnaires</h2>
               <p className="text-muted-foreground">
-                You haven't declined any questionnaire invitations.
+                You haven&apos;t declined any questionnaire invitations.
               </p>
             </div>
           ) : (

@@ -105,31 +105,33 @@ model Payment {
 }
 
 model Profile {
-  id                                        String          @id
-  userId                                    String          @unique
+  id                                        String                   @id
+  userId                                    String                   @unique
   headshotUrl                               String?
   bio                                       String?
   height                                    String?
   weight                                    String?
   hairColor                                 String?
   eyeColor                                  String?
-  availability                              Boolean         @default(true)
-  createdAt                                 DateTime        @default(now())
+  availability                              Boolean                  @default(true)
+  createdAt                                 DateTime                 @default(now())
   updatedAt                                 DateTime
   ethnicity                                 String?
   experience                                String?
   gender                                    String?
   languages                                 String?
   Application                               Application[]
-  Message_Message_talentSenderIdToProfile   Message[]       @relation("Message_talentSenderIdToProfile")
-  Message_Message_talentReceiverIdToProfile Message[]       @relation("Message_talentReceiverIdToProfile")
-  User                                      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Message_Message_talentSenderIdToProfile   Message[]                @relation("Message_talentSenderIdToProfile")
+  Message_Message_talentReceiverIdToProfile Message[]                @relation("Message_talentReceiverIdToProfile")
+  User                                      User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   ProfileImage                              ProfileImage[]
   ProjectMember                             ProjectMember[]
   SceneTalent                               SceneTalent[]
   StudioNote                                StudioNote[]
   Location                                  Location[]
   Skill                                     Skill[]
+  questionnaireInvitations                  QuestionnaireInvitation[]
+  questionnaireResponses                    QuestionnaireResponse[]
 }
 
 model ProfileImage {
@@ -219,24 +221,25 @@ model Skill {
 }
 
 model Studio {
-  id                                       String        @id
+  id                                       String           @id
   name                                     String
   description                              String?
-  tenantId                                 String        @unique
+  tenantId                                 String           @unique
   contactName                              String?
   contactEmail                             String?
   contactPhone                             String?
   website                                  String?
-  createdAt                                DateTime      @default(now())
+  createdAt                                DateTime         @default(now())
   updatedAt                                DateTime
   CastingCall                              CastingCall[]
-  Message_Message_studioReceiverIdToStudio Message[]     @relation("Message_studioReceiverIdToStudio")
-  Message_Message_studioSenderIdToStudio   Message[]     @relation("Message_studioSenderIdToStudio")
+  Message_Message_studioReceiverIdToStudio Message[]        @relation("Message_studioReceiverIdToStudio")
+  Message_Message_studioSenderIdToStudio   Message[]        @relation("Message_studioSenderIdToStudio")
   Payment                                  Payment[]
   Project                                  Project[]
-  Tenant                                   Tenant        @relation(fields: [tenantId], references: [id])
+  Tenant                                   Tenant           @relation(fields: [tenantId], references: [id])
   StudioNote                               StudioNote[]
   Location                                 Location[]
+  questionnaires                           Questionnaire[]
 }
 
 model StudioNote {
@@ -290,4 +293,75 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Questionnaire models
+model Questionnaire {
+  id               String                   @id @default(uuid())
+  title            String
+  description      String?
+  isActive         Boolean                  @default(true)
+  requiresApproval Boolean                  @default(false)
+  studioId         String
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  studio           Studio                   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  questions        QuestionnaireQuestion[]
+  invitations      QuestionnaireInvitation[]
+  responses        QuestionnaireResponse[]
+}
+
+model QuestionnaireQuestion {
+  id             String           @id @default(uuid())
+  text           String
+  description    String?
+  type           String           // SHORT_TEXT, LONG_TEXT, SINGLE_CHOICE, MULTIPLE_CHOICE, RATING, DATE, FILE_UPLOAD, YES_NO
+  isRequired     Boolean          @default(false)
+  order          Int
+  options        Json?            // For choice-based questions
+  metadata       Json?            // Additional configuration for specific question types
+  questionnaireId String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  questionnaire  Questionnaire    @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  answers        QuestionAnswer[]
+}
+
+model QuestionnaireInvitation {
+  id              String               @id @default(uuid())
+  questionnaireId String
+  profileId       String
+  status          String               @default("PENDING") // PENDING, ACCEPTED, DECLINED, COMPLETED
+  message         String?
+  sentAt          DateTime             @default(now())
+  expiresAt       DateTime?
+  completedAt     DateTime?
+  questionnaire   Questionnaire        @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  profile         Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  response        QuestionnaireResponse?
+}
+
+model QuestionnaireResponse {
+  id              String                 @id @default(uuid())
+  questionnaireId String
+  profileId       String
+  invitationId    String                 @unique
+  status          String                 @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, REJECTED
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  feedback        String?
+  questionnaire   Questionnaire          @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  profile         Profile                @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  invitation      QuestionnaireInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  answers         QuestionAnswer[]
+}
+
+model QuestionAnswer {
+  id                 String                 @id @default(uuid())
+  responseId         String
+  questionId         String
+  value              Json                   // Store answer value based on question type
+  response           QuestionnaireResponse  @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question           QuestionnaireQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }

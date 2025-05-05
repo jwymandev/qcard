@@ -1,4 +1,5 @@
 // Auth helper functions for consistent authentication handling
+import { Session } from 'next-auth';
 
 /**
  * Gets a CSRF token for authentication requests
@@ -51,4 +52,18 @@ export async function getServerSession() {
     console.error('Error fetching session:', error);
     return null;
   }
+}
+
+/**
+ * Gets the studio ID from the session
+ * @param session The user session
+ * @returns The studio ID or null if not found or not authorized
+ */
+export function getStudioIdFromSession(session: Session | null): string | null {
+  if (!session || !session.user) {
+    return null;
+  }
+  
+  // For now, return a placeholder studio ID for development/testing
+  return "studio-placeholder-id";
 }

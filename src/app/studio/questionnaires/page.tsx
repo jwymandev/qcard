@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, PlusCircle, ClipboardList, Send, CheckCircle, XCircle } from 'lucide-react';
+import Button from '@/components/ui/button';
+import Card, { CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import Badge from '@/components/ui/badge';
+import Spinner from '@/components/ui/spinner';
+import { PlusCircle, ClipboardList, Send, CheckCircle, XCircle } from 'lucide-react';
 
 // Define TypeScript interfaces
 interface Questionnaire {
@@ -63,7 +64,7 @@ export default function QuestionnairesPage() {
   if (status === 'loading' || loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Spinner size="md" />
         <span className="ml-2">Loading questionnaires...</span>
       </div>
     );

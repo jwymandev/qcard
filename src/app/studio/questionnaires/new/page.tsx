@@ -7,26 +7,27 @@ import { useSession } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  Form,
+// Import UI components using default imports
+import Button from '@/components/ui/button';
+import Card, { 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription 
+} from '@/components/ui/card';
+import Form, {
   FormControl,
   FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
-  Input,
-  Textarea,
-  Switch,
-  Checkbox,
-  Loader2,
-} from '@/components/ui';
+  FormMessage 
+} from '@/components/ui/form';
+import Input from '@/components/ui/input';
+import Textarea from '@/components/ui/textarea';
+import Switch from '@/components/ui/switch';
+import Checkbox from '@/components/ui/checkbox';
+import Spinner from '@/components/ui/spinner';
 import { ChevronLeft, Save } from 'lucide-react';
 
 // Define form schema
@@ -64,7 +65,7 @@ export default function NewQuestionnairePage() {
   if (status === 'loading') {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Spinner size="md" />
         <span className="ml-2">Loading...</span>
       </div>
     );
@@ -127,7 +128,7 @@ export default function NewQuestionnairePage() {
             <CardTitle>Questionnaire Details</CardTitle>
             <CardDescription>
               Create a new questionnaire to gather information from talent profiles.
-              You'll be able to add questions after creating the basic details.
+              You&apos;ll be able to add questions after creating the basic details.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -230,7 +231,7 @@ export default function NewQuestionnairePage() {
                   <Button type="submit" disabled={submitting}>
                     {submitting ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <Spinner size="sm" className="mr-2" />
                         Creating...
                       </>
                     ) : (
