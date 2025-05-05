@@ -10,7 +10,7 @@ const NotificationBadge = ({ count }: { count: number }) => {
   if (count <= 0) return null;
   
   return (
-    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+    <span className="relative -top-1 ml-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
       {count > 9 ? '9+' : count}
     </span>
   );
@@ -101,7 +101,7 @@ export default function Navigation() {
                 Dashboard
               </Link>
               
-              <div className="relative">
+              <div className="relative inline-flex items-center">
                 <Link
                   href={session?.user?.tenantType === 'STUDIO' ? '/studio/messages' : '/talent/messages'}
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
@@ -330,10 +330,10 @@ export default function Navigation() {
               Dashboard
             </Link>
             
-            <div className="relative inline-block w-full">
+            <div className="relative inline-flex items-center w-full">
               <Link
                 href={session?.user?.tenantType === 'STUDIO' ? '/studio/messages' : '/talent/messages'}
-                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                className={`flex items-center pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
                   pathname.includes('/messages')
                     ? 'bg-blue-50 border-blue-500 text-blue-700'
                     : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'

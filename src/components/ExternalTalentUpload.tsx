@@ -7,11 +7,11 @@ type UploadResult = {
   duplicates: number;
 };
 
-interface ExternalActorUploadProps {
+interface ExternalTalentUploadProps {
   onUploadComplete?: (result: UploadResult) => void;
 }
 
-export default function ExternalActorUpload({ onUploadComplete }: ExternalActorUploadProps) {
+export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalentUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
@@ -108,9 +108,9 @@ export default function ExternalActorUpload({ onUploadComplete }: ExternalActorU
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Upload External Actors</CardTitle>
+        <CardTitle>Upload External Talent</CardTitle>
         <CardDescription>
-          Upload a CSV file containing external actor information.
+          Upload a CSV file containing external talent information.
           <br />
           The CSV should have columns: email (required), firstName, lastName, phoneNumber, notes
         </CardDescription>
@@ -258,7 +258,7 @@ export default function ExternalActorUpload({ onUploadComplete }: ExternalActorU
           </pre>
           <p className="text-xs text-gray-500 mt-2">
             <strong>Note:</strong> When talent registers with a matching email or phone number, 
-            they will automatically be linked to these external actor records.
+            they will automatically be linked to these external talent records.
           </p>
         </div>
       </CardContent>

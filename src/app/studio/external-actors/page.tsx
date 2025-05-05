@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import ExternalActorUpload from '@/components/ExternalActorUpload';
+import ExternalTalentUpload from '@/components/ExternalTalentUpload';
 import { 
   Button, 
   Card, 
@@ -242,7 +242,7 @@ export default function ExternalActorsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">External Actors</h1>
+        <h1 className="text-2xl font-bold">External Talent</h1>
         <Button onClick={() => router.push('/studio/dashboard')}>Back to Dashboard</Button>
       </div>
       
@@ -257,7 +257,7 @@ export default function ExternalActorsPage() {
         {/* Add Actor Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Add External Actor</CardTitle>
+            <CardTitle>Add External Talent</CardTitle>
           </CardHeader>
           <CardContent>
             {addActorError && (
@@ -342,19 +342,19 @@ export default function ExternalActorsPage() {
               </div>
               
               <Button type="submit" disabled={isAddingActor}>
-                {isAddingActor ? 'Adding...' : 'Add External Actor'}
+                {isAddingActor ? 'Adding...' : 'Add External Talent'}
               </Button>
             </form>
           </CardContent>
         </Card>
         
         {/* CSV Upload */}
-        <ExternalActorUpload onUploadComplete={handleUploadComplete} />
+        <ExternalTalentUpload onUploadComplete={handleUploadComplete} />
       </div>
       
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="p-4 sm:p-6 border-b">
-          <h2 className="text-xl font-semibold">Manage External Actors</h2>
+          <h2 className="text-xl font-semibold">Manage External Talent</h2>
           
           <div className="mt-4 flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4">
             <Tabs 
@@ -394,7 +394,7 @@ export default function ExternalActorsPage() {
         <div className="overflow-x-auto">
           {externalActors.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
-              No external actors found. Add actors manually or upload a CSV file.
+              No external talent found. Add talent manually or upload a CSV file.
             </div>
           ) : (
             <table className="min-w-full divide-y divide-gray-200">

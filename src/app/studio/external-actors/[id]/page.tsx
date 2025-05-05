@@ -203,7 +203,7 @@ export default function ExternalActorDetailsPage({ params }: { params: { id: str
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">External Actor Details</h1>
+          <h1 className="text-2xl font-bold">External Talent Details</h1>
           <Button onClick={() => router.push('/studio/external-actors')}>Back to List</Button>
         </div>
         
@@ -223,7 +223,7 @@ export default function ExternalActorDetailsPage({ params }: { params: { id: str
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">External Actor Details</h1>
+        <h1 className="text-2xl font-bold">External Talent Details</h1>
         <Button onClick={() => router.push('/studio/external-actors')}>Back to List</Button>
       </div>
       
@@ -276,7 +276,7 @@ export default function ExternalActorDetailsPage({ params }: { params: { id: str
                   <div className="bg-blue-50 p-4 rounded-md">
                     <div className="text-sm font-medium text-blue-800 mb-2">Converted to Talent User</div>
                     <div className="text-sm">
-                      <p>This external actor has been converted to a talent user on {formatDate(actor.convertedToTalentAt)}.</p>
+                      <p>This external talent has been converted to a talent user on {formatDate(actor.convertedToTalentAt)}.</p>
                       <Button
                         variant="outline"
                         size="sm"
