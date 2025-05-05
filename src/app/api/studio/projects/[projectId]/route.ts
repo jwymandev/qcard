@@ -1,0 +1,285 @@
+import { prisma } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { z } from 'zod';
+
+// Validation schema for project updates
+const projectUpdateSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional().nullable(),
+  startDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
+  status: z.string().optional(),
+  isArchived: z.boolean().optional(),
+});
+
+// GET /api/studio/projects/[projectId] - Get a specific project
+export async function GET(
+  request: Request,
+  { params }: { params: { projectId: string } }
+) {
+  const session = await auth();
+  
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  const { projectId } = params;
+  
+  if (!projectId) {
+    return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
+  }
+  
+  try {
+    // Find the user and their tenant
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true },
+    });
+    
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
+      return NextResponse.json({ error: "Only studio accounts can access this endpoint" }, { status: 403 });
+    }
+    
+    // Find the studio associated with this tenant
+    const studio = await prisma.studio.findFirst({
+      where: { tenantId: user.Tenant.id },
+    });
+    
+    if (!studio) {
+      return NextResponse.json({ error: "Studio not found" }, { status: 404 });
+    }
+    
+    // Get the project with related data
+    const project = await prisma.project.findUnique({
+      where: {
+        id: projectId,
+        studioId: studio.id  // Ensure project belongs to the studio
+      },
+      include: {
+        ProjectMember: {
+          include: {
+            Profile: {
+              include: {
+                User: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  }
+                }
+              }
+            }
+          }
+        },
+        CastingCall: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            _count: {
+              select: {
+                Application: true,
+              }
+            }
+          }
+        },
+      },
+    });
+    
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+    
+    // Map fields for frontend compatibility
+    const mappedProject = {
+      ...project,
+      members: project.ProjectMember?.map(member => ({
+        ...member,
+        profile: {
+          ...member.Profile,
+          user: member.Profile?.User
+        }
+      })),
+      castingCalls: project.CastingCall?.map(call => ({
+        ...call,
+        // Map the count correctly
+        _count: {
+          applications: call._count.Application
+        }
+      }))
+    };
+    
+    return NextResponse.json(mappedProject);
+  } catch (error) {
+    console.error("Error fetching project:", error);
+    return NextResponse.json({ 
+      error: "Failed to fetch project",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
+  }
+}
+
+// PUT /api/studio/projects/[projectId] - Update a project
+export async function PUT(
+  request: Request,
+  { params }: { params: { projectId: string } }
+) {
+  const session = await auth();
+  
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  const { projectId } = params;
+  
+  if (!projectId) {
+    return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
+  }
+  
+  try {
+    const body = await request.json();
+    
+    // Validate input data
+    const result = projectUpdateSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: "Invalid input data", details: result.error.format() },
+        { status: 400 }
+      );
+    }
+    
+    const validatedData = result.data;
+    
+    // Find the user and their tenant
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true },
+    });
+    
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
+      return NextResponse.json({ error: "Only studio accounts can update projects" }, { status: 403 });
+    }
+    
+    // Find the studio associated with this tenant
+    const studio = await prisma.studio.findFirst({
+      where: { tenantId: user.Tenant.id },
+    });
+    
+    if (!studio) {
+      return NextResponse.json({ error: "Studio not found" }, { status: 404 });
+    }
+    
+    // Check if the project exists and belongs to this studio
+    const existingProject = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        studioId: studio.id
+      }
+    });
+    
+    if (!existingProject) {
+      return NextResponse.json({ error: "Project not found or you don't have permission to update it" }, { status: 404 });
+    }
+    
+    // Prepare the data object
+    const updateData = {
+      ...validatedData,
+      updatedAt: new Date()
+    };
+    
+    // Handle dates if provided
+    if (validatedData.startDate) {
+      updateData.startDate = new Date(validatedData.startDate);
+    }
+    
+    if (validatedData.endDate) {
+      updateData.endDate = new Date(validatedData.endDate);
+    }
+    
+    // Update the project
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: updateData,
+    });
+    
+    return NextResponse.json(updatedProject);
+  } catch (error) {
+    console.error("Error updating project:", error);
+    return NextResponse.json({ 
+      error: "Failed to update project",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
+  }
+}
+
+// DELETE /api/studio/projects/[projectId] - Archive a project
+export async function DELETE(
+  request: Request,
+  { params }: { params: { projectId: string } }
+) {
+  const session = await auth();
+  
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  const { projectId } = params;
+  
+  if (!projectId) {
+    return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
+  }
+  
+  try {
+    // Find the user and their tenant
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true },
+    });
+    
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
+      return NextResponse.json({ error: "Only studio accounts can delete projects" }, { status: 403 });
+    }
+    
+    // Find the studio associated with this tenant
+    const studio = await prisma.studio.findFirst({
+      where: { tenantId: user.Tenant.id },
+    });
+    
+    if (!studio) {
+      return NextResponse.json({ error: "Studio not found" }, { status: 404 });
+    }
+    
+    // Check if the project exists and belongs to this studio
+    const existingProject = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        studioId: studio.id
+      }
+    });
+    
+    if (!existingProject) {
+      return NextResponse.json({ error: "Project not found or you don't have permission to delete it" }, { status: 404 });
+    }
+    
+    // Instead of actually deleting, we archive the project
+    const archivedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        isArchived: true,
+        updatedAt: new Date()
+      },
+    });
+    
+    return NextResponse.json({ 
+      message: "Project archived successfully",
+      project: archivedProject
+    });
+  } catch (error) {
+    console.error("Error archiving project:", error);
+    return NextResponse.json({ 
+      error: "Failed to archive project",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
+  }
+}
