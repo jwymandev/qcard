@@ -21,11 +21,24 @@ function setupDatabaseUrl() {
   if (process.env.DATABASE_HOST) {
     console.log('Constructing DATABASE_URL from Digital Ocean environment variables...');
     
-    const host = process.env.DATABASE_HOST;
-    const port = process.env.DATABASE_PORT || '25060';
-    const username = process.env.DATABASE_USERNAME || 'doadmin';
-    const password = process.env.DATABASE_PASSWORD || '';
-    const dbName = process.env.DATABASE_NAME || 'defaultdb';
+    // Get raw values before processing
+    const hostRaw = process.env.DATABASE_HOST || '';
+    const portRaw = process.env.DATABASE_PORT || '25060';
+    const usernameRaw = process.env.DATABASE_USERNAME || 'doadmin';
+    const passwordRaw = process.env.DATABASE_PASSWORD || '';
+    const dbNameRaw = process.env.DATABASE_NAME || 'defaultdb';
+    
+    // Check if values contain Digital Ocean placeholders and provide defaults
+    const host = hostRaw.includes('${') ? 'localhost' : hostRaw;
+    const port = portRaw.includes('${') ? '25060' : portRaw;
+    const username = usernameRaw.includes('${') ? 'doadmin' : usernameRaw;
+    const password = passwordRaw.includes('${') ? '' : passwordRaw;
+    const dbName = dbNameRaw.includes('${') ? 'defaultdb' : dbNameRaw;
+    
+    console.log(`Database connection info:`);
+    console.log(`- Host: ${host} (raw: ${hostRaw})`);
+    console.log(`- Port: ${port} (raw: ${portRaw})`);
+    console.log(`- Database: ${dbName} (raw: ${dbNameRaw})`);
     
     // Encode password for URL
     const encodedPassword = encodeURIComponent(password);
