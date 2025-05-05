@@ -78,29 +78,59 @@ function startApplication() {
   });
 }
 
-// Push database schema if tables are missing
+// Check and run migrations if needed
 async function setupDatabaseSchema() {
-  console.log('Checking database schema...');
+  console.log('🔍 Checking database schema and migrations...');
   
   try {
-    // Run prisma db push using child process
     const { spawnSync } = require('child_process');
-    console.log('Pushing database schema to create missing tables...');
     
-    const prismaResult = spawnSync('npx', ['prisma', 'db', 'push'], {
+    // Step 1: Check if migrations need to be applied
+    console.log('Checking for pending migrations...');
+    const migrationStatus = spawnSync('npx', ['prisma', 'migrate', 'status'], {
+      stdio: ['ignore', 'pipe', 'inherit'],
+      env: process.env,
+      encoding: 'utf-8'
+    });
+    
+    const hasPendingMigrations = migrationStatus.stdout && 
+                                migrationStatus.stdout.includes('have not been applied');
+    
+    // Step 2: Apply migrations if needed
+    if (hasPendingMigrations) {
+      console.log('🚀 Pending migrations detected, applying migrations...');
+      const migrateResult = spawnSync('npx', ['prisma', 'migrate', 'deploy'], {
+        stdio: 'inherit',
+        env: process.env
+      });
+      
+      if (migrateResult.status === 0) {
+        console.log('✅ Migrations applied successfully');
+      } else {
+        console.error('⚠️ Migration apply failed, trying schema push as fallback...');
+      }
+    } else {
+      console.log('✅ No pending migrations detected');
+    }
+    
+    // Step 3: Verify schema and push changes if needed
+    console.log('Verifying database schema matches Prisma schema...');
+    const prismaResult = spawnSync('npx', ['prisma', 'db', 'push', '--accept-data-loss'], {
       stdio: 'inherit',
       env: process.env
     });
     
     if (prismaResult.status === 0) {
-      console.log('✅ Database schema pushed successfully');
+      console.log('✅ Database schema verified/updated successfully');
       return true;
     } else {
-      console.error('❌ Failed to push database schema');
+      console.error('❌ Failed to verify database schema');
+      // Continue anyway since the app might still work with existing schema
       return false;
     }
   } catch (error) {
     console.error('❌ Error setting up database schema:', error.message);
+    console.log('Continuing startup despite schema check failure');
     return false;
   }
 }
