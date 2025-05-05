@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-
+import { useSearchParams } from 'next/navigation';
 /**
  * Automatically initializes a studio profile without requiring user interaction
  * Shows a loading screen while initializing
@@ -11,8 +11,25 @@ import { useRouter } from 'next/navigation';
 export default function AutoInitStudio() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [initAttempted, setInitAttempted] = useState(false);
+  const [returnUrl, setReturnUrl] = useState<string | null>(null);
+
+  // Get return URL from query parameters or storage
+  useEffect(() => {
+    // Check for return_to in query params first
+    const returnToParam = searchParams.get('return_to');
+    if (returnToParam) {
+      setReturnUrl(decodeURIComponent(returnToParam));
+    } else {
+      // Check localStorage as fallback
+      const storedUrl = localStorage.getItem('studioInitReturnUrl');
+      if (storedUrl) {
+        setReturnUrl(storedUrl);
+      }
+    }
+  }, [searchParams]);
 
   // Automatically initialize studio when component loads
   useEffect(() => {
@@ -23,7 +40,8 @@ export default function AutoInitStudio() {
         console.log("Auto-initializing studio account...");
         setInitAttempted(true);
 
-        const response = await fetch('/api/studio/init', {
+        // Try the auto-init endpoint first as it's more robust
+        const response = await fetch('/api/studio/auto-init', {
           method: 'POST',
         });
         
@@ -34,10 +52,14 @@ export default function AutoInitStudio() {
         
         console.log("Studio account initialized successfully");
         
-        // Redirect to dashboard after initialization
-        router.push('/studio/dashboard');
-        // Also trigger a reload to refresh session data
-        window.location.reload();
+        // Redirect back to the page they were trying to access, or dashboard if none
+        const redirectUrl = returnUrl || '/studio/dashboard';
+        
+        // Clear stored URLs
+        localStorage.removeItem('studioInitReturnUrl');
+        
+        // Redirect and reload to refresh session data
+        window.location.href = redirectUrl;
       } catch (error) {
         console.error('Error auto-initializing studio:', error);
         const errorMessage = error instanceof Error ? error.message : 'An error occurred initializing studio';

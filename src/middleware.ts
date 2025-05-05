@@ -148,6 +148,35 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
   
+  // If accessing studio pages and authenticated as a studio user, check if studio needs initialization
+  if (path.startsWith('/studio/') && isAuthenticated && token?.tenantType === 'STUDIO' && 
+      path !== '/studio/init-studio' && path !== '/studio/init-studio-auto') {
+    // Check if we need to initialize studio (this will only run once per user)
+    try {
+      const checkStudioUrl = new URL('/api/studio/check-access', request.url);
+      const checkResponse = await fetch(checkStudioUrl.toString(), {
+        headers: { cookie: request.headers.get('cookie') || '' },
+      });
+      
+      if (!checkResponse.ok) {
+        const errorData = await checkResponse.json();
+        // If studio needs initialization, redirect to auto-init page
+        if (checkResponse.status === 404 && errorData.error === 'Studio not found') {
+          console.log('Studio needs initialization, redirecting to auto-init page');
+          
+          // Add the current URL as a query parameter for the redirect
+          const initUrl = new URL('/studio/init-studio-auto', request.url);
+          initUrl.searchParams.set('return_to', encodeURIComponent(request.url));
+          
+          return NextResponse.redirect(initUrl);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking studio initialization:', error);
+      // Continue even if check fails
+    }
+  }
+  
   // For most cases, allow the request to proceed
   return NextResponse.next();
 }

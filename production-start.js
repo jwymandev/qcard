@@ -135,6 +135,31 @@ async function setupDatabaseSchema() {
   }
 }
 
+// Function to run studio initialization fix
+async function runStartupFixes() {
+  try {
+    console.log('Running startup fixes...');
+    
+    // Run the studio initialization fix script
+    const { spawnSync } = require('child_process');
+    const fixResult = spawnSync('node', ['scripts/startup-fix.js'], {
+      stdio: 'inherit',
+      env: process.env
+    });
+    
+    if (fixResult.status === 0) {
+      console.log('✅ Startup fixes completed successfully');
+      return true;
+    } else {
+      console.error('⚠️ Startup fixes encountered issues');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error running startup fixes:', error.message);
+    return false;
+  }
+}
+
 // Main function
 async function main() {
   console.log('Starting QCard in production mode...');
@@ -147,6 +172,9 @@ async function main() {
   
   // Set up database schema
   await setupDatabaseSchema();
+  
+  // Run startup fixes
+  await runStartupFixes();
   
   // Start the application
   startApplication();
