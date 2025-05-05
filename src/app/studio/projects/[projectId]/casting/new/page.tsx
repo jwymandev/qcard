@@ -200,7 +200,7 @@ export default function NewCastingCallPage({ params }: { params: { projectId: st
       <div className="container mx-auto px-4 py-8">
         <Alert variant="destructive" className="mb-6">
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>Project not found or you don't have access to it.</AlertDescription>
+          <AlertDescription>Project not found or you don&apos;t have access to it.</AlertDescription>
         </Alert>
         <Link href="/studio/projects" className="text-blue-600 hover:text-blue-800">
           Back to Projects

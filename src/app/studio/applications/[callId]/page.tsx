@@ -133,7 +133,7 @@ export default function ApplicationsPage({ params }: { params: { callId: string 
         });
       
       // Ensure Profile and Skill property are always defined
-      const processedData = data.map(app => ({
+      const processedData = data.map((app: any) => ({
         ...app,
         Profile: app.Profile ? {
           ...app.Profile,
@@ -394,7 +394,7 @@ export default function ApplicationsPage({ params }: { params: { callId: string 
                           {application.Profile.User.firstName} {application.Profile.User.lastName}
                         </h3>
                         <Badge variant={
-                          application.status === 'APPROVED' ? 'success' :
+                          application.status === 'APPROVED' ? 'default' :
                           application.status === 'REJECTED' ? 'destructive' :
                           'outline'
                         }>
@@ -431,7 +431,7 @@ export default function ApplicationsPage({ params }: { params: { callId: string 
                         <h3 className="font-semibold text-md mb-2">Applicant&apos;s Message</h3>
                         <div className="p-3 bg-gray-50 rounded">
                           <p className="text-gray-700 whitespace-pre-line">
-                            {application.message || &apos;No message provided.&apos;}
+                            {application.message || 'No message provided.'}
                           </p>
                         </div>
                       </div>
@@ -502,7 +502,7 @@ export default function ApplicationsPage({ params }: { params: { callId: string 
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button 
-                                variant="success" 
+                                variant="default" 
                                 disabled={processing}
                                 onClick={() => setSelectedApplicationId(application.id)}
                               >

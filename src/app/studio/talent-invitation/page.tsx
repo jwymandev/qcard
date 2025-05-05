@@ -37,12 +37,12 @@ type SearchParams = {
 export default function TalentInvitationPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const urlParams = useSearchParams();
   
   // Get invitation type and ID from URL parameters
-  const invitationType = searchParams.get('type') || '';
-  const invitationId = searchParams.get('id') || '';
-  const invitationTitle = searchParams.get('title') || 'Invitation';
+  const invitationType = urlParams.get('type') || '';
+  const invitationId = urlParams.get('id') || '';
+  const invitationTitle = urlParams.get('title') || 'Invitation';
   
   // State for talent data
   const [talents, setTalents] = useState<Talent[]>([]);

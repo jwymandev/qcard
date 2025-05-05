@@ -178,8 +178,10 @@ async function handleProjectInvitations(studioId: string, projectId: string, tal
         projectId,
         profileId: talentId,
         role: 'Talent',
-        status: 'INVITED',
-        invitationMessage: message || null,
+        updatedAt: new Date(),
+        // Remove fields not in the schema
+        // status: 'INVITED',
+        // invitationMessage: message || null,
       }
     })
   );
