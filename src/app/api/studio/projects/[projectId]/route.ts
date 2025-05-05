@@ -182,13 +182,13 @@ export async function PUT(
       return NextResponse.json({ error: "Project not found or you don't have permission to update it" }, { status: 404 });
     }
     
-    // Prepare the data object
-    const updateData = {
+    // Prepare the data object with proper types for Prisma
+    const updateData: Record<string, any> = {
       ...validatedData,
       updatedAt: new Date()
     };
     
-    // Handle dates if provided
+    // Handle dates if provided - convert strings to Date objects for Prisma
     if (validatedData.startDate) {
       updateData.startDate = new Date(validatedData.startDate);
     }

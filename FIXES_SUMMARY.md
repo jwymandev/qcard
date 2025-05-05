@@ -1,22 +1,58 @@
-# QCard Database Issues - Complete Fix Guide
+# QCard DigitalOcean Deployment - Complete Fix Guide
 
-This document summarizes all the database-related issues we've encountered with your DigitalOcean deployment and provides a comprehensive fix.
+This document summarizes all the issues we've encountered with DigitalOcean deployments and provides comprehensive fixes.
 
-## The Problem
+## Major Issues Fixed
 
-1. **Database Connection Works** but the application shows errors about **missing tables**.
-2. Only **User, Session, and Tenant** tables exist, but **Profile, Studio, Location, Project**, and other tables are missing.
-3. This causes **authentication to work** but other **app features to fail**.
+1. **Next.js Route Conflicts**: Pages were inaccessible due to conflicting route parameter names
+2. **Database Connection Issues**: Problems with PostgreSQL connection in DigitalOcean
+3. **Missing Tables**: Only authentication tables existing, application tables missing
+4. **404 Errors on Projects**: Users unable to access project pages due to path conflicts
+5. **Build Failures**: Deployment failed due to TypeScript errors and route conflicts
 
-## Root Causes Identified
+## 1. Next.js Route Conflict Issue
 
-1. **Schema Mismatch**: The Prisma schema is set for PostgreSQL (`provider = "postgresql"`) but didn't fully initialize all tables.
-2. **Partial Table Creation**: Only basic NextAuth tables were created but application-specific tables were missing.
-3. **Migration Issues**: The migration process didn't properly create all required tables.
+### Problem
 
-## Complete Solution
+The app failed to build with error: `Error: You cannot use different slug names for the same dynamic path ('id' !== 'projectId')`.
 
-We created several tools to fix these issues:
+Routes were inconsistently using both `[id]` and `[projectId]` for the same logical paths, causing Next.js to reject the build.
+
+### Solution
+
+- Standardized all project routes to use `[projectId]` parameter consistently
+- Manually removed conflicting files and directories:
+  - Deleted `/src/app/studio/projects/[id]` directory
+  - Deleted `/src/app/api/studio/projects/[id]` directory
+- Created script to check for route conflicts during build
+
+## 2. Database Connection Issues
+
+### Problem
+
+DigitalOcean provides individual database connection parameters instead of a single `DATABASE_URL`:
+- `DATABASE_HOST`
+- `DATABASE_PORT`
+- `DATABASE_USERNAME`
+- `DATABASE_PASSWORD`
+- `DATABASE_NAME`
+
+This caused connection failures in production.
+
+### Solution
+
+- Modified database connection logic in `src/lib/db-connection.ts` to construct a URL from individual parameters
+- Created environment configuration script `scripts/create-env-production.js`
+- Set `SKIP_ENV_VALIDATION=true` for build time to avoid database dependency
+- Added robust error handling for database connection failures
+
+## 3. Missing Database Tables
+
+### Problem
+
+Only User, Session, and Tenant tables existed, but Profile, Studio, Location, Project, and other application tables were missing.
+
+### Solution
 
 1. **Enhanced Database Reset Script** (`scripts/enhanced-full-reset-db.js`)
    - Completely drops all existing tables

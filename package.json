@@ -40,6 +40,7 @@
     "do:first-deploy": "node scripts/first-deploy.js",
     "do:deploy-with-schema": "node scripts/first-deploy.js && npm run build",
     "do:deploy-full": "npx prisma generate && NODE_ENV=production next build",
+    "do:prepare-deploy": "node scripts/do-full-deployment.js",
     "healthcheck": "node scripts/production-healthcheck.js",
     "healthcheck:remote": "node scripts/production-healthcheck.js --remote",
     "deploy:prod": "npm run typecheck && npm run lint && npm run build && npm run healthcheck"
