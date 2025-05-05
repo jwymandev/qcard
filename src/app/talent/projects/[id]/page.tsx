@@ -47,6 +47,18 @@ type Project = {
     id: string;
     title: string;
     shootDate?: string;
+    status?: string;
+    description?: string;
+    SceneTalent?: {
+      id: string;
+      role?: string;
+      notes?: string;
+    }[];
+  }[];
+  projectMembers?: {
+    id: string;
+    role?: string;
+    notes?: string;
   }[];
 };
 
@@ -93,14 +105,11 @@ export default function TalentProjectDetailPage({ params }: { params: { id: stri
     if (!invitation) return;
     
     try {
-      const response = await fetch(`/api/talent/project-invitations/${invitation.id}`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/talent/projects/invitations/${invitation.id}/accept`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'ACCEPTED'
-        }),
+        }
       });
       
       if (response.ok) {
@@ -120,14 +129,11 @@ export default function TalentProjectDetailPage({ params }: { params: { id: stri
     if (!invitation) return;
     
     try {
-      const response = await fetch(`/api/talent/project-invitations/${invitation.id}`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/talent/projects/invitations/${invitation.id}/decline`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'DECLINED'
-        }),
+        }
       });
       
       if (response.ok) {
@@ -314,34 +320,77 @@ export default function TalentProjectDetailPage({ params }: { params: { id: stri
                 </div>
               </div>
             </div>
+            
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Your Role</h2>
+              <div className="bg-blue-50 p-4 rounded-md">
+                {project.projectMembers && project.projectMembers.length > 0 ? (
+                  <>
+                    <div className="mb-2">
+                      <span className="font-medium">Role:</span>{' '}
+                      <span>{project.projectMembers[0]?.role || 'Talent'}</span>
+                    </div>
+                    {project.projectMembers[0]?.notes && (
+                      <div>
+                        <span className="font-medium">Notes:</span>{' '}
+                        <span>{project.projectMembers[0].notes}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-gray-600 italic">
+                    {invitation ? (
+                      <>Your role will be: {invitation.role || 'Talent'}</>
+                    ) : (
+                      <>Role information not available</>
+                    )}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
           
           {project.scenes && project.scenes.length > 0 && (
             <div className="mt-8">
               <h2 className="text-xl font-semibold mb-4">Scenes</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border border-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scene</th>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shoot Date</th>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {project.scenes.map((scene) => (
-                      <tr key={scene.id} className="hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm text-gray-900">{scene.title}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{formatDate(scene.shootDate)}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">
-                          <Button size="sm" className="text-xs" variant="outline">
-                            View Details
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+                {project.scenes.map((scene) => (
+                  <div key={scene.id} className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="font-bold text-lg">{scene.title}</h3>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        scene.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                        scene.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {scene.status}
+                      </span>
+                    </div>
+                    
+                    {scene.description && (
+                      <p className="text-gray-700 mb-3">{scene.description}</p>
+                    )}
+                    
+                    <div className="mb-2">
+                      <span className="font-medium text-sm">Shoot Date:</span>{' '}
+                      <span className="text-sm">{formatDate(scene.shootDate)}</span>
+                    </div>
+                    
+                    {scene.SceneTalent && scene.SceneTalent.length > 0 ? (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-md">
+                        <h4 className="font-medium text-sm mb-1">Your Role</h4>
+                        <p>{scene.SceneTalent[0].role || 'Talent'}</p>
+                        {scene.SceneTalent[0].notes && (
+                          <p className="text-sm text-gray-600 mt-1">{scene.SceneTalent[0].notes}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                        <p className="text-sm text-gray-500 italic">You&apos;re not currently cast in this scene.</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}

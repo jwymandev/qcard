@@ -48,13 +48,13 @@ export default function TalentProjectsPage() {
         const past: ProjectSummary[] = [];
         
         data.memberProjects.forEach((project: any) => {
-          const memberInfo = project.members[0]; // Get the talent's member info
+          const memberInfo = project.ProjectMember?.[0]; // Get the talent's member info
           
           const projectSummary: ProjectSummary = {
             id: project.id,
             title: project.title,
             status: project.status,
-            studioName: project.studio.name,
+            studioName: project.Studio.name,
             role: memberInfo?.role || 'Talent',
             startDate: project.startDate,
             endDate: project.endDate
@@ -69,13 +69,13 @@ export default function TalentProjectsPage() {
         
         // Process invitation projects
         const invitationsList = data.invitedProjects.map((project: any) => {
-          const invitation = project.invitations[0]; // Get the talent's invitation
+          const invitation = project.ProjectInvitation?.[0]; // Get the talent's invitation
           
           return {
             id: project.id,
             title: project.title,
             status: project.status,
-            studioName: project.studio.name,
+            studioName: project.Studio.name,
             role: invitation?.role || 'Talent',
             startDate: project.startDate,
             endDate: project.endDate,
@@ -163,42 +163,85 @@ export default function TalentProjectsPage() {
             <ul className="divide-y divide-gray-200">
               {invitations.map((project) => (
                 <li key={`invitation-${project.id}`}>
-                  <Link href={`/talent/projects/${project.id}`} className="block hover:bg-gray-50">
-                    <div className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="ml-2">
-                            <div className="flex items-center">
-                              <p className="text-md font-medium text-blue-600 truncate">{project.title}</p>
-                              <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getInvitationBadgeClass(project.invitationStatus || 'PENDING')}`}>
-                                {project.invitationStatus}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-500">
-                              From: {project.studioName} • Role: {project.role || 'Talent'}
-                            </p>
+                  <div className="px-4 py-4 sm:px-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div>
+                          <div className="flex items-center">
+                            <p className="text-md font-medium text-blue-600 truncate">{project.title}</p>
+                            <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getInvitationBadgeClass(project.invitationStatus || 'PENDING')}`}>
+                              {project.invitationStatus}
+                            </span>
                           </div>
-                        </div>
-                        <div className="ml-2 flex-shrink-0 flex">
-                          <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            View Details
+                          <p className="text-sm text-gray-500">
+                            From: {project.studioName} • Role: {project.role || 'Talent'}
                           </p>
                         </div>
                       </div>
-                      <div className="mt-2 sm:flex sm:justify-between">
-                        <div className="sm:flex">
-                          <p className="flex items-center text-sm text-gray-500">
-                            Status: {project.status}
-                          </p>
+                      
+                      {project.invitationStatus === 'PENDING' ? (
+                        <div className="ml-2 flex space-x-2">
+                          <Link
+                            href={`/talent/projects/${project.id}`}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            View Details
+                          </Link>
+                          <button
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              // Find the invitation ID
+                              try {
+                                const response = await fetch(`/api/talent/projects/${project.id}`);
+                                if (response.ok) {
+                                  const data = await response.json();
+                                  const invitation = data.invitation;
+                                  if (invitation) {
+                                    const acceptResponse = await fetch(`/api/talent/projects/invitations/${invitation.id}/accept`, {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                      }
+                                    });
+                                    if (acceptResponse.ok) {
+                                      // Refresh the list
+                                      fetchProjects();
+                                    }
+                                  }
+                                }
+                              } catch (err) {
+                                console.error('Error accepting invitation:', err);
+                              }
+                            }}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-green-600 hover:bg-green-700"
+                          >
+                            Accept
+                          </button>
                         </div>
-                        <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                          <p>
-                            {project.startDate && `${formatDate(project.startDate)} - ${formatDate(project.endDate)}`}
-                          </p>
+                      ) : (
+                        <div className="ml-2 flex-shrink-0 flex">
+                          <Link
+                            href={`/talent/projects/${project.id}`}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            View Details
+                          </Link>
                         </div>
+                      )}
+                    </div>
+                    <div className="mt-2 sm:flex sm:justify-between">
+                      <div className="sm:flex">
+                        <p className="flex items-center text-sm text-gray-500">
+                          Status: {project.status}
+                        </p>
+                      </div>
+                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                        <p>
+                          {project.startDate && `${formatDate(project.startDate)} - ${formatDate(project.endDate)}`}
+                        </p>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 </li>
               ))}
             </ul>

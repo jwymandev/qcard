@@ -1,0 +1,458 @@
+generator client {
+  provider = "prisma-client-js"
+  // Enable preview features for advanced PostgreSQL support
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Application {
+  id            String      @id
+  status        String      @default("PENDING")
+  message       String?
+  profileId     String
+  castingCallId String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime
+  CastingCall   CastingCall @relation(fields: [castingCallId], references: [id])
+  Profile       Profile     @relation(fields: [profileId], references: [id])
+}
+
+model CastingCall {
+  id           String        @id
+  title        String
+  description  String
+  requirements String?
+  compensation String?
+  startDate    DateTime?
+  endDate      DateTime?
+  status       String        @default("OPEN")
+  studioId     String
+  locationId   String?
+  projectId    String?
+  regionId     String?       // Primary region for this casting call
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime
+  Application  Application[]
+  Project      Project?      @relation(fields: [projectId], references: [id])
+  Location     Location?     @relation(fields: [locationId], references: [id])
+  Studio       Studio        @relation(fields: [studioId], references: [id])
+  Skill        Skill[]
+  region       Region?       @relation(fields: [regionId], references: [id])
+}
+
+model Location {
+  id          String        @id
+  name        String
+  regionId    String?       // Reference to the region this location belongs to
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  CastingCall CastingCall[]
+  Scene       Scene[]
+  Profile     Profile[]
+  Studio      Studio[]
+  region      Region?       @relation(fields: [regionId], references: [id])
+}
+
+model Message {
+  id                                        String   @id
+  content                                   String
+  subject                                   String   @default("New Message")
+  isRead                                    Boolean  @default(false)
+  isArchived                                Boolean  @default(false)
+  studioSenderId                            String?
+  talentReceiverId                          String?
+  talentSenderId                            String?
+  studioReceiverId                          String?
+  relatedToProjectId                        String?
+  relatedToCastingCallId                    String?
+  createdAt                                 DateTime @default(now())
+  Studio_Message_studioReceiverIdToStudio   Studio?  @relation("Message_studioReceiverIdToStudio", fields: [studioReceiverId], references: [id])
+  Profile_Message_talentSenderIdToProfile   Profile? @relation("Message_talentSenderIdToProfile", fields: [talentSenderId], references: [id])
+  Profile_Message_talentReceiverIdToProfile Profile? @relation("Message_talentReceiverIdToProfile", fields: [talentReceiverId], references: [id])
+  Studio_Message_studioSenderIdToStudio     Studio?  @relation("Message_studioSenderIdToStudio", fields: [studioSenderId], references: [id])
+}
+
+model Payment {
+  id        String   @id
+  amount    Float
+  currency  String   @default("usd")
+  status    String   @default("PENDING")
+  studioId  String?
+  userId    String?
+  stripeId  String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  User      User?    @relation(fields: [userId], references: [id])
+  Studio    Studio?  @relation(fields: [studioId], references: [id])
+}
+
+model Profile {
+  id                                        String                   @id
+  userId                                    String                   @unique
+  headshotUrl                               String?
+  bio                                       String?
+  height                                    String?
+  weight                                    String?
+  hairColor                                 String?
+  eyeColor                                  String?
+  availability                              Boolean                  @default(true)
+  createdAt                                 DateTime                 @default(now())
+  updatedAt                                 DateTime
+  ethnicity                                 String?
+  experience                                String?
+  gender                                    String?
+  languages                                 String?
+  Application                               Application[]
+  Message_Message_talentSenderIdToProfile   Message[]                @relation("Message_talentSenderIdToProfile")
+  Message_Message_talentReceiverIdToProfile Message[]                @relation("Message_talentReceiverIdToProfile")
+  User                                      User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ProfileImage                              ProfileImage[]
+  ProjectMember                             ProjectMember[]
+  SceneTalent                               SceneTalent[]
+  StudioNote                                StudioNote[]
+  Location                                  Location[]
+  Skill                                     Skill[]
+  questionnaireInvitations                  QuestionnaireInvitation[]
+  questionnaireResponses                    QuestionnaireResponse[]
+  projectInvitations                        ProjectInvitation[]
+  convertedFromExternalActor                ExternalActor[]
+  regions                                   ProfileRegion[]         // Many-to-many relationship with regions
+}
+
+model ProfileRegion {
+  profileId   String
+  regionId    String
+  createdAt   DateTime @default(now())
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  region      Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, regionId])
+}
+
+model ProfileImage {
+  id        String   @id
+  url       String
+  isPrimary Boolean  @default(false)
+  profileId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id                 String                @id
+  title              String
+  description        String?
+  startDate          DateTime?
+  endDate            DateTime?
+  status             String                @default("PLANNING")
+  studioId           String
+  isArchived         Boolean               @default(false)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime
+  CastingCall        CastingCall[]
+  Studio             Studio                @relation(fields: [studioId], references: [id])
+  ProjectMember      ProjectMember[]
+  Scene              Scene[]
+  ProjectInvitation  ProjectInvitation[]
+  externalActors     ExternalActorProject[]
+}
+
+model ProjectMember {
+  id        String   @id
+  role      String?
+  notes     String?
+  projectId String
+  profileId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Profile   Profile  @relation(fields: [profileId], references: [id])
+  Project   Project  @relation(fields: [projectId], references: [id])
+}
+
+model ProjectInvitation {
+  id              String    @id @default(uuid())
+  projectId       String
+  profileId       String
+  status          String    @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  message         String?
+  role            String?
+  messageId       String?   // Reference to message that created this invitation
+  sentAt          DateTime  @default(now())
+  respondedAt     DateTime?
+  expiresAt       DateTime?
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  profile         Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Region {
+  id            String           @id @default(uuid())
+  name          String
+  description   String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  castingCalls  CastingCall[]
+  locations     Location[]
+  profiles      ProfileRegion[]  // Many-to-many relationship with talents
+  studios       StudioRegion[]   // Many-to-many relationship with studios
+}
+
+model Scene {
+  id           String        @id
+  projectId    String
+  title        String
+  description  String?
+  locationId   String?
+  shootDate    DateTime?
+  duration     Int?
+  talentNeeded Int?
+  status       String        @default("PLANNING")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime
+  Location     Location?     @relation(fields: [locationId], references: [id])
+  Project      Project       @relation(fields: [projectId], references: [id])
+  SceneTalent  SceneTalent[]
+}
+
+model SceneTalent {
+  id        String   @id
+  sceneId   String
+  profileId String
+  role      String?
+  notes     String?
+  status    String   @default("CONFIRMED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Profile   Profile  @relation(fields: [profileId], references: [id])
+  Scene     Scene    @relation(fields: [sceneId], references: [id])
+}
+
+model Session {
+  id           String   @id
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Skill {
+  id          String        @id
+  name        String        @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  CastingCall CastingCall[]
+  Profile     Profile[]
+}
+
+model Studio {
+  id                                       String          @id
+  name                                     String
+  description                              String?
+  tenantId                                 String          @unique
+  contactName                              String?
+  contactEmail                             String?
+  contactPhone                             String?
+  website                                  String?
+  createdAt                                DateTime        @default(now())
+  updatedAt                                DateTime
+  CastingCall                              CastingCall[]
+  Message_Message_studioReceiverIdToStudio Message[]       @relation("Message_studioReceiverIdToStudio")
+  Message_Message_studioSenderIdToStudio   Message[]       @relation("Message_studioSenderIdToStudio")
+  Payment                                  Payment[]
+  Project                                  Project[]
+  Tenant                                   Tenant          @relation(fields: [tenantId], references: [id])
+  StudioNote                               StudioNote[]
+  Location                                 Location[]
+  questionnaires                           Questionnaire[]
+  externalActors                           ExternalActor[]
+  regions                                  StudioRegion[]  // Many-to-many relationship with regions
+}
+
+model StudioRegion {
+  studioId    String
+  regionId    String
+  createdAt   DateTime @default(now())
+  studio      Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  region      Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@id([studioId, regionId])
+}
+
+model StudioNote {
+  id        String   @id
+  content   String
+  studioId  String
+  profileId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  Studio    Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+}
+
+model Tenant {
+  id        String   @id
+  name      String
+  type      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Studio    Studio?
+  User      User[]
+}
+
+// Define user roles
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+model User {
+  id          String    @id
+  email       String    @unique
+  password    String?
+  firstName   String?
+  lastName    String?
+  phoneNumber String?
+  role        UserRole  @default(USER)
+  tenantId    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  Account     Account[]
+  Payment     Payment[]
+  Profile     Profile?
+  Session     Session[]
+  Tenant      Tenant?   @relation(fields: [tenantId], references: [id])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Questionnaire models
+model Questionnaire {
+  id               String                   @id @default(uuid())
+  title            String
+  description      String?
+  isActive         Boolean                  @default(true)
+  requiresApproval Boolean                  @default(false)
+  studioId         String
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  studio           Studio                   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  questions        QuestionnaireQuestion[]
+  invitations      QuestionnaireInvitation[]
+  responses        QuestionnaireResponse[]
+}
+
+model QuestionnaireQuestion {
+  id             String           @id @default(uuid())
+  text           String
+  description    String?
+  type           String           // SHORT_TEXT, LONG_TEXT, SINGLE_CHOICE, MULTIPLE_CHOICE, RATING, DATE, FILE_UPLOAD, YES_NO
+  isRequired     Boolean          @default(false)
+  order          Int
+  options        Json?            // For choice-based questions
+  metadata       Json?            // Additional configuration for specific question types
+  questionnaireId String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  questionnaire  Questionnaire    @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  answers        QuestionAnswer[]
+}
+
+model QuestionnaireInvitation {
+  id              String               @id @default(uuid())
+  questionnaireId String
+  profileId       String
+  status          String               @default("PENDING") // PENDING, ACCEPTED, DECLINED, COMPLETED
+  message         String?
+  sentAt          DateTime             @default(now())
+  expiresAt       DateTime?
+  completedAt     DateTime?
+  questionnaire   Questionnaire        @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  profile         Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  response        QuestionnaireResponse?
+}
+
+model QuestionnaireResponse {
+  id              String                 @id @default(uuid())
+  questionnaireId String
+  profileId       String
+  invitationId    String                 @unique
+  status          String                 @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, REJECTED
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  feedback        String?
+  questionnaire   Questionnaire          @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  profile         Profile                @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  invitation      QuestionnaireInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  answers         QuestionAnswer[]
+}
+
+model QuestionAnswer {
+  id                 String                 @id @default(uuid())
+  responseId         String
+  questionId         String
+  value              Json                   // Store answer value based on question type
+  response           QuestionnaireResponse  @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question           QuestionnaireQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model ExternalActor {
+  id                 String                @id @default(uuid())
+  email              String
+  firstName          String?
+  lastName           String?
+  phoneNumber        String?
+  notes              String?
+  studioId           String
+  status             String                @default("ACTIVE")   // ACTIVE, INVITED, CONVERTED
+  convertedToTalentAt DateTime?
+  convertedProfileId String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  studio             Studio                @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  convertedProfile   Profile?              @relation(fields: [convertedProfileId], references: [id])
+  projects           ExternalActorProject[]
+
+  @@unique([email, studioId])
+}
+
+model ExternalActorProject {
+  id                 String               @id @default(uuid())
+  externalActorId    String
+  projectId          String
+  role               String?
+  notes              String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  externalActor      ExternalActor        @relation(fields: [externalActorId], references: [id], onDelete: Cascade)
+  project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}

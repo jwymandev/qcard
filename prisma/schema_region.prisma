@@ -1,0 +1,50 @@
+// New model for Region
+model Region {
+  id            String        @id @default(uuid())
+  name          String
+  description   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  castingCalls  CastingCall[]
+  locations     Location[]
+  profiles      Profile[]     // Talents that prefer/are available in this region
+  studios       Studio[]      // Studios that operate in this region
+}
+
+// Modified Location model to include region
+model Location {
+  id          String        @id
+  name        String
+  regionId    String?       // Reference to the region this location belongs to
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  CastingCall CastingCall[]
+  Scene       Scene[]
+  Profile     Profile[]
+  Studio      Studio[]
+  region      Region?       @relation(fields: [regionId], references: [id])
+}
+
+// Modified CastingCall model to include regions (many-to-many)
+model CastingCall {
+  id           String        @id
+  title        String
+  description  String
+  requirements String?
+  compensation String?
+  startDate    DateTime?
+  endDate      DateTime?
+  status       String        @default("OPEN")
+  studioId     String
+  locationId   String?
+  projectId    String?
+  regionId     String?       // Primary region for this casting call
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime
+  Application  Application[]
+  Project      Project?      @relation(fields: [projectId], references: [id])
+  Location     Location?     @relation(fields: [locationId], references: [id])
+  Studio       Studio        @relation(fields: [studioId], references: [id])
+  Skill        Skill[]
+  region       Region?       @relation(fields: [regionId], references: [id])
+}
