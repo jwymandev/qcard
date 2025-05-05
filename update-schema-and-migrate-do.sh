@@ -67,8 +67,32 @@ if [ -n "$DATABASE_HOST" ] && [ -n "$DATABASE_USERNAME" ]; then
     exit 1
   fi
   
-  # Encode password for URL
-  ENCODED_PASSWORD=$(echo -n "$DATABASE_PASSWORD" | jq -sRr @uri)
+  # Encode password for URL using built-in tools
+  # Replace special characters with URL-encoded versions
+  ENCODED_PASSWORD=$(echo -n "$DATABASE_PASSWORD" | 
+    sed -e 's/%/%25/g' \
+        -e 's/ /%20/g' \
+        -e 's/!/%21/g' \
+        -e 's/"/%22/g' \
+        -e "s/'/%27/g" \
+        -e 's/#/%23/g' \
+        -e 's/(/%28/g' \
+        -e 's/)/%29/g' \
+        -e 's/\*/%2A/g' \
+        -e 's/+/%2B/g' \
+        -e 's/,/%2C/g' \
+        -e 's/\//%2F/g' \
+        -e 's/:/%3A/g' \
+        -e 's/;/%3B/g' \
+        -e 's/=/%3D/g' \
+        -e 's/?/%3F/g' \
+        -e 's/@/%40/g' \
+        -e 's/\[/%5B/g' \
+        -e 's/\]/%5D/g' \
+        -e 's/\^/%5E/g' \
+        -e 's/{/%7B/g' \
+        -e 's/|/%7C/g' \
+        -e 's/}/%7D/g')
   
   # Construct PostgreSQL URL
   export DATABASE_URL="postgresql://${DATABASE_USERNAME}:${ENCODED_PASSWORD}@${DATABASE_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require"
