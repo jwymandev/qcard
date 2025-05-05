@@ -30,7 +30,19 @@ fi
 
 # 6. Apply the migration
 echo "🚀 Applying migration..."
-export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qcard_dev?schema=public"
+# Use DATABASE_URL from .env instead of hardcoding
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
+fi
+
+# Confirm DATABASE_URL is available
+if [ -z "$DATABASE_URL" ]; then
+  echo "❌ Error: DATABASE_URL not found in environment or .env file"
+  echo "Please ensure DATABASE_URL is set in your .env file or environment"
+  exit 1
+fi
+
+echo "🔌 Using database from environment: ${DATABASE_URL:0:12}...${DATABASE_URL: -12}"
 npx prisma migrate dev --name add_questionnaires_and_custom_fields
 
 # 7. Generate updated Prisma client

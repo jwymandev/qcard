@@ -1,12 +1,22 @@
--- Create custom field-related enums
-CREATE TYPE "FieldType" AS ENUM ('TEXT', 'TEXTAREA', 'NUMBER', 'DROPDOWN', 'BOOLEAN', 'DATE', 'EMAIL', 'URL', 'PHONE');
-CREATE TYPE "ProfileType" AS ENUM ('TALENT', 'STUDIO', 'BOTH');
+-- Check if enums already exist and create if not
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'fieldtype') THEN
+        CREATE TYPE "FieldType" AS ENUM ('TEXT', 'TEXTAREA', 'NUMBER', 'DROPDOWN', 'BOOLEAN', 'DATE', 'EMAIL', 'URL', 'PHONE');
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'profiletype') THEN
+        CREATE TYPE "ProfileType" AS ENUM ('TALENT', 'STUDIO', 'BOTH');
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'questiontype') THEN
+        CREATE TYPE "QuestionType" AS ENUM ('SHORT_TEXT', 'LONG_TEXT', 'SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'RATING', 'DATE', 'FILE_UPLOAD', 'YES_NO');
+    END IF;
+END
+$$;
 
--- Create questionnaire-related enums
-CREATE TYPE "QuestionType" AS ENUM ('SHORT_TEXT', 'LONG_TEXT', 'SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'RATING', 'DATE', 'FILE_UPLOAD', 'YES_NO');
-
--- Create ProfileField table
-CREATE TABLE "ProfileField" (
+-- Create ProfileField table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "ProfileField" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "label" TEXT NOT NULL,
@@ -27,8 +37,8 @@ CREATE TABLE "ProfileField" (
     CONSTRAINT "ProfileField_pkey" PRIMARY KEY ("id")
 );
 
--- Create FieldOption table
-CREATE TABLE "FieldOption" (
+-- Create FieldOption table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "FieldOption" (
     "id" TEXT NOT NULL,
     "value" TEXT NOT NULL,
     "label" TEXT NOT NULL,
@@ -42,8 +52,8 @@ CREATE TABLE "FieldOption" (
     CONSTRAINT "FieldOption_pkey" PRIMARY KEY ("id")
 );
 
--- Create ProfileFieldValue table
-CREATE TABLE "ProfileFieldValue" (
+-- Create ProfileFieldValue table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "ProfileFieldValue" (
     "id" TEXT NOT NULL,
     "profileId" TEXT NOT NULL,
     "fieldId" TEXT NOT NULL,
@@ -54,8 +64,8 @@ CREATE TABLE "ProfileFieldValue" (
     CONSTRAINT "ProfileFieldValue_pkey" PRIMARY KEY ("id")
 );
 
--- Create StudioFieldValue table
-CREATE TABLE "StudioFieldValue" (
+-- Create StudioFieldValue table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "StudioFieldValue" (
     "id" TEXT NOT NULL,
     "studioId" TEXT NOT NULL,
     "fieldId" TEXT NOT NULL,
@@ -66,8 +76,8 @@ CREATE TABLE "StudioFieldValue" (
     CONSTRAINT "StudioFieldValue_pkey" PRIMARY KEY ("id")
 );
 
--- Create Questionnaire table
-CREATE TABLE "Questionnaire" (
+-- Create Questionnaire table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "Questionnaire" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "description" TEXT,
@@ -80,8 +90,8 @@ CREATE TABLE "Questionnaire" (
     CONSTRAINT "Questionnaire_pkey" PRIMARY KEY ("id")
 );
 
--- Create QuestionnaireQuestion table
-CREATE TABLE "QuestionnaireQuestion" (
+-- Create QuestionnaireQuestion table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "QuestionnaireQuestion" (
     "id" TEXT NOT NULL,
     "questionnaireId" TEXT NOT NULL,
     "text" TEXT NOT NULL,
@@ -97,8 +107,8 @@ CREATE TABLE "QuestionnaireQuestion" (
     CONSTRAINT "QuestionnaireQuestion_pkey" PRIMARY KEY ("id")
 );
 
--- Create QuestionnaireInvitation table
-CREATE TABLE "QuestionnaireInvitation" (
+-- Create QuestionnaireInvitation table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "QuestionnaireInvitation" (
     "id" TEXT NOT NULL,
     "questionnaireId" TEXT NOT NULL,
     "profileId" TEXT NOT NULL,
@@ -111,8 +121,8 @@ CREATE TABLE "QuestionnaireInvitation" (
     CONSTRAINT "QuestionnaireInvitation_pkey" PRIMARY KEY ("id")
 );
 
--- Create QuestionnaireResponse table
-CREATE TABLE "QuestionnaireResponse" (
+-- Create QuestionnaireResponse table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "QuestionnaireResponse" (
     "id" TEXT NOT NULL,
     "invitationId" TEXT NOT NULL,
     "questionnaireId" TEXT NOT NULL,
@@ -125,8 +135,8 @@ CREATE TABLE "QuestionnaireResponse" (
     CONSTRAINT "QuestionnaireResponse_pkey" PRIMARY KEY ("id")
 );
 
--- Create QuestionAnswer table
-CREATE TABLE "QuestionAnswer" (
+-- Create QuestionAnswer table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "QuestionAnswer" (
     "id" TEXT NOT NULL,
     "responseId" TEXT NOT NULL,
     "questionId" TEXT NOT NULL,

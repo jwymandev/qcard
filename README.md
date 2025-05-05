@@ -111,14 +111,19 @@ A new questionnaire feature has been added to allow studios to create custom for
 
 To deploy this feature:
 
-1. Run the migration script: `./update-schema-and-migrate.sh`
+1. Run the enhanced migration script: `./update-schema-and-migrate-enhanced.sh`
 2. The script will:
    - Update the Prisma schema with questionnaire models
+   - Detect the correct database URL for your environment
    - Create and apply the database migration
    - Restore temporarily disabled components
    - Verify the build passes with the new schema
 
 3. After running the migration, the feature will be fully functional
+
+For detailed instructions on running migrations, see [MIGRATION_README.md](MIGRATION_README.md)
+
+If you encounter any issues with database URLs during migration, refer to [QUESTIONNAIRE_MIGRATION_FIX.md](QUESTIONNAIRE_MIGRATION_FIX.md)
 
 ### Using Questionnaires
 
