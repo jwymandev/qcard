@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcrypt';
+import { auth } from '@/auth';
 
+/**
+ * POST handler for credential validation
+ */
 export async function POST(request: Request) {
   // This endpoint is for debugging authentication issues only
   // It should be removed in production
@@ -83,5 +87,84 @@ export async function POST(request: Request) {
       error: "Failed to process authentication debug",
       errorDetails: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
+  }
+}
+
+/**
+ * GET handler for debugging RSC and authentication issues
+ * This will help identify JSON payload rendering problems
+ */
+export async function GET(request: Request) {
+  try {
+    // Check if this is a RSC payload request - these are identifiable by the headers
+    const isRscRequest = request.headers.get('RSC') === '1' || 
+                        request.headers.get('Next-Router-State-Tree') !== null ||
+                        request.headers.get('Next-Url') !== null;
+    
+    // Get all cookies for debugging
+    const cookieHeader = request.headers.get('cookie') || 'none';
+    const cookies = cookieHeader === 'none' ? [] : 
+      cookieHeader.split(';').map(cookie => cookie.trim());
+    
+    // Get authentication status
+    const session = await auth();
+    const isAuthenticated = !!session?.user;
+    
+    // Get server environment info
+    const environment = process.env.NODE_ENV || 'unknown';
+    const nextAuthUrl = process.env.NEXTAUTH_URL || 'not set';
+    
+    // Debug info for headers - using Array.from instead of spread operator
+    const headerNames = Array.from(request.headers.keys());
+    const headers = headerNames.reduce((acc: Record<string, string>, name: string) => {
+      acc[name] = request.headers.get(name) || '';
+      return acc;
+    }, {});
+    
+    // Get URL info
+    const url = new URL(request.url);
+    
+    // Return comprehensive debug information
+    return NextResponse.json({
+      timestamp: new Date().toISOString(),
+      url: {
+        full: request.url,
+        pathname: url.pathname,
+        search: url.search,
+        origin: url.origin
+      },
+      request: {
+        method: request.method,
+        isRscRequest,
+        headers,
+        cookies
+      },
+      auth: {
+        isAuthenticated,
+        userId: session?.user?.id || null,
+        userEmail: session?.user?.email || null,
+        userRole: session?.user?.role || null,
+        sessionExists: !!session
+      },
+      environment: {
+        nodeEnv: environment,
+        nextAuthUrl
+      }
+    }, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, max-age=0'
+      }
+    });
+  } catch (error) {
+    console.error('Auth debug error:', error);
+    
+    return NextResponse.json({
+      error: 'Error generating debug information',
+      message: error instanceof Error ? error.message : String(error)
+    }, { 
+      status: 500 
+    });
   }
 }

@@ -21,9 +21,23 @@ const nextConfig = {
         https: false,
         zlib: false,
         child_process: false,
-        dns: false
+        dns: false,
+        async_hooks: false,
+        bcrypt: false,
+        'mock-aws-s3': false,
+        'aws-sdk': false,
+        nock: false
       };
     }
+    
+    // Exclude server-only packages from client-side bundles
+    if (!isServer) {
+      config.module.rules.push({
+        test: /node_modules\/(@mapbox\/node-pre-gyp|bcrypt|aws-sdk|nock|mock-aws-s3)/,
+        use: 'null-loader',
+      });
+    }
+    
     return config;
   },
   

@@ -1,0 +1,72 @@
+// Add these models to your schema.prisma file
+
+// Subscription plan definition
+model SubscriptionPlan {
+  id                String         @id @default(uuid())
+  name              String         // e.g., "Basic", "Pro", "Enterprise"
+  description       String?
+  price             Float          // Monthly price in dollars
+  interval          String         @default("month") // "month", "year"
+  features          Json?          // Array of feature names included in this plan
+  isActive          Boolean        @default(true)
+  stripePriceId     String?        // Stripe Price ID for recurring billing
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  subscriptions     Subscription[]
+}
+
+// User subscription status
+model Subscription {
+  id                String            @id @default(uuid())
+  userId            String
+  studioId          String?
+  planId            String
+  status            SubscriptionStatus @default(ACTIVE)
+  stripeCustomerId  String?           // Stripe Customer ID
+  stripeSubscriptionId String?        // Stripe Subscription ID
+  currentPeriodStart DateTime
+  currentPeriodEnd  DateTime
+  cancelAtPeriodEnd Boolean           @default(false)
+  canceledAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studio            Studio?           @relation(fields: [studioId], references: [id], onDelete: SetNull)
+  plan              SubscriptionPlan  @relation(fields: [planId], references: [id])
+  features          SubscriptionFeature[]
+}
+
+// Subscription statuses
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  UNPAID
+}
+
+// Subscription feature access
+model SubscriptionFeature {
+  id              String       @id @default(uuid())
+  subscriptionId  String
+  featureKey      String       // Unique key for the feature (e.g., "max_locations", "advanced_search")
+  featureValue    Json?        // Could be a boolean, number, or other value based on feature
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, featureKey])
+}
+
+// Feature Flag definitions
+model FeatureFlag {
+  id              String    @id @default(uuid())
+  key             String    @unique // Unique identifier for the feature
+  name            String    // Display name
+  description     String?
+  defaultValue    Boolean   @default(false) // Default setting for users without subscription
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}

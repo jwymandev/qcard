@@ -69,7 +69,11 @@ export default function RoleRedirect() {
     }
     
     // Direct redirect based on session data
-    if (session?.user?.tenantType === 'STUDIO') {
+    if (session?.user?.isAdmin || session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN' || session?.user?.tenantType === 'ADMIN') {
+      console.log("User is admin, redirecting to admin dashboard");
+      // Use window.location for a hard navigation to refresh the session state completely
+      window.location.href = '/admin/dashboard';
+    } else if (session?.user?.tenantType === 'STUDIO') {
       console.log("User is studio, redirecting to studio dashboard");
       // Use window.location for a hard navigation to refresh the session state completely
       window.location.href = '/studio/dashboard';

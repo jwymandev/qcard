@@ -91,7 +91,13 @@ export default function Navigation() {
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               <Link
-                href={session?.user?.tenantType === 'STUDIO' ? '/studio/dashboard' : '/talent/dashboard'}
+                href={
+                  session?.user?.isAdmin || session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN' || session?.user?.tenantType === 'ADMIN'
+                    ? '/admin/dashboard'
+                    : session?.user?.tenantType === 'STUDIO'
+                    ? '/studio/dashboard'
+                    : '/talent/dashboard'
+                }
                 className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                   pathname.includes('/dashboard')
                     ? 'border-blue-500 text-gray-900'
@@ -219,8 +225,26 @@ export default function Navigation() {
                       aria-labelledby="user-menu-button"
                       tabIndex={-1}
                     >
+                      {(session?.user?.isAdmin || session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN' || session?.user?.tenantType === 'ADMIN') && (
+                        <Link
+                          href="/admin/dashboard"
+                          className="block px-4 py-2 text-sm text-blue-700 font-semibold hover:bg-gray-100"
+                          role="menuitem"
+                          tabIndex={-1}
+                          id="user-menu-item-admin"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          Admin Dashboard
+                        </Link>
+                      )}
                       <Link
-                        href={session?.user?.tenantType === 'STUDIO' ? '/studio/profile' : '/talent/profile'}
+                        href={
+                          session?.user?.isAdmin || session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN' || session?.user?.tenantType === 'ADMIN'
+                            ? '/admin/settings'
+                            : session?.user?.tenantType === 'STUDIO'
+                            ? '/studio/profile'
+                            : '/talent/profile'
+                        }
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         role="menuitem"
                         tabIndex={-1}
@@ -230,7 +254,13 @@ export default function Navigation() {
                         Your Profile
                       </Link>
                       <Link
-                        href={session?.user?.tenantType === 'STUDIO' ? '/studio/settings' : '/talent/settings'}
+                        href={
+                          session?.user?.isAdmin || session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN' || session?.user?.tenantType === 'ADMIN'
+                            ? '/admin/settings'
+                            : session?.user?.tenantType === 'STUDIO'
+                            ? '/studio/settings'
+                            : '/talent/settings'
+                        }
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         role="menuitem"
                         tabIndex={-1}

@@ -46,7 +46,7 @@ export async function GET() {
             title: true,
             description: true,
             studioId: true,
-            studio: {
+            Studio: {
               select: {
                 name: true,
               },

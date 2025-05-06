@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { cookies } from 'next/headers';
+import { handleSubscriptionCheck } from './lib/subscription-middleware';
 
 export async function middleware(request: NextRequest) {
   // Get the pathname of the request
@@ -33,7 +34,8 @@ export async function middleware(request: NextRequest) {
   // Public paths that don't require authentication
   const isPublicPath = path === '/sign-in' || 
                        path === '/sign-up' || 
-                       path === '/';
+                       path === '/' ||
+                       path === '/subscription';
                        
   // Admin paths that require special privileges
   const isAdminPath = path.startsWith('/admin/');
@@ -78,30 +80,11 @@ export async function middleware(request: NextRequest) {
       }
     }
     
-    // Special handling for protected routes without auth
+    // For protected routes without auth, simply continue with normal flow
+    // Removed API fetch to debug-token as this may cause JSON response issues
     if (!isAuthenticated && !isPublicPath) {
-      // Check if there's an API session but middleware can't see it
-      // This helps us understand if it's a cross-domain cookie issue
-      const apiSessionUrl = new URL('/api/auth/debug-token', request.url); 
-      try {
-        const apiResponse = await fetch(apiSessionUrl.toString(), {
-          headers: { 
-            cookie: request.headers.get('cookie') || '',
-          },
-        });
-        
-        if (apiResponse.ok) {
-          const sessionData = await apiResponse.json();
-          if (sessionData.tokenNoSecure) {
-            // We have a session in the API but not middleware - this is a middleware cookie issue
-            console.log('Session detected in API but not middleware - using fallback authentication');
-            isAuthenticated = true;
-            token = sessionData.tokenNoSecure;
-          }
-        }
-      } catch (apiError) {
-        console.error('Error checking API session:', apiError);
-      }
+      console.log('User not authenticated for protected route');
+      // Just continue with normal authentication flow - middleware will handle redirects
     }
   } catch (error) {
     console.error('Error retrieving token:', error);
@@ -174,6 +157,17 @@ export async function middleware(request: NextRequest) {
     } catch (error) {
       console.error('Error checking studio initialization:', error);
       // Continue even if check fails
+    }
+  }
+  
+  // Check subscription requirements for certain paths
+  if (isAuthenticated) {
+    // Only check subscription for authenticated users
+    const subscriptionResponse = await handleSubscriptionCheck(request);
+    if (subscriptionResponse) {
+      // If a response is returned, it means subscription check failed
+      // and we should redirect to subscription page
+      return subscriptionResponse;
     }
   }
   

@@ -1,0 +1,321 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { 
+  ProfileField, 
+  FieldType, 
+  ProfileType, 
+  getDefaultValues 
+} from '@/lib/profile-schema';
+
+interface DynamicProfileFormProps {
+  fields: Record<string, ProfileField[]>;  // Grouped fields
+  initialValues?: Record<string, any>;    // Initial values for editing
+  onSubmit: (values: Record<string, any>) => void;
+  isLoading?: boolean;
+  error?: string | null;
+  submitLabel?: string;
+}
+
+const DynamicProfileForm: React.FC<DynamicProfileFormProps> = ({
+  fields,
+  initialValues = {},
+  onSubmit,
+  isLoading = false,
+  error = null,
+  submitLabel = 'Save'
+}) => {
+  const [formValues, setFormValues] = useState<Record<string, any>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Initialize form with default and initial values
+  useEffect(() => {
+    // First, get all fields in a flat array
+    const allFields = Object.values(fields).flat();
+    
+    // Get default values for all fields
+    const defaults = getDefaultValues(allFields);
+    
+    // Merge defaults with initialValues
+    const mergedValues = { ...defaults, ...initialValues };
+    
+    setFormValues(mergedValues);
+  }, [fields, initialValues]);
+
+  // Handle input changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    
+    setFormValues(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' 
+        ? (e.target as HTMLInputElement).checked 
+        : value
+    }));
+    
+    // Mark field as touched
+    setTouched(prev => ({
+      ...prev,
+      [name]: true
+    }));
+    
+    // Clear error when field is changed
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form
+    const allFields = Object.values(fields).flat();
+    const newErrors: Record<string, string> = {};
+    
+    // Check required fields
+    allFields.forEach(field => {
+      if (field.isRequired && (!formValues[field.name] || formValues[field.name] === '')) {
+        newErrors[field.name] = `${field.label} is required`;
+      }
+      
+      // Check validation rules (to be implemented)
+      // ...
+    });
+    
+    // If there are errors, update state and stop submission
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    
+    // Submit the form
+    onSubmit(formValues);
+    
+    // Show success message
+    setSuccessMessage('Profile updated successfully');
+    
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      setSuccessMessage(null);
+    }, 3000);
+  };
+
+  // Render a field based on its type
+  const renderField = (field: ProfileField) => {
+    const value = formValues[field.name] || '';
+    const hasError = !!errors[field.name];
+    
+    switch (field.type) {
+      case 'TEXT':
+      case 'EMAIL':
+      case 'URL':
+      case 'PHONE':
+        return (
+          <input
+            type={field.type === 'TEXT' ? 'text' : field.type.toLowerCase()}
+            id={field.name}
+            name={field.name}
+            value={value}
+            onChange={handleChange}
+            placeholder={field.placeholder || ''}
+            className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              hasError ? 'border-red-500' : ''
+            }`}
+            required={field.isRequired}
+          />
+        );
+        
+      case 'TEXTAREA':
+        return (
+          <textarea
+            id={field.name}
+            name={field.name}
+            value={value}
+            onChange={handleChange}
+            rows={4}
+            placeholder={field.placeholder || ''}
+            className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              hasError ? 'border-red-500' : ''
+            }`}
+            required={field.isRequired}
+          />
+        );
+        
+      case 'NUMBER':
+        return (
+          <input
+            type="number"
+            id={field.name}
+            name={field.name}
+            value={value}
+            onChange={handleChange}
+            placeholder={field.placeholder || ''}
+            className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              hasError ? 'border-red-500' : ''
+            }`}
+            required={field.isRequired}
+          />
+        );
+        
+      case 'DROPDOWN':
+        return (
+          <select
+            id={field.name}
+            name={field.name}
+            value={value}
+            onChange={handleChange}
+            className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              hasError ? 'border-red-500' : ''
+            }`}
+            required={field.isRequired}
+          >
+            <option value="">-- Select {field.label} --</option>
+            {field.options?.map((option: any) => (
+              <option key={option.id} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
+        
+      case 'BOOLEAN':
+        return (
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id={field.name}
+              name={field.name}
+              checked={!!value}
+              onChange={handleChange}
+              className={`h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded ${
+                hasError ? 'border-red-500' : ''
+              }`}
+            />
+            <label htmlFor={field.name} className="ml-2 block text-sm text-gray-900">
+              {field.label}
+            </label>
+          </div>
+        );
+        
+      case 'DATE':
+        return (
+          <input
+            type="date"
+            id={field.name}
+            name={field.name}
+            value={value}
+            onChange={handleChange}
+            className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              hasError ? 'border-red-500' : ''
+            }`}
+            required={field.isRequired}
+          />
+        );
+        
+      default:
+        return (
+          <input
+            type="text"
+            id={field.name}
+            name={field.name}
+            value={value}
+            onChange={handleChange}
+            placeholder={field.placeholder || ''}
+            className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              hasError ? 'border-red-500' : ''
+            }`}
+            required={field.isRequired}
+          />
+        );
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Form error message */}
+      {error && (
+        <div className="rounded-md bg-red-50 p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Success message */}
+      {successMessage && (
+        <div className="rounded-md bg-green-50 p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-green-800">Success</h3>
+              <div className="mt-2 text-sm text-green-700">
+                <p>{successMessage}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Render fields by group */}
+      {Object.entries(fields).map(([groupName, groupFields]) => (
+        <div key={groupName} className="bg-white shadow overflow-hidden sm:rounded-md">
+          <div className="px-4 py-5 sm:p-6">
+            <h3 className="text-lg font-medium leading-6 text-gray-900">{groupName}</h3>
+            
+            <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+              {groupFields.map(field => (
+                <div 
+                  key={field.id} 
+                  className={field.type === 'BOOLEAN' ? 'sm:col-span-6' : 'sm:col-span-3'}
+                >
+                  {field.type !== 'BOOLEAN' && (
+                    <label htmlFor={field.name} className="block text-sm font-medium text-gray-700">
+                      {field.label}
+                      {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                  )}
+                  
+                  <div className="mt-1">
+                    {renderField(field)}
+                  </div>
+                  
+                  {field.description && (
+                    <p className="mt-2 text-sm text-gray-500">{field.description}</p>
+                  )}
+                  
+                  {errors[field.name] && (
+                    <p className="mt-2 text-sm text-red-600">{errors[field.name]}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+      
+      {/* Submit button */}
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400"
+        >
+          {isLoading ? 'Saving...' : submitLabel}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+export default DynamicProfileForm;

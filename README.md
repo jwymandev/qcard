@@ -13,7 +13,7 @@ A multi-tenant web application for tracking and casting Extras for video and mov
 - **For Studios:**
   - Search and find talent based on custom criteria
   - Manage casting projects and opportunities
-  - Custom pricing via negotiation
+  - Premium features with tiered subscription plans
   - Create custom questionnaires for talents
   - Custom profile fields for better talent management
 
@@ -153,6 +153,28 @@ Talents can:
 - Accept or decline invitations
 - Complete questionnaires with different response types
 - Review their submitted responses
+
+## Subscription System
+
+The application includes a comprehensive subscription system with tiered plans and feature access control.
+
+### Subscription Features
+
+- Tiered subscription plans (Basic, Professional, Business)
+- Feature-based access control
+- Stripe integration for payment processing
+- Route protection for subscription-only features
+- UI components for subscription-gated content
+
+### Setting Up Subscriptions
+
+To set up the subscription system:
+
+1. Configure Stripe environment variables
+2. Run `npm run stripe:setup-plans` to create subscription plans
+3. Set up Stripe webhooks to handle subscription events
+
+For detailed information, see [SUBSCRIPTION_GUIDE.md](SUBSCRIPTION_GUIDE.md)
 
 ## Troubleshooting
 

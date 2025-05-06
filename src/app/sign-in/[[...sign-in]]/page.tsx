@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { signIn } from 'next-auth/react';
+import { signIn } from '@/lib/client-auth';
 import { useRouter } from 'next/navigation';
 
 export default function SignInPage() {
@@ -31,11 +31,12 @@ export default function SignInPage() {
       try {
         console.log(`Signing in user: ${email}`);
         
-        // Use signIn with redirect:false first to check for errors
-        const result = await signIn('credentials', {
+        // Use client-auth signIn helper which wraps NextAuth signIn
+        const result = await signIn({
           email,
           password,
-          redirect: false
+          redirect: false,
+          callbackUrl: '/role-redirect'
         });
         
         console.log("Sign-in result:", result);

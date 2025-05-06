@@ -45,27 +45,32 @@ export default function SubscriptionForm({ locations }: SubscriptionFormProps) {
     setIsLoading(true);
     
     try {
-      // Mock checkout for development
-      alert(`Subscription selected for ${selectedLocations.length} locations. Total: $${totalPrice.toFixed(2)}`);
+      // Real checkout using the new subscription endpoint
+      const response = await fetch('/api/create-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          planId: 'basic',  // Basic plan with locations
+          locationIds: selectedLocations,
+        }),
+      });
       
-      // Uncomment when Stripe is configured
-      // const response = await fetch('/api/create-checkout', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     locationIds: selectedLocations,
-      //   }),
-      // });
-      // 
-      // const data = await response.json();
-      // 
-      // if (data.url) {
-      //   window.location.href = data.url;
-      // }
+      if (!response.ok) {
+        throw new Error('Failed to create subscription');
+      }
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
     } catch (error) {
       console.error('Error creating checkout session:', error);
+      alert('Failed to set up subscription. Please try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -106,9 +111,20 @@ export default function SubscriptionForm({ locations }: SubscriptionFormProps) {
           </div>
         )}
         <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-semibold">
-          <span>Total</span>
-          <span>${totalPrice.toFixed(2)}</span>
+          <span>Total monthly price</span>
+          <span>${totalPrice.toFixed(2)}/month</span>
         </div>
+      </div>
+      
+      <div className="bg-blue-50 p-4 rounded-md border border-blue-100 text-blue-800 mb-4">
+        <h4 className="font-medium mb-1">Basic Plan Features</h4>
+        <ul className="text-sm space-y-1 list-disc pl-5">
+          <li>Access to selected locations</li>
+          <li>Basic messaging (20 messages/month)</li>
+          <li>Talent profile visibility</li>
+          <li>Apply to casting calls</li>
+          <li>7-day free trial</li>
+        </ul>
       </div>
       
       <button
@@ -116,8 +132,13 @@ export default function SubscriptionForm({ locations }: SubscriptionFormProps) {
         disabled={isLoading || selectedLocations.length === 0}
         className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:opacity-50"
       >
-        {isLoading ? 'Processing...' : 'Subscribe Now'}
+        {isLoading ? 'Processing...' : 'Start Free Trial'}
       </button>
+      
+      <p className="text-xs text-gray-500 text-center mt-2">
+        By subscribing, you agree to our terms of service and privacy policy.
+        Your subscription will renew automatically, and you can cancel anytime.
+      </p>
     </form>
   );
 }
