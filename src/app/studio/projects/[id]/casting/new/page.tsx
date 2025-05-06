@@ -10,16 +10,6 @@ import InitStudio from '../../../../init-studio';
 interface Location {
   id: string;
   name: string;
-  region?: {
-    id: string;
-    name: string;
-  } | null;
-}
-
-interface Region {
-  id: string;
-  name: string;
-  description?: string;
 }
 
 interface Skill {
@@ -32,10 +22,10 @@ interface Project {
   title: string;
 }
 
-export default function NewCastingCallPage({ params }: { params: { projectId: string } }) {
+export default function NewCastingCallPage({ params }: { params: { id: string } }) {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const projectId = params.projectId;
+  const projectId = params.id;
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -43,10 +33,8 @@ export default function NewCastingCallPage({ params }: { params: { projectId: st
   const [studioInitNeeded, setStudioInitNeeded] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [regions, setRegions] = useState<Region[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -56,7 +44,6 @@ export default function NewCastingCallPage({ params }: { params: { projectId: st
     startDate: '',
     endDate: '',
     locationId: '',
-    regionId: '',
   });
   
   useEffect(() => {
@@ -65,32 +52,9 @@ export default function NewCastingCallPage({ params }: { params: { projectId: st
     } else if (status === 'authenticated') {
       fetchProject();
       fetchLocations();
-      fetchRegions();
       fetchSkills();
     }
   }, [status, projectId, router]);
-  
-  // Filter locations when region changes
-  useEffect(() => {
-    if (formData.regionId) {
-      setFilteredLocations(
-        locations.filter(loc => 
-          loc.region && loc.region.id === formData.regionId
-        )
-      );
-      
-      // Clear location selection if it doesn't belong to the selected region
-      const currentLocation = locations.find(loc => loc.id === formData.locationId);
-      if (currentLocation && (!currentLocation.region || currentLocation.region.id !== formData.regionId)) {
-        setFormData(prev => ({
-          ...prev,
-          locationId: '',
-        }));
-      }
-    } else {
-      setFilteredLocations(locations);
-    }
-  }, [formData.regionId, locations, formData.locationId]);
   
   const fetchProject = async () => {
     try {
@@ -134,24 +98,8 @@ export default function NewCastingCallPage({ params }: { params: { projectId: st
       
       const data = await response.json();
       setLocations(data);
-      setFilteredLocations(data);
     } catch (error) {
       console.error('Error fetching locations:', error);
-    }
-  };
-  
-  const fetchRegions = async () => {
-    try {
-      const response = await fetch('/api/regions');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch regions');
-      }
-      
-      const data = await response.json();
-      setRegions(data);
-    } catch (error) {
-      console.error('Error fetching regions:', error);
     }
   };
   
@@ -208,7 +156,6 @@ export default function NewCastingCallPage({ params }: { params: { projectId: st
         startDate: formData.startDate || undefined,
         endDate: formData.endDate || undefined,
         locationId: formData.locationId || undefined,
-        regionId: formData.regionId || undefined, // Add region ID to payload
         projectId: projectId,
         skillIds: selectedSkills.length > 0 ? selectedSkills : undefined,
       };
@@ -372,29 +319,6 @@ export default function NewCastingCallPage({ params }: { params: { projectId: st
               </div>
             </div>
             
-            {/* Region Selection - New */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Region
-              </label>
-              <select
-                name="regionId"
-                value={formData.regionId}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select region (recommended)</option>
-                {regions.map(region => (
-                  <option key={region.id} value={region.id}>
-                    {region.name}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-sm text-gray-500">
-                Selecting a region helps talents find your casting call based on their location preferences.
-              </p>
-            </div>
-            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Location
@@ -406,17 +330,12 @@ export default function NewCastingCallPage({ params }: { params: { projectId: st
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select location (optional)</option>
-                {filteredLocations.map(location => (
+                {locations.map(location => (
                   <option key={location.id} value={location.id}>
-                    {location.name} {location.region ? `(${location.region.name})` : ''}
+                    {location.name}
                   </option>
                 ))}
               </select>
-              {formData.regionId && filteredLocations.length === 0 && (
-                <p className="mt-1 text-sm text-red-500">
-                  No locations available for this region. Please select a different region or create a new location.
-                </p>
-              )}
             </div>
             
             <div>

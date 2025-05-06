@@ -10,10 +10,10 @@ const invitationSchema = z.object({
   message: z.string().optional(),
 });
 
-// GET /api/studio/projects/[projectId]/invitations - Get all invitations for a project
+// GET /api/studio/projects/[id]/invitations - Get all invitations for a project
 export async function GET(
   request: Request,
-  { params }: { params: { projectId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -41,7 +41,7 @@ export async function GET(
       return NextResponse.json({ error: "Studio not found" }, { status: 404 });
     }
     
-    const { projectId } = params;
+    const projectId = params.id;
     
     // Check if the project belongs to this studio
     const project = await prisma.project.findFirst({
@@ -123,10 +123,10 @@ export async function GET(
   }
 }
 
-// POST /api/studio/projects/[projectId]/invitations
+// POST /api/studio/projects/[id]/invitations
 export async function POST(
   request: Request,
-  { params }: { params: { projectId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -136,7 +136,7 @@ export async function POST(
     }
     
     // Validate projectId
-    const { projectId } = params;
+    const projectId = params.id;
     if (!projectId) {
       return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
     }

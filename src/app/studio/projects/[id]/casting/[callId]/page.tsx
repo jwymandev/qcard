@@ -4,9 +4,9 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 // This is a helper page that just redirects to the actual casting call detail page
-export default function ProjectCastingCallRedirect({ params }: { params: { projectId: string, callId: string } }) {
+export default function ProjectCastingCallRedirect({ params }: { params: { id: string, callId: string } }) {
   const router = useRouter();
-  const { projectId, callId } = params;
+  const { id: projectId, callId } = params;
   
   useEffect(() => {
     router.push(`/studio/casting-calls/${callId}`);

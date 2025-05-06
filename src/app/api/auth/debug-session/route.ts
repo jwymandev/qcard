@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     // Prepare response
     const response = {
       session: {
-        exists: \!\!session,
+        exists: !!session,
         user: session?.user ? {
           id: session.user.id,
           email: session.user.email,
@@ -38,7 +38,7 @@ export async function GET(req: Request) {
         } : null
       },
       token: {
-        exists: \!\!token,
+        exists: !!token,
         id: token?.id,
         email: token?.email,
         role: token?.role,
@@ -48,8 +48,9 @@ export async function GET(req: Request) {
       },
       cookies: {
         all: cookieNames,
-        hasSessionCookie: \!\!sessionCookie,
-        sessionCookieExpires: sessionCookie?.expires,
+        hasSessionCookie: !!sessionCookie,
+        // RequestCookie doesn't have expires property
+        sessionCookieValue: sessionCookie?.value,
       }
     };
     
@@ -62,4 +63,3 @@ export async function GET(req: Request) {
     );
   }
 }
-ENDFILE < /dev/null

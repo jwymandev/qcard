@@ -13,10 +13,10 @@ const projectUpdateSchema = z.object({
   isArchived: z.boolean().optional(),
 });
 
-// GET /api/studio/projects/[projectId] - Get a specific project
+// GET /api/studio/projects/[id] - Get a specific project
 export async function GET(
   request: Request,
-  { params }: { params: { projectId: string } }
+  { params }: { params: { id: string } }
 ) {
   const session = await auth();
   
@@ -24,7 +24,7 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   
-  const { projectId } = params;
+  const projectId = params.id;
   
   if (!projectId) {
     return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
@@ -120,10 +120,10 @@ export async function GET(
   }
 }
 
-// PUT /api/studio/projects/[projectId] - Update a project
+// PUT /api/studio/projects/[id] - Update a project
 export async function PUT(
   request: Request,
-  { params }: { params: { projectId: string } }
+  { params }: { params: { id: string } }
 ) {
   const session = await auth();
   
@@ -131,7 +131,7 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   
-  const { projectId } = params;
+  const projectId = params.id;
   
   if (!projectId) {
     return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
@@ -213,10 +213,10 @@ export async function PUT(
   }
 }
 
-// DELETE /api/studio/projects/[projectId] - Archive a project
+// DELETE /api/studio/projects/[id] - Archive a project
 export async function DELETE(
   request: Request,
-  { params }: { params: { projectId: string } }
+  { params }: { params: { id: string } }
 ) {
   const session = await auth();
   
@@ -224,7 +224,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   
-  const { projectId } = params;
+  const projectId = params.id;
   
   if (!projectId) {
     return NextResponse.json({ error: "Project ID is required" }, { status: 400 });

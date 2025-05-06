@@ -47,10 +47,10 @@ interface Project {
   title: string;
 }
 
-export default function CastingCallsPage({ params }: { params: { projectId: string } }) {
+export default function CastingCallsPage({ params }: { params: { id: string } }) {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const projectId = params.projectId;
+  const projectId = params.id;
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

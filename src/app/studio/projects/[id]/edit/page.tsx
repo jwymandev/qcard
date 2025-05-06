@@ -17,10 +17,10 @@ type Project = {
   updatedAt: string;
 };
 
-export default function EditProjectPage({ params }: { params: { projectId: string } }) {
+export default function EditProjectPage({ params }: { params: { id: string } }) {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { projectId } = params;
+  const projectId = params.id;
   
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);

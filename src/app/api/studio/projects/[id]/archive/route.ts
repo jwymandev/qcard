@@ -37,8 +37,8 @@ async function canAccessProject(userId: string, projectId: string) {
   return !!project;
 }
 
-// PATCH /api/studio/projects/[projectId]/archive - Archive or unarchive a project
-export async function PATCH(request: Request, { params }: { params: { projectId: string } }) {
+// PATCH /api/studio/projects/[id]/archive - Archive or unarchive a project
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const session = await auth();
   
   if (!session?.user?.id) {
@@ -46,7 +46,7 @@ export async function PATCH(request: Request, { params }: { params: { projectId:
   }
   
   try {
-    const { projectId } = params;
+    const projectId = params.id;
     const body = await request.json();
     
     // Validate input data
