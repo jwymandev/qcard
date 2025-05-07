@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import SubscriptionForm from './subscription-form';
 import { useSession } from 'next-auth/react';
 import { useSubscription } from '@/hooks/use-subscription';
+import RegionSubscriptionForm from './region-subscription-form';
 
 interface Plan {
   id: string;
@@ -14,13 +14,19 @@ interface Plan {
   features: string[];
 }
 
+interface Region {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export default function SubscriptionPage() {
   const { data: session, status } = useSession();
   const { subscription, isLoading: subscriptionLoading } = useSubscription();
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('plans');
+  const [activeTab, setActiveTab] = useState('regions'); // Default to new region-based plans
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -36,19 +42,19 @@ export default function SubscriptionPage() {
     }
   }, [status]);
   
-  // Function to load subscription plans and locations
+  // Function to load subscription plans and regions
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Fetch subscription plans
+      // Fetch standard subscription plans
       const plansResponse = await fetch('/api/plans');
       const plansData = await plansResponse.json();
       setPlans(plansData);
       
-      // Fetch locations
-      const locationsResponse = await fetch('/api/locations');
-      const locationsData = await locationsResponse.json();
-      setLocations(locationsData);
+      // Fetch regions
+      const regionsResponse = await fetch('/api/regions');
+      const regionsData = await regionsResponse.json();
+      setRegions(regionsData);
     } catch (error) {
       console.error('Error loading subscription data:', error);
       // Set default plans if API fails
@@ -56,17 +62,17 @@ export default function SubscriptionPage() {
         {
           id: 'basic',
           name: 'Basic',
-          description: 'Access to one location',
+          description: 'Access to one filming region',
           price: 19.99,
-          features: ['Access to one location', 'Basic messaging']
+          features: ['Access to one filming region', 'Basic messaging']
         },
         {
           id: 'pro',
           name: 'Professional',
-          description: 'Access to all locations and premium features',
+          description: 'Access to all regions and premium features',
           price: 39.99,
           features: [
-            'Access to all locations', 
+            'Access to all regions', 
             'Unlimited messaging', 
             'Advanced talent search',
             'Custom questionnaires'
@@ -86,13 +92,14 @@ export default function SubscriptionPage() {
         }
       ]);
       
-      // Set default locations if API fails
-      setLocations([
-        { id: 'loc1', name: 'Los Angeles' },
-        { id: 'loc2', name: 'New York' },
-        { id: 'loc3', name: 'Atlanta' },
-        { id: 'loc4', name: 'Vancouver' },
-        { id: 'loc5', name: 'London' }
+      // Set default regions if API fails
+      setRegions([
+        { id: 'west', name: 'West Coast', description: 'California, Oregon, Washington, etc.' },
+        { id: 'southwest', name: 'Southwest', description: 'Arizona, New Mexico, Nevada, etc.' },
+        { id: 'mountain', name: 'Mountain West', description: 'Colorado, Utah, Wyoming, etc.' },
+        { id: 'midwest', name: 'Midwest', description: 'Illinois, Michigan, Ohio, etc.' },
+        { id: 'southeast', name: 'Southeast', description: 'Georgia, Florida, North Carolina, etc.' },
+        { id: 'northeast', name: 'Northeast', description: 'New York, Massachusetts, etc.' }
       ]);
     } finally {
       setIsLoading(false);
@@ -327,7 +334,8 @@ export default function SubscriptionPage() {
               </div>
               
               <div className="p-6">
-                <SubscriptionForm locations={locations} />
+                {/* TODO: Replace with region-based form */}
+                <RegionSubscriptionForm regions={regions} />
               </div>
             </div>
           )}
@@ -340,6 +348,17 @@ export default function SubscriptionPage() {
               
               <div className="flex space-x-2">
                 <button
+                  onClick={() => handleTabChange('regions')}
+                  className={`px-4 py-2 rounded-md ${
+                    activeTab === 'regions'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Region-Based
+                </button>
+                
+                <button
                   onClick={() => handleTabChange('plans')}
                   className={`px-4 py-2 rounded-md ${
                     activeTab === 'plans'
@@ -347,25 +366,23 @@ export default function SubscriptionPage() {
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
-                  Plans
-                </button>
-                
-                <button
-                  onClick={() => handleTabChange('custom')}
-                  className={`px-4 py-2 rounded-md ${
-                    activeTab === 'custom'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  Custom
+                  Standard Plans
                 </button>
               </div>
             </div>
           </div>
           
           <div className="p-6">
-            {activeTab === 'plans' ? (
+            {activeTab === 'regions' ? (
+              <div>
+                <p className="mb-6 text-gray-600">
+                  Select the filming regions where you want to receive casting opportunities.
+                  Subscribe to multiple regions for a better price!
+                </p>
+                
+                <RegionSubscriptionForm regions={regions} />
+              </div>
+            ) : (
               <div className="grid md:grid-cols-3 gap-6">
                 {plans.map((plan) => (
                   <div 
@@ -389,11 +406,11 @@ export default function SubscriptionPage() {
                     
                     <button
                       onClick={() => {
-                        // Switch to the custom plan view if this plan supports location selection
                         if (plan.id === 'basic') {
-                          setActiveTab('custom');
+                          // For basic plan, switch to region-based selection
+                          setActiveTab('regions');
                         } else {
-                          // Otherwise just redirect to checkout for this plan
+                          // For other plans, go directly to checkout
                           window.location.href = `/api/create-subscription?planId=${plan.id}`;
                         }
                       }}
@@ -403,15 +420,6 @@ export default function SubscriptionPage() {
                     </button>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div>
-                <p className="mb-6 text-gray-600">
-                  Customize your subscription by selecting specific locations where you&apos;d 
-                  like to be considered for casting opportunities.
-                </p>
-                
-                <SubscriptionForm locations={locations} />
               </div>
             )}
           </div>

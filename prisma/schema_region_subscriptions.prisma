@@ -1,0 +1,110 @@
+// Region model definition
+model Region {
+  id             String           @id @default(uuid())
+  name           String           @unique  // Region name (e.g., "West Coast", "Northeast")
+  description    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  // Relations
+  subscriptionPlans RegionSubscriptionPlan[]
+  locations      Location[]       // Locations within this region
+  
+  // Stats helpers - profiles and studios associated with this region
+  ProfileRegion  ProfileRegion[]
+  StudioRegion   StudioRegion[]
+}
+
+// Junction table for profiles and regions
+model ProfileRegion {
+  profileId      String
+  regionId       String
+  createdAt      DateTime         @default(now())
+  profile        Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  region         Region           @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  
+  @@id([profileId, regionId])
+}
+
+// Junction table for studios and regions
+model StudioRegion {
+  studioId       String
+  regionId       String
+  createdAt      DateTime         @default(now())
+  studio         Studio           @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  region         Region           @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  
+  @@id([studioId, regionId])
+}
+
+// Region-specific subscription plan
+model RegionSubscriptionPlan {
+  id             String           @id @default(uuid())
+  regionId       String           // The region this plan applies to
+  name           String           // Plan name
+  description    String?
+  price          Float            // Base price in dollars
+  isActive       Boolean          @default(true)
+  stripePriceId  String?          // Stripe Price ID for this regional plan
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  
+  // Relations
+  region         Region           @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  userSubscriptions UserRegionSubscription[]
+}
+
+// Multi-region discount tiers
+model MultiRegionDiscount {
+  id             String           @id @default(uuid())
+  regionCount    Int              // Number of regions
+  discountPercentage Float        // Discount percentage (0-100)
+  active         Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+// User's subscription to a specific region plan
+model UserRegionSubscription {
+  id                 String                 @id @default(uuid())
+  userId             String
+  regionPlanId       String
+  status             SubscriptionStatus     @default(ACTIVE)
+  stripeItemId       String?                // Stripe Subscription Item ID
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  
+  // Relations
+  user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regionPlan         RegionSubscriptionPlan @relation(fields: [regionPlanId], references: [id])
+  
+  @@unique([userId, regionPlanId])
+}
+
+// Update the main Subscription model to handle multi-region subscriptions
+model SubscriptionModify {
+  id                  String               @id @default(uuid())
+  userId              String
+  studioId            String?
+  status              SubscriptionStatus    @default(ACTIVE)
+  stripeCustomerId    String?              // Stripe Customer ID
+  stripeSubscriptionId String?             // Stripe Subscription ID
+  currentPeriodStart  DateTime
+  currentPeriodEnd    DateTime
+  cancelAtPeriodEnd   Boolean              @default(false)
+  canceledAt          DateTime?
+  // Add field for tracking multi-region discount
+  multiRegionDiscount Float?               // Applied discount percentage
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+// Add a relation to the Location model to link it to a region
+model LocationModify {
+  id          String   @id
+  name        String
+  regionId    String?  // Foreign key to Region
+  // Relations
+  region      Region?  @relation(fields: [regionId], references: [id])
+}

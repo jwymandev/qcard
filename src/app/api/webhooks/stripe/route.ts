@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import stripe from '@/lib/stripe';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { SubscriptionStatus } from '@prisma/client';
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -41,10 +42,72 @@ export async function POST(req: Request) {
         
         // Handle subscription checkout completion
         if (checkoutSession.mode === 'subscription') {
-          const { userId, planId, studioId } = checkoutSession.metadata || {};
+          const { userId, planId, studioId, regionIds } = checkoutSession.metadata || {};
           
-          if (userId && planId) {
-            console.log(`Subscription created for user ${userId}, plan ${planId}`);
+          // Check if this is a region-based subscription
+          if (userId && regionIds) {
+            console.log(`Region subscription created for user ${userId}, regions: ${regionIds}`);
+            
+            // Get subscription details from the checkout session
+            const subscription = await stripe.subscriptions.retrieve(
+              checkoutSession.subscription as string
+            );
+            
+            // Parse region IDs
+            const parsedRegionIds = JSON.parse(regionIds);
+            
+            // Create or update subscription record
+            const dbSubscription = await createOrUpdateSubscription(
+              userId, 
+              null, // No specific plan ID for region subscriptions
+              studioId, 
+              checkoutSession.customer as string, 
+              subscription.id, 
+              subscription
+            );
+            
+            // Create region subscriptions for each selected region
+            if (Array.isArray(parsedRegionIds) && parsedRegionIds.length > 0) {
+              // Get discount percentage from metadata or default to 0
+              const discountPercentage = checkoutSession.metadata?.discountPercentage 
+                ? parseFloat(checkoutSession.metadata.discountPercentage) 
+                : 0;
+              
+              // Create user region subscriptions
+              await Promise.all(parsedRegionIds.map(async (regionId: string) => {
+                try {
+                  // First find a valid region subscription plan for this region
+                  const regionPlan = await prisma.regionSubscriptionPlan.findFirst({
+                    where: { regionId, isActive: true }
+                  });
+                  
+                  if (!regionPlan) {
+                    console.error(`No subscription plan found for region ${regionId}`);
+                    return;
+                  }
+                  
+                  // Now create with the proper regionPlanId
+                  await prisma.userRegionSubscription.create({
+                    data: {
+                      userId,
+                      mainSubscriptionId: dbSubscription.id,
+                      regionPlanId: regionPlan.id,
+                      status: 'ACTIVE' as SubscriptionStatus,
+                      currentPeriodStart: new Date(subscription.current_period_start * 1000),
+                      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                      createdAt: new Date(),
+                      updatedAt: new Date()
+                    }
+                  });
+                } catch (error) {
+                  console.error(`Error creating region subscription for ${regionId}:`, error);
+                }
+              }));
+            }
+          }
+          // Handle standard subscription (non-region based)
+          else if (userId && planId) {
+            console.log(`Standard subscription created for user ${userId}, plan ${planId}`);
             
             // Get subscription details from the checkout session
             const subscription = await stripe.subscriptions.retrieve(
@@ -76,7 +139,7 @@ export async function POST(req: Request) {
         
       case 'customer.subscription.deleted':
         const deletedSubscription = event.data.object;
-        handleSubscriptionChange(deletedSubscription, 'CANCELED');
+        await handleSubscriptionDelete(deletedSubscription);
         break;
         
       case 'invoice.paid':
@@ -174,7 +237,7 @@ function mapStripeStatusToDB(stripeStatus: string): string {
  */
 async function createOrUpdateSubscription(
   userId: string,
-  planId: string,
+  planId: string | null,
   studioId: string | undefined,
   stripeCustomerId: string,
   stripeSubscriptionId: string,
@@ -198,7 +261,7 @@ async function createOrUpdateSubscription(
     return prisma.subscription.update({
       where: { id: existingSubscription.id },
       data: {
-        planId,
+        planId: planId || "", // Use empty string instead of undefined
         status: mapStripeStatusToDB(stripeSubscription.status) as any,
         stripeCustomerId,
         stripeSubscriptionId,
@@ -213,8 +276,8 @@ async function createOrUpdateSubscription(
     return prisma.subscription.create({
       data: {
         userId,
-        studioId,
-        planId,
+        studioId: studioId || undefined, // Handle null case
+        planId: planId || "", // Use empty string instead of undefined
         status: mapStripeStatusToDB(stripeSubscription.status) as any,
         stripeCustomerId,
         stripeSubscriptionId,
@@ -254,4 +317,44 @@ async function handleSubscriptionChange(subscription: any, forceStatus?: string)
       updatedAt: new Date()
     }
   });
+}
+
+/**
+ * Handle subscription deletion (cancel all region subscriptions)
+ */
+async function handleSubscriptionDelete(subscription: any) {
+  const dbSubscription = await prisma.subscription.findFirst({
+    where: { stripeSubscriptionId: subscription.id },
+    include: {
+      regionSubscriptions: true
+    }
+  });
+  
+  if (!dbSubscription) {
+    console.log(`No subscription found in database for Stripe subscription ${subscription.id}`);
+    return;
+  }
+  
+  // Update subscription status
+  await prisma.subscription.update({
+    where: { id: dbSubscription.id },
+    data: {
+      status: 'CANCELED' as any,
+      canceledAt: new Date(),
+      updatedAt: new Date()
+    }
+  });
+  
+  // Mark all associated region subscriptions as inactive
+  if (dbSubscription.regionSubscriptions && dbSubscription.regionSubscriptions.length > 0) {
+    await Promise.all(dbSubscription.regionSubscriptions.map(async (regionSub) => {
+      await prisma.userRegionSubscription.update({
+        where: { id: regionSub.id },
+        data: {
+          status: 'CANCELED' as SubscriptionStatus,
+          updatedAt: new Date()
+        }
+      });
+    }));
+  }
 }

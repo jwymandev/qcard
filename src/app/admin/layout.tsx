@@ -51,6 +51,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Projects', href: '/admin/projects', icon: 'FolderIcon', current: pathname === '/admin/projects' || pathname.startsWith('/admin/projects/') },
     { name: 'Regions', href: '/admin/regions', icon: 'GlobeIcon', current: pathname === '/admin/regions' || pathname.startsWith('/admin/regions/'), superAdmin: true },
     { name: 'Locations', href: '/admin/locations', icon: 'MapPinIcon', current: pathname === '/admin/locations' || pathname.startsWith('/admin/locations/'), superAdmin: true },
+    { 
+      name: 'Subscriptions', 
+      href: '/admin/subscriptions/regions', 
+      icon: 'CreditCardIcon', 
+      current: pathname.startsWith('/admin/subscriptions/'),
+      subItems: [
+        { name: 'Region Plans', href: '/admin/subscriptions/regions', current: pathname === '/admin/subscriptions/regions' },
+        { name: 'Discounts', href: '/admin/subscriptions/discounts', current: pathname === '/admin/subscriptions/discounts' },
+      ]
+    },
     { name: 'Schema', href: '/admin/schema', icon: 'TableIcon', current: pathname === '/admin/schema' || pathname.startsWith('/admin/schema/') },
     { name: 'Settings', href: '/admin/settings', icon: 'CogIcon', current: pathname === '/admin/settings', superAdmin: true },
     { name: 'Logs', href: '/admin/logs', icon: 'ClipboardListIcon', current: pathname === '/admin/logs', superAdmin: true },
@@ -75,17 +85,46 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="mt-6 flex-1 flex flex-col">
             <nav className="flex-1 px-2 space-y-1">
               {filteredNavigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`${
-                    item.current
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
-                >
-                  {item.name}
-                </Link>
+                <div key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={`${
+                      item.current
+                        ? 'bg-gray-900 text-white'
+                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                  >
+                    {item.name}
+                    {item.subItems && (
+                      <svg 
+                        className="ml-auto h-5 w-5" 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        viewBox="0 0 20 20" 
+                        fill="currentColor"
+                      >
+                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </Link>
+                  
+                  {item.subItems && item.current && (
+                    <div className="mt-1 ml-4 space-y-1">
+                      {item.subItems.map((subItem) => (
+                        <Link
+                          key={subItem.name}
+                          href={subItem.href}
+                          className={`${
+                            subItem.current
+                              ? 'bg-gray-800 text-white'
+                              : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          } group flex items-center px-2 py-2 text-sm rounded-md`}
+                        >
+                          {subItem.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </nav>
           </div>
