@@ -69,29 +69,57 @@ export default function CreateUserPage() {
     try {
       setSaving(true);
       
-      // In a real implementation, send to API
-      // const response = await fetch('/api/admin/users', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     email: formData.email,
-      //     firstName: formData.firstName,
-      //     lastName: formData.lastName,
-      //     password: formData.password,
-      //     role: formData.role,
-      //     tenantType: formData.tenantType,
-      //   }),
-      // });
+      // Check admin access first
+      const accessCheck = await fetch('/api/admin/check-access');
+      if (!accessCheck.ok) {
+        console.error('Admin access check failed:', await accessCheck.text());
+        setFormError('You do not have admin permissions to create users');
+        setSaving(false);
+        return;
+      }
       
-      // Simulate API response delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For now, just simulate success
-      console.log('User would be created with:', {
-        ...formData,
-        password: '[REDACTED]',
-        confirmPassword: '[REDACTED]',
+      // Send to API
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Important for auth cookies
+        body: JSON.stringify({
+          email: formData.email,
+          firstName: formData.firstName || undefined,
+          lastName: formData.lastName || undefined,
+          password: formData.password,
+          role: formData.role,
+          tenantType: formData.tenantType,
+        }),
       });
+      
+      if (!response.ok) {
+        // Try to get error details from response
+        let errorMessage = 'Failed to create user. Please try again.';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          if (errorData.details) {
+            console.error('Validation details:', errorData.details);
+            // Show first validation error if available
+            if (typeof errorData.details === 'object') {
+              const firstError = Object.values(errorData.details).flat()[0];
+              if (firstError) {
+                errorMessage = `${errorMessage}: ${firstError}`;
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing API error response:', e);
+        }
+        
+        setFormError(errorMessage);
+        setSaving(false);
+        return;
+      }
+      
+      const userData = await response.json();
+      console.log('User created successfully:', userData);
       
       // Navigate back to users list
       router.push('/admin/users');
@@ -131,7 +159,7 @@ export default function CreateUserPage() {
                 type="email"
                 name="email"
                 id="email"
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -145,7 +173,7 @@ export default function CreateUserPage() {
               <select
                 id="role"
                 name="role"
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 value={formData.role}
                 onChange={handleChange}
                 required

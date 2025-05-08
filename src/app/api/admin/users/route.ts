@@ -132,14 +132,31 @@ export async function GET(request: Request) {
 // POST /api/admin/users
 export async function POST(request: Request) {
   try {
-    // Check admin access
-    await requireAdmin();
-
+    console.log('POST /api/admin/users request received');
+    
+    // Check admin access with API-friendly options
+    const session = await requireAdmin({ 
+      redirectOnFailure: false, 
+      throwOnFailure: true 
+    });
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+    
+    console.log('Admin access granted for user creation to:', session?.user?.email);
+    
     // Parse and validate request body
     const body = await request.json();
+    console.log('Received user creation request:', { ...body, password: '[REDACTED]' });
+    
     const validationResult = createUserSchema.safeParse(body);
 
     if (!validationResult.success) {
+      console.error('Validation failed:', validationResult.error.flatten());
       return NextResponse.json(
         { 
           error: 'Invalid user data', 
