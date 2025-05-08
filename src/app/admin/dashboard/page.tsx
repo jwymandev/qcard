@@ -4,12 +4,43 @@ import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 
+// Helper function to format time ago
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSecs < 60) {
+    return 'just now';
+  } else if (diffMins < 60) {
+    return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+  } else if (diffHours < 24) {
+    return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  } else if (diffDays < 30) {
+    return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+  } else {
+    // For older dates, return formatted date
+    return date.toLocaleDateString();
+  }
+}
+
+interface ActivityItem {
+  type: string;
+  id: string;
+  description: string;
+  time: string;
+}
+
 interface StatsData {
   users: number;
   studios: number;
   talents: number;
   projects: number;
   castingCalls: number;
+  recentActivity: ActivityItem[];
   loading: boolean;
   error: string | null;
 }
@@ -22,6 +53,7 @@ export default function AdminDashboard() {
     talents: 0,
     projects: 0,
     castingCalls: 0,
+    recentActivity: [],
     loading: true,
     error: null,
   });
@@ -29,25 +61,24 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        // In a real implementation, you would fetch actual stats from your API
-        // For now, we'll simulate loading stats
+        const response = await fetch('/api/admin/stats');
         
-        // This will be replaced with a real API call
-        // const response = await fetch('/api/admin/stats');
-        // const data = await response.json();
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
         
-        // For now, just simulate stats with timeout
-        setTimeout(() => {
-          setStats({
-            users: 156,
-            studios: 24,
-            talents: 132,
-            projects: 47,
-            castingCalls: 68,
-            loading: false,
-            error: null,
-          });
-        }, 1000);
+        const data = await response.json();
+        
+        setStats({
+          users: data.users,
+          studios: data.studios,
+          talents: data.talents,
+          projects: data.projects,
+          castingCalls: data.castingCalls,
+          recentActivity: data.recentActivity || [],
+          loading: false,
+          error: null,
+        });
       } catch (error) {
         console.error('Error fetching stats:', error);
         setStats(prev => ({
@@ -112,14 +143,16 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : stats.recentActivity && stats.recentActivity.length > 0 ? (
             <div className="text-gray-600">
-              <p className="mb-2">• User John Smith registered (2 hours ago)</p>
-              <p className="mb-2">• Studio ABC updated their profile (5 hours ago)</p>
-              <p className="mb-2">• New project &quot;Summer Movie&quot; created (1 day ago)</p>
-              <p className="mb-2">• Casting call &quot;Lead Role Needed&quot; posted (1 day ago)</p>
-              <p>• 3 new talents created profiles (2 days ago)</p>
+              {stats.recentActivity.map((activity, index) => (
+                <p key={activity.id} className={index < stats.recentActivity.length - 1 ? "mb-2" : ""}>
+                  • {activity.description} ({formatTimeAgo(new Date(activity.time))})
+                </p>
+              ))}
             </div>
+          ) : (
+            <p className="text-gray-500">No recent activity found.</p>
           )}
           <div className="mt-4">
             <Link href="/admin/logs" className="text-blue-600 hover:text-blue-800">

@@ -22,23 +22,26 @@ export default function UsersPage() {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        // In a real implementation, you would fetch users from your API
-        // const response = await fetch('/api/admin/users');
-        // const data = await response.json();
+        // Create URL with query parameters
+        const url = new URL('/api/admin/users', window.location.origin);
+        if (searchTerm) url.searchParams.append('search', searchTerm);
+        if (roleFilter) url.searchParams.append('tenantType', roleFilter);
         
-        // For now, just simulate users with timeout
-        setTimeout(() => {
-          const sampleUsers = [
-            { id: '1', email: 'admin@example.com', name: 'Admin User', role: 'ADMIN', tenantType: 'ADMIN', createdAt: '2023-01-01T00:00:00Z' },
-            { id: '2', email: 'studio1@example.com', name: 'Studio One', role: 'USER', tenantType: 'STUDIO', createdAt: '2023-01-02T00:00:00Z' },
-            { id: '3', email: 'studio2@example.com', name: 'Studio Two', role: 'USER', tenantType: 'STUDIO', createdAt: '2023-01-03T00:00:00Z' },
-            { id: '4', email: 'talent1@example.com', name: 'Talent One', role: 'USER', tenantType: 'TALENT', createdAt: '2023-01-04T00:00:00Z' },
-            { id: '5', email: 'talent2@example.com', name: 'Talent Two', role: 'USER', tenantType: 'TALENT', createdAt: '2023-01-05T00:00:00Z' },
-          ];
-          
-          setUsers(sampleUsers);
-          setLoading(false);
-        }, 1000);
+        const response = await fetch(url.toString());
+        
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.users) {
+          setUsers(data.users);
+        } else {
+          setUsers([]);
+        }
+        
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching users:', error);
         setError('Failed to load users');
@@ -47,7 +50,7 @@ export default function UsersPage() {
     }
 
     fetchUsers();
-  }, []);
+  }, [searchTerm, roleFilter]);
 
   // Filter users based on search term and role filter
   const filteredUsers = users.filter(user => {
