@@ -22,29 +22,46 @@ export default function UsersPage() {
   useEffect(() => {
     async function fetchUsers() {
       try {
+        // First check admin access
+        const accessCheck = await fetch('/api/admin/check-access');
+        if (!accessCheck.ok) {
+          console.error('Admin access check failed:', await accessCheck.text());
+          setError('You do not have admin permissions to view this page');
+          setLoading(false);
+          return;
+        }
+        
         // Create URL with query parameters
         const url = new URL('/api/admin/users', window.location.origin);
         if (searchTerm) url.searchParams.append('search', searchTerm);
         if (roleFilter) url.searchParams.append('tenantType', roleFilter);
         
-        const response = await fetch(url.toString());
+        console.log('Fetching users from:', url.toString());
+        const response = await fetch(url.toString(), {
+          credentials: 'include', // Important to include credentials
+        });
         
         if (!response.ok) {
-          throw new Error(`Error: ${response.status}`);
+          console.error('API response not OK:', response.status, response.statusText);
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error(`Error ${response.status}: ${errorText || response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('Received user data:', data);
         
-        if (data.users) {
+        if (data.users && Array.isArray(data.users)) {
           setUsers(data.users);
         } else {
+          console.warn('No users array in response:', data);
           setUsers([]);
         }
         
         setLoading(false);
       } catch (error) {
         console.error('Error fetching users:', error);
-        setError('Failed to load users');
+        setError(error instanceof Error ? error.message : 'Failed to load users');
         setLoading(false);
       }
     }

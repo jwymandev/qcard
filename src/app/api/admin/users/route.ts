@@ -18,8 +18,23 @@ const createUserSchema = z.object({
 // GET /api/admin/users
 export async function GET(request: Request) {
   try {
-    // Check admin access
-    await requireAdmin();
+    // Log the request for debugging
+    console.log('GET /api/admin/users request received');
+    
+    // Check admin access with API-friendly options (throw instead of redirect)
+    const session = await requireAdmin({ 
+      redirectOnFailure: false, 
+      throwOnFailure: true 
+    });
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+    
+    console.log('Admin access granted to:', session?.user?.email);
 
     // Get query params
     const { searchParams } = new URL(request.url);
@@ -29,6 +44,8 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const page = parseInt(searchParams.get('page') || '1');
     const skip = (page - 1) * limit;
+    
+    console.log('Query params:', { search, role, tenantType, limit, page });
 
     // Base query
     let where: any = {};
