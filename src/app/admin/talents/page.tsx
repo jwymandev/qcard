@@ -33,72 +33,43 @@ export default function TalentsPage() {
   useEffect(() => {
     async function fetchTalents() {
       try {
-        // In a real implementation, you would fetch talents from your API
-        // const response = await fetch('/api/admin/talents');
-        // const data = await response.json();
+        setLoading(true);
         
-        // For now, just simulate talents with timeout
-        setTimeout(() => {
-          const sampleTalents = [
-            { 
-              id: '1', 
-              userId: 'user1',
-              name: 'John Doe', 
-              headshotUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
-              bio: 'Experienced actor with 10 years in film and television.',
-              gender: 'Male',
-              age: '35-45',
-              height: '6\'0"',
-              weight: '180 lbs',
-              hairColor: 'Brown',
-              eyeColor: 'Blue',
-              ethnicity: 'Caucasian',
-              skills: ['Acting', 'Voiceover', 'Stunt Work'],
-              locations: ['Los Angeles', 'New York'],
-              availability: true,
-              createdAt: '2023-01-01T00:00:00Z',
-            },
-            { 
-              id: '2', 
-              userId: 'user2',
-              name: 'Jane Smith', 
-              headshotUrl: 'https://randomuser.me/api/portraits/women/1.jpg',
-              bio: 'Up and coming actress with theater background.',
-              gender: 'Female',
-              age: '25-35',
-              height: '5\'6"',
-              weight: '130 lbs',
-              hairColor: 'Blonde',
-              eyeColor: 'Green',
-              ethnicity: 'Caucasian',
-              skills: ['Acting', 'Dancing', 'Singing'],
-              locations: ['Los Angeles'],
-              availability: true,
-              createdAt: '2023-01-02T00:00:00Z',
-            },
-            { 
-              id: '3', 
-              userId: 'user3',
-              name: 'Michael Johnson', 
-              headshotUrl: 'https://randomuser.me/api/portraits/men/2.jpg',
-              bio: 'Character actor specializing in comedy roles.',
-              gender: 'Male',
-              age: '40-50',
-              height: '5\'9"',
-              weight: '160 lbs',
-              hairColor: 'Black',
-              eyeColor: 'Brown',
-              ethnicity: 'African American',
-              skills: ['Acting', 'Comedy', 'Improv'],
-              locations: ['New York'],
-              availability: false,
-              createdAt: '2023-01-03T00:00:00Z',
-            },
-          ];
-          
-          setTalents(sampleTalents);
+        // Build search parameters
+        const params = new URLSearchParams();
+        if (searchTerm) params.append('search', searchTerm);
+        if (skillFilter) params.append('skill', skillFilter);
+        if (availabilityFilter !== 'all') params.append('availability', availabilityFilter);
+        
+        // Check admin access first
+        const accessCheck = await fetch('/api/admin/check-access');
+        if (!accessCheck.ok) {
+          console.error('Admin access check failed:', await accessCheck.text());
+          setError('You do not have admin permissions to view talents');
           setLoading(false);
-        }, 1000);
+          return;
+        }
+        
+        // Fetch talents from API
+        const response = await fetch(`/api/admin/talents?${params.toString()}`, {
+          credentials: 'include' // Important for auth cookies
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Received talent data:', data);
+        
+        if (data.talents && Array.isArray(data.talents)) {
+          setTalents(data.talents);
+        } else {
+          console.warn('No talent array in response:', data);
+          setTalents([]);
+        }
+        
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching talents:', error);
         setError('Failed to load talents');
@@ -107,7 +78,7 @@ export default function TalentsPage() {
     }
 
     fetchTalents();
-  }, []);
+  }, [searchTerm, skillFilter, availabilityFilter]);
 
   // Get unique skills for filter dropdown
   const uniqueSkills = Array.from(new Set(talents.flatMap(talent => talent.skills)));

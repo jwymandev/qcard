@@ -25,54 +25,41 @@ export default function StudiosPage() {
   useEffect(() => {
     async function fetchStudios() {
       try {
-        // In a real implementation, you would fetch studios from your API
-        // const response = await fetch('/api/admin/studios');
-        // const data = await response.json();
+        setLoading(true);
         
-        // For now, just simulate studios with timeout
-        setTimeout(() => {
-          const sampleStudios = [
-            { 
-              id: '1', 
-              name: 'ABC Studios', 
-              description: 'Major film studio',
-              contactEmail: 'contact@abcstudios.com',
-              contactPhone: '123-456-7890',
-              website: 'https://abcstudios.com',
-              tenantId: 'tenant1',
-              createdAt: '2023-01-01T00:00:00Z',
-              projectCount: 12,
-              castingCallCount: 8
-            },
-            { 
-              id: '2', 
-              name: 'XYZ Productions', 
-              description: 'Independent film studio',
-              contactEmail: 'info@xyzproductions.com',
-              contactPhone: '987-654-3210',
-              website: 'https://xyzproductions.com',
-              tenantId: 'tenant2',
-              createdAt: '2023-01-02T00:00:00Z',
-              projectCount: 5,
-              castingCallCount: 3
-            },
-            { 
-              id: '3', 
-              name: 'Indie Filmworks', 
-              description: 'Small independent studio',
-              contactEmail: 'hello@indiefilmworks.com',
-              contactPhone: '555-123-4567',
-              website: 'https://indiefilmworks.com',
-              tenantId: 'tenant3',
-              createdAt: '2023-01-03T00:00:00Z',
-              projectCount: 2,
-              castingCallCount: 1
-            },
-          ];
-          
-          setStudios(sampleStudios);
+        // Build search parameters
+        const params = new URLSearchParams();
+        if (searchTerm) params.append('search', searchTerm);
+        
+        // Check admin access first
+        const accessCheck = await fetch('/api/admin/check-access');
+        if (!accessCheck.ok) {
+          console.error('Admin access check failed:', await accessCheck.text());
+          setError('You do not have admin permissions to view studios');
           setLoading(false);
-        }, 1000);
+          return;
+        }
+        
+        // Fetch studios from API
+        const response = await fetch(`/api/admin/studios?${params.toString()}`, {
+          credentials: 'include' // Important for auth cookies
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Received studio data:', data);
+        
+        if (data.studios && Array.isArray(data.studios)) {
+          setStudios(data.studios);
+        } else {
+          console.warn('No studios array in response:', data);
+          setStudios([]);
+        }
+        
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching studios:', error);
         setError('Failed to load studios');
@@ -81,7 +68,7 @@ export default function StudiosPage() {
     }
 
     fetchStudios();
-  }, []);
+  }, [searchTerm]);
 
   // Filter studios based on search term
   const filteredStudios = studios.filter(studio => {
