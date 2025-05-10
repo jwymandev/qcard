@@ -33,31 +33,45 @@ export default function EditUserPage() {
   useEffect(() => {
     async function fetchUser() {
       try {
-        // In a real implementation, fetch from API
-        // const response = await fetch(`/api/admin/users/${userId}`);
-        // const data = await response.json();
+        setLoading(true);
         
-        // For now, simulate API response
-        setTimeout(() => {
-          if (userId === '404') {
+        // Check admin access first
+        const accessCheck = await fetch('/api/admin/check-access');
+        if (!accessCheck.ok) {
+          console.error('Admin access check failed:', await accessCheck.text());
+          setError('You do not have admin permissions to edit users');
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch user data from API
+        const response = await fetch(`/api/admin/users/${userId}`, {
+          credentials: 'include' // Important for auth cookies
+        });
+        
+        if (!response.ok) {
+          if (response.status === 404) {
             setError('User not found');
             setLoading(false);
             return;
           }
           
-          // Simulate user data
-          const userData = {
-            id: userId,
-            email: 'user@example.com',
-            firstName: 'John',
-            lastName: 'Doe',
-            role: 'USER',
-            tenantType: 'TALENT',
-          };
-          
-          setFormData(userData);
-          setLoading(false);
-        }, 1000);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const userData = await response.json();
+        console.log('Received user data:', userData);
+        
+        // Set form data with the retrieved user info
+        setFormData({
+          email: userData.email,
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          role: userData.role,
+          tenantType: userData.tenantType
+        });
+        
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching user:', error);
         setError('Failed to load user data');
@@ -86,18 +100,46 @@ export default function EditUserPage() {
     try {
       setSaving(true);
       
-      // In a real implementation, send to API
-      // const response = await fetch(`/api/admin/users/${userId}`, {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData),
-      // });
+      // Send update to API
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: formData.email,
+          firstName: formData.firstName || undefined,
+          lastName: formData.lastName || undefined,
+          role: formData.role
+        }),
+      });
       
-      // Simulate API response delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!response.ok) {
+        // Try to get error details from response
+        let errorMessage = 'Failed to update user. Please try again.';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          if (errorData.details) {
+            console.error('Validation details:', errorData.details);
+            // Show first validation error if available
+            if (typeof errorData.details === 'object') {
+              const firstError = Object.values(errorData.details).flat()[0];
+              if (firstError) {
+                errorMessage = `${errorMessage}: ${firstError}`;
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing API error response:', e);
+        }
+        
+        setFormError(errorMessage);
+        setSaving(false);
+        return;
+      }
       
-      // For now, just simulate success
-      console.log('User would be updated with:', formData);
+      const updatedUser = await response.json();
+      console.log('User updated successfully:', updatedUser);
       
       // Navigate back to user detail page
       router.push(`/admin/users/${userId}`);
@@ -156,7 +198,7 @@ export default function EditUserPage() {
                 type="email"
                 name="email"
                 id="email"
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -170,7 +212,7 @@ export default function EditUserPage() {
               <select
                 id="role"
                 name="role"
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 value={formData.role}
                 onChange={handleChange}
               >
@@ -188,7 +230,7 @@ export default function EditUserPage() {
                 type="text"
                 name="firstName"
                 id="firstName"
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 value={formData.firstName}
                 onChange={handleChange}
               />
@@ -202,7 +244,7 @@ export default function EditUserPage() {
                 type="text"
                 name="lastName"
                 id="lastName"
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 value={formData.lastName}
                 onChange={handleChange}
               />
@@ -215,9 +257,10 @@ export default function EditUserPage() {
               <select
                 id="tenantType"
                 name="tenantType"
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 value={formData.tenantType}
                 onChange={handleChange}
+                disabled // Tenant type can't be changed after creation
               >
                 <option value="TALENT">Talent</option>
                 <option value="STUDIO">Studio</option>

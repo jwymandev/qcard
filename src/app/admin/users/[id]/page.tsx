@@ -30,36 +30,37 @@ export default function UserDetailPage() {
   useEffect(() => {
     async function fetchUser() {
       try {
-        // In a real implementation, fetch from API
-        // const response = await fetch(`/api/admin/users/${userId}`);
-        // const data = await response.json();
+        setLoading(true);
         
-        // For now, simulate API response
-        setTimeout(() => {
-          if (userId === '404') {
+        // Check admin access first
+        const accessCheck = await fetch('/api/admin/check-access');
+        if (!accessCheck.ok) {
+          console.error('Admin access check failed:', await accessCheck.text());
+          setError('You do not have admin permissions to view user details');
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch user data from API
+        const response = await fetch(`/api/admin/users/${userId}`, {
+          credentials: 'include' // Important for auth cookies
+        });
+        
+        if (!response.ok) {
+          if (response.status === 404) {
             setError('User not found');
             setLoading(false);
             return;
           }
           
-          // Simulate user data
-          const userData = {
-            id: userId,
-            email: 'user@example.com',
-            name: 'John Doe',
-            firstName: 'John',
-            lastName: 'Doe',
-            role: 'USER',
-            tenantType: 'TALENT',
-            tenantName: 'John Doe Talent',
-            tenantId: 'tenant123',
-            createdAt: '2023-01-01T00:00:00Z',
-            updatedAt: '2023-01-10T00:00:00Z',
-          };
-          
-          setUser(userData);
-          setLoading(false);
-        }, 1000);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const userData = await response.json();
+        console.log('Received user data:', userData);
+        
+        setUser(userData);
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching user details:', error);
         setError('Failed to load user details');
@@ -84,11 +85,29 @@ export default function UserDetailPage() {
     }
   };
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      // In a real implementation, call API
-      alert('User deletion functionality would go here.');
-      router.push('/admin/users');
+      try {
+        setLoading(true);
+        
+        // Call delete API
+        const response = await fetch(`/api/admin/users/${userId}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Failed to delete user. Status: ${response.status}`);
+        }
+        
+        // Redirect to users list on success
+        router.push('/admin/users');
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        setError(error instanceof Error ? error.message : 'Failed to delete user');
+        setLoading(false);
+      }
     }
   };
 
