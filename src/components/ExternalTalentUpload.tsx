@@ -51,44 +51,33 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
     }
 
     setIsUploading(true);
-    setError(null);
+    setError('Processing spreadsheet...');
 
     try {
-      let csvData;
-      const fileName = file.name.toLowerCase();
+      // Show processing status
       
-      if (fileName.endsWith('.csv')) {
-        // For CSV files, read as text
-        csvData = await readFileAsText(file);
+      let csvData;
+      
+      try {
+        // Use our enhanced spreadsheet parser for all file types
+        // It can handle CSV, Excel, and Numbers formats
+        const parsedData = await parseSpreadsheet(file);
         
-        // Basic validation of CSV format
-        const lines = csvData.trim().split('\n');
-        if (lines.length < 2) {
-          throw new Error('CSV file must contain a header row and at least one data row');
+        // Check if there's data
+        if (parsedData.length === 0) {
+          throw new Error('No valid data rows found in the spreadsheet');
         }
         
-        const header = lines[0].toLowerCase();
-        if (!header.includes('email')) {
-          throw new Error('Spreadsheet must contain an "email" column');
-        }
-      } else {
-        // For Excel/Numbers files, parse and convert to CSV
-        try {
-          const parsedData = await parseSpreadsheet(file);
-          
-          // Check if there's data and it has the required email field
-          if (parsedData.length === 0) {
-            throw new Error('Spreadsheet contains no data');
-          }
-          
-          // Convert parsed data to CSV format
-          csvData = convertToCSV(parsedData);
-        } catch (parseError) {
-          console.error('Error parsing spreadsheet:', parseError);
-          throw new Error(parseError instanceof Error ? 
-            parseError.message : 
-            'Failed to parse spreadsheet. Please check the file format.');
-        }
+        // Show how many records were found
+        setError(`Found ${parsedData.length} valid records. Uploading...`);
+        
+        // Convert parsed data to CSV format for the API
+        csvData = convertToCSV(parsedData);
+      } catch (parseError) {
+        console.error('Error parsing spreadsheet:', parseError);
+        throw new Error(parseError instanceof Error ? 
+          parseError.message : 
+          'Failed to parse spreadsheet. Please check the file format.');
       }
       
       // Send the CSV data to the API
@@ -175,9 +164,20 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
       </CardHeader>
       <CardContent>
         {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+          <Alert variant={error.startsWith('Processing') || error.startsWith('Found') ? 'default' : 'destructive'} 
+                 className={`mb-4 ${error.startsWith('Processing') || error.startsWith('Found') ? 'bg-blue-50 border-blue-200' : ''}`}>
+            <AlertTitle>{error.startsWith('Processing') || error.startsWith('Found') ? 'Status' : 'Error'}</AlertTitle>
+            <AlertDescription>
+              {error}
+              {isUploading && (error.startsWith('Processing') || error.startsWith('Found')) && (
+                <div className="flex items-center mt-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                  <span className="text-sm text-blue-600">
+                    {error.startsWith('Processing') ? 'Analyzing file...' : 'Uploading to server...'}
+                  </span>
+                </div>
+              )}
+            </AlertDescription>
           </Alert>
         )}
 
