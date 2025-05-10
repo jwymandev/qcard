@@ -85,6 +85,9 @@ export default function ExternalActorsPage() {
     try {
       setLoading(true);
       
+      // Add a timestamp parameter to prevent caching
+      const timestamp = new Date().getTime();
+      
       let url = '/api/studio/external-actors';
       const params = new URLSearchParams();
       
@@ -96,16 +99,30 @@ export default function ExternalActorsPage() {
         params.append('status', status);
       }
       
+      // Add timestamp to force fresh data
+      params.append('_t', timestamp.toString());
+      
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
       
-      const response = await fetch(url);
+      console.log('Fetching external actors from URL:', url);
+      const response = await fetch(url, {
+        // Add cache control headers
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       
       if (response.ok) {
         const data = await response.json();
+        console.log(`Fetched ${data.length} external actors`);
         setExternalActors(data);
       } else {
+        const errorText = await response.text();
+        console.error('Failed response:', response.status, errorText);
         setError('Failed to fetch external actors');
       }
     } catch (err) {
@@ -215,11 +232,29 @@ export default function ExternalActorsPage() {
     }
   };
   
-  const handleUploadComplete = () => {
-    fetchExternalActors(
-      selectedProject === 'all' ? undefined : selectedProject, 
-      activeTab === 'all' ? undefined : activeTab
-    );
+  const handleUploadComplete = (result: any) => {
+    console.log('Upload completed with result:', result);
+    
+    // Show success message
+    if (result.success > 0) {
+      // Clear any previous errors
+      setError(null);
+      
+      // Refresh the list of external actors
+      fetchExternalActors(
+        selectedProject === 'all' ? undefined : selectedProject, 
+        activeTab === 'all' ? undefined : activeTab
+      );
+      
+      // Provide visual feedback
+      const message = `Successfully imported ${result.success} actors.` + 
+                     (result.duplicates > 0 ? ` Skipped ${result.duplicates} duplicates.` : '');
+      
+      // Use alert for immediate feedback (this could be replaced with a toast notification in a real app)
+      if (!result.errors || result.errors.length === 0) {
+        alert(message);
+      }
+    }
   };
   
   const formatDate = (dateString: string) => {

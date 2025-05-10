@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { parseSpreadsheet, convertToCSV } from '@/utils/spreadsheet-parser';
 import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent, Alert, AlertTitle, AlertDescription } from '@/components/ui';
 
 type UploadResult = {
@@ -21,11 +22,23 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
-        setError('Please upload a CSV file');
+      const fileName = selectedFile.name.toLowerCase();
+      
+      // Check if file is a supported spreadsheet format
+      if (!(
+        selectedFile.type === 'text/csv' || 
+        fileName.endsWith('.csv') || 
+        fileName.endsWith('.xlsx') || 
+        fileName.endsWith('.xls') || 
+        fileName.endsWith('.numbers') ||
+        selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        selectedFile.type === 'application/vnd.ms-excel'
+      )) {
+        setError('Please upload a CSV, Excel, or Numbers spreadsheet file');
         setFile(null);
         return;
       }
+      
       setFile(selectedFile);
       setError(null);
     }
@@ -41,18 +54,41 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
     setError(null);
 
     try {
-      // Read the file content
-      const fileContent = await readFileAsText(file);
+      let csvData;
+      const fileName = file.name.toLowerCase();
       
-      // Basic validation of CSV format
-      const lines = fileContent.trim().split('\n');
-      if (lines.length < 2) {
-        throw new Error('CSV file must contain a header row and at least one data row');
-      }
-      
-      const header = lines[0].toLowerCase();
-      if (!header.includes('email')) {
-        throw new Error('CSV file must contain an "email" column');
+      if (fileName.endsWith('.csv')) {
+        // For CSV files, read as text
+        csvData = await readFileAsText(file);
+        
+        // Basic validation of CSV format
+        const lines = csvData.trim().split('\n');
+        if (lines.length < 2) {
+          throw new Error('CSV file must contain a header row and at least one data row');
+        }
+        
+        const header = lines[0].toLowerCase();
+        if (!header.includes('email')) {
+          throw new Error('Spreadsheet must contain an "email" column');
+        }
+      } else {
+        // For Excel/Numbers files, parse and convert to CSV
+        try {
+          const parsedData = await parseSpreadsheet(file);
+          
+          // Check if there's data and it has the required email field
+          if (parsedData.length === 0) {
+            throw new Error('Spreadsheet contains no data');
+          }
+          
+          // Convert parsed data to CSV format
+          csvData = convertToCSV(parsedData);
+        } catch (parseError) {
+          console.error('Error parsing spreadsheet:', parseError);
+          throw new Error(parseError instanceof Error ? 
+            parseError.message : 
+            'Failed to parse spreadsheet. Please check the file format.');
+        }
       }
       
       // Send the CSV data to the API
@@ -62,7 +98,7 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          csvData: fileContent,
+          csvData: csvData,
         }),
       });
 
@@ -80,9 +116,13 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
         fileInputRef.current.value = '';
       }
 
-      // Call the callback if provided
+      // Call the callback if provided - do this with a small delay to ensure state is updated
       if (onUploadComplete) {
-        onUploadComplete(result);
+        console.log('Upload complete, calling callback with result:', result);
+        // Add a slight delay to ensure React state updates have completed
+        setTimeout(() => {
+          onUploadComplete(result);
+        }, 100);
       }
     } catch (err) {
       console.error('Error uploading CSV:', err);
@@ -114,6 +154,11 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    
+    // Trigger another callback when resetting to upload another file
+    if (uploadResult && uploadResult.success > 0 && onUploadComplete) {
+      onUploadComplete(uploadResult);
+    }
   };
 
   return (
@@ -121,9 +166,11 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
       <CardHeader>
         <CardTitle>Upload External Talent</CardTitle>
         <CardDescription>
-          Upload a CSV file containing external talent information.
+          Upload a spreadsheet file containing external talent information.
           <br />
-          The CSV should have columns: email (required), firstName, lastName, phoneNumber, notes
+          The file should have columns: email (required), firstName, lastName, phoneNumber, notes
+          <br />
+          Supported formats: CSV, Excel (.xlsx, .xls), Numbers
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -199,11 +246,22 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
                 
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                   const droppedFile = e.dataTransfer.files[0];
-                  if (droppedFile.type === 'text/csv' || droppedFile.name.endsWith('.csv')) {
+                  const fileName = droppedFile.name.toLowerCase();
+                  
+                  // Check if file is a supported spreadsheet format
+                  if (
+                    droppedFile.type === 'text/csv' || 
+                    fileName.endsWith('.csv') || 
+                    fileName.endsWith('.xlsx') || 
+                    fileName.endsWith('.xls') || 
+                    fileName.endsWith('.numbers') ||
+                    droppedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                    droppedFile.type === 'application/vnd.ms-excel'
+                  ) {
                     setFile(droppedFile);
                     setError(null);
                   } else {
-                    setError('Please upload a CSV file');
+                    setError('Please upload a CSV, Excel, or Numbers spreadsheet file');
                   }
                 }
               }}
@@ -211,7 +269,7 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
               <input
                 type="file"
                 id="csv-upload"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls,.numbers,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                 onChange={handleFileChange}
                 className="hidden"
                 ref={fileInputRef}
@@ -235,9 +293,9 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
                   ></path>
                 </svg>
                 <p className="mt-2 text-sm text-gray-600">
-                  Click to select a CSV file or drag and drop
+                  Click to select a spreadsheet file or drag and drop
                 </p>
-                <p className="text-xs text-gray-500 mt-1">CSV files only</p>
+                <p className="text-xs text-gray-500 mt-1">CSV, Excel (.xlsx, .xls), Numbers</p>
               </label>
             </div>
 
@@ -281,21 +339,21 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
                 onClick={handleUpload}
                 disabled={!file || isUploading}
               >
-                {isUploading ? 'Uploading...' : 'Upload CSV'}
+                {isUploading ? 'Uploading...' : 'Upload Spreadsheet'}
               </Button>
             </div>
           </div>
         )}
 
         <div className="mt-6 border-t pt-4">
-          <h3 className="text-sm font-medium mb-2">CSV Format Example</h3>
+          <h3 className="text-sm font-medium mb-2">Spreadsheet Format Example</h3>
           <pre className="bg-gray-50 p-3 rounded text-xs overflow-auto">
             email,firstName,lastName,phoneNumber,notes<br />
             actor1@example.com,John,Doe,123-456-7890,Lead role in previous production<br />
             actor2@example.com,Jane,Smith,987-654-3210,Has agent representation
           </pre>
           <p className="text-xs text-gray-500 mt-2">
-            <strong>Note:</strong> When talent registers with a matching email or phone number, 
+            <strong>Note:</strong> Your spreadsheet should have similar column headers. When talent registers with a matching email or phone number, 
             they will automatically be linked to these external talent records.
           </p>
         </div>
