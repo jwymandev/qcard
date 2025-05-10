@@ -232,6 +232,20 @@ export default function ExternalActorsPage() {
     }
   };
   
+  // State for success message banner
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // Auto-hide success message after 10 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 10000); // 10 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+  
   const handleUploadComplete = (result: any) => {
     console.log('Upload completed with result:', result);
     
@@ -246,13 +260,13 @@ export default function ExternalActorsPage() {
         activeTab === 'all' ? undefined : activeTab
       );
       
-      // Provide visual feedback
+      // Set success message for banner
       const message = `Successfully imported ${result.success} actors.` + 
                      (result.duplicates > 0 ? ` Skipped ${result.duplicates} duplicates.` : '');
       
-      // Use alert for immediate feedback (this could be replaced with a toast notification in a real app)
+      // Show in-page banner instead of popup alert
       if (!result.errors || result.errors.length === 0) {
-        alert(message);
+        setSuccessMessage(message);
       }
     }
   };
@@ -281,10 +295,30 @@ export default function ExternalActorsPage() {
         <Button onClick={() => router.push('/studio/dashboard')}>Back to Dashboard</Button>
       </div>
       
+      {/* Error Banner */}
       {error && (
         <Alert variant="destructive" className="mb-6">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Success Banner */}
+      {successMessage && (
+        <Alert variant="default" className="mb-6 bg-green-50 border-green-200">
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>{successMessage}</span>
+            <button 
+              onClick={() => setSuccessMessage(null)} 
+              className="text-green-700 hover:text-green-900"
+              aria-label="Dismiss"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </AlertDescription>
         </Alert>
       )}
       
