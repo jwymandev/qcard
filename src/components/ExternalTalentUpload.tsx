@@ -43,7 +43,18 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
     try {
       // Read the file content
       const fileContent = await readFileAsText(file);
-
+      
+      // Basic validation of CSV format
+      const lines = fileContent.trim().split('\n');
+      if (lines.length < 2) {
+        throw new Error('CSV file must contain a header row and at least one data row');
+      }
+      
+      const header = lines[0].toLowerCase();
+      if (!header.includes('email')) {
+        throw new Error('CSV file must contain an "email" column');
+      }
+      
       // Send the CSV data to the API
       const response = await fetch('/api/studio/external-actors', {
         method: 'POST',
@@ -169,7 +180,34 @@ export default function ExternalTalentUpload({ onUploadComplete }: ExternalTalen
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+            <div 
+              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+                
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  const droppedFile = e.dataTransfer.files[0];
+                  if (droppedFile.type === 'text/csv' || droppedFile.name.endsWith('.csv')) {
+                    setFile(droppedFile);
+                    setError(null);
+                  } else {
+                    setError('Please upload a CSV file');
+                  }
+                }
+              }}
+            >
               <input
                 type="file"
                 id="csv-upload"

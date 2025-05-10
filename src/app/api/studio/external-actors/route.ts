@@ -172,10 +172,26 @@ export async function POST(request: Request) {
       const csvData = validatedData.csvData;
       
       // Parse CSV data
-      const records = csvParse(csvData, {
-        columns: true,
-        skip_empty_lines: true,
-      });
+      let records;
+      try {
+        records = csvParse(csvData, {
+          columns: true,
+          skip_empty_lines: true,
+          trim: true, // Trim whitespace from fields
+          relax_column_count: true, // Handle inconsistent column counts
+        });
+        
+        console.log(`Successfully parsed CSV with ${records.length} records`);
+      } catch (error) {
+        console.error('CSV parsing error:', error);
+        return NextResponse.json(
+          { 
+            error: 'Failed to parse CSV data', 
+            details: error instanceof Error ? error.message : 'Invalid CSV format'
+          },
+          { status: 400 }
+        );
+      }
       
       // Validate and process each row
       const results = {
@@ -186,8 +202,61 @@ export async function POST(request: Request) {
       
       for (let i = 0; i < records.length; i++) {
         try {
+          const rowNum = i + 1; // For error reporting (1-based)
           const row = records[i];
-          const validatedRow = csvRowSchema.parse(row);
+          
+          // Check if the row has the required email field
+          if (!row.email || row.email.trim() === '') {
+            results.errors.push({
+              row: rowNum,
+              email: 'Missing',
+              error: 'Email is required'
+            });
+            continue;
+          }
+
+          // Normalize the row data before validation
+          const normalizedRow = {
+            email: row.email?.trim(),
+            firstName: row.firstName?.trim() || undefined,
+            lastName: row.lastName?.trim() || undefined,
+            phoneNumber: row.phoneNumber?.trim() || undefined,
+            notes: row.notes?.trim() || undefined,
+          };
+
+          // Validate the row data
+          const validationResult = csvRowSchema.safeParse(normalizedRow);
+          
+          if (!validationResult.success) {
+            // Get formatted errors from Zod
+            const formatErrors = validationResult.error.format();
+            
+            // Extract error messages safely with type checking
+            let errorParts: string[] = [];
+            
+            Object.entries(formatErrors).forEach(([key, value]) => {
+              // Skip the root _errors field
+              if (key === '_errors') return;
+              
+              // Handle the error value which could be an object with _errors or something else
+              if (value && typeof value === 'object' && '_errors' in value && Array.isArray(value._errors)) {
+                if (value._errors.length > 0) {
+                  errorParts.push(`${key}: ${value._errors.join(', ')}`);
+                }
+              }
+            });
+            
+            const errorMessage = errorParts.join('; ');
+              
+            results.errors.push({
+              row: rowNum,
+              email: normalizedRow.email || 'Invalid',
+              error: errorMessage || 'Validation error'
+            });
+            continue;
+          }
+          
+          const validatedRow = validationResult.data;
           
           // Check if this external actor already exists for this studio
           const existingActor = await prisma.externalActor.findFirst({
@@ -228,7 +297,7 @@ export async function POST(request: Request) {
           console.error(`Error processing row ${i + 1}:`, error);
           results.errors.push({
             row: i + 1,
-            email: records[i].email || 'Unknown',
+            email: records[i]?.email || 'Unknown',
             error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
@@ -280,6 +349,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating external actor:', error);
     
+    // Handle validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation error', details: error.format() },
@@ -287,8 +357,29 @@ export async function POST(request: Request) {
       );
     }
     
+    // Handle Prisma errors
+    if (error instanceof Error && error.name === 'PrismaClientKnownRequestError') {
+      // This is a Prisma error
+      const errorMessage = error.message;
+      if (errorMessage.includes('Unique constraint failed')) {
+        return NextResponse.json(
+          { error: 'Duplicate entry found. This email may already exist in your studio.' },
+          { status: 409 }
+        );
+      }
+    }
+    
+    // For CSV parsing errors
+    if (error instanceof Error && error.message.includes('CSV')) {
+      return NextResponse.json(
+        { error: error.message || 'CSV parsing error' },
+        { status: 400 }
+      );
+    }
+    
+    // Generic error
     return NextResponse.json(
-      { error: 'Failed to create external actor' },
+      { error: 'Failed to create external actor', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
