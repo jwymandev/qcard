@@ -253,10 +253,26 @@ export default function UsersPage() {
                       <button
                         type="button"
                         className="text-red-600 hover:text-red-900"
-                        onClick={() => {
+                        onClick={async () => {
                           if (window.confirm('Are you sure you want to delete this user?')) {
-                            // Add delete logic here
-                            alert('Delete functionality would go here.');
+                            try {
+                              // Call the delete API
+                              const response = await fetch(`/api/admin/users/${user.id}`, {
+                                method: 'DELETE',
+                                credentials: 'include'
+                              });
+                              
+                              if (!response.ok) {
+                                const errorData = await response.json();
+                                throw new Error(errorData.error || `Failed to delete user. Status: ${response.status}`);
+                              }
+                              
+                              // Remove the user from the state
+                              setUsers(prevUsers => prevUsers.filter(u => u.id !== user.id));
+                            } catch (error) {
+                              console.error('Error deleting user:', error);
+                              alert(`Failed to delete user: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                            }
                           }
                         }}
                       >
