@@ -71,43 +71,115 @@ export default function UserDetailPage() {
     fetchUser();
   }, [userId]);
 
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showImpersonateModal, setShowImpersonateModal] = useState(false);
+
   const handleResetPassword = () => {
-    if (window.confirm('Are you sure you want to reset this user\'s password?')) {
-      // In a real implementation, call API
-      alert('Password reset functionality would go here.');
+    setShowResetModal(true);
+  };
+
+  const confirmResetPassword = async () => {
+    try {
+      setShowResetModal(false);
+      setLoading(true);
+      
+      // Call the reset password API
+      const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to reset password: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Show success message with the temporary password
+      alert(`Password has been reset for ${data.email}.\nTemporary password: ${data.temporaryPassword}`);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      setError('Failed to reset password');
+      setLoading(false);
     }
   };
 
   const handleImpersonateUser = () => {
-    if (window.confirm('Are you sure you want to impersonate this user?')) {
-      // In a real implementation, call API
-      alert('User impersonation functionality would go here.');
+    setShowImpersonateModal(true);
+  };
+  
+  const confirmImpersonateUser = async () => {
+    try {
+      setShowImpersonateModal(false);
+      setLoading(true);
+      
+      // Call the impersonate API
+      const response = await fetch(`/api/admin/users/${userId}/impersonate`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to impersonate user: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Redirect to the user's dashboard
+      if (data.redirectUrl) {
+        // Show a brief message before redirecting
+        alert('You are now impersonating this user. To revert back to your admin account, log out.');
+        window.location.href = data.redirectUrl;
+      } else {
+        setLoading(false);
+        setError('Impersonation successful but no redirect URL was provided');
+      }
+    } catch (error) {
+      console.error('Error impersonating user:', error);
+      setError(error instanceof Error ? error.message : 'Failed to impersonate user');
+      setLoading(false);
     }
   };
 
-  const handleDeleteUser = async () => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      try {
-        setLoading(true);
-        
-        // Call delete API
-        const response = await fetch(`/api/admin/users/${userId}`, {
-          method: 'DELETE',
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to delete user. Status: ${response.status}`);
-        }
-        
-        // Redirect to users list on success
-        router.push('/admin/users');
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        setError(error instanceof Error ? error.message : 'Failed to delete user');
-        setLoading(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteUser = () => {
+    setShowDeleteModal(true);
+    setDeleteConfirmation('');
+    setDeleteError(null);
+  };
+  
+  const confirmDelete = async () => {
+    // Check if confirmation text matches "delete"
+    if (deleteConfirmation.toLowerCase() !== 'delete') {
+      setDeleteError('Please type "delete" to confirm');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setShowDeleteModal(false);
+      
+      // Call delete API
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to delete user. Status: ${response.status}`);
       }
+      
+      // Redirect to users list on success
+      router.push('/admin/users');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete user');
+      setLoading(false);
     }
   };
 
@@ -132,6 +204,105 @@ export default function UserDetailPage() {
 
   return (
     <div>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Deletion</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Are you sure you want to delete this user? This action cannot be undone. Please type <strong>delete</strong> to confirm.
+            </p>
+            
+            <input
+              type="text"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder="Type 'delete' to confirm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm mb-3"
+            />
+            
+            {deleteError && (
+              <p className="text-sm text-red-600 mb-3">{deleteError}</p>
+            )}
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                Delete User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Reset Password Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Reset User Password</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Are you sure you want to reset the password for this user? A password reset link will be sent to their email address.
+            </p>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmResetPassword}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Send Reset Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Impersonate User Modal */}
+      {showImpersonateModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Impersonate User</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Are you sure you want to impersonate this user? You will see the application as this user would. To return to your admin account, you&apos;ll need to log out.
+            </p>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowImpersonateModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmImpersonateUser}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Impersonate User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    
       <div className="mb-6 flex justify-between items-center">
         <div>
           <Link 
@@ -222,23 +393,41 @@ export default function UserDetailPage() {
         <h2 className="text-xl font-semibold text-gray-800">Actions</h2>
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div 
-            className="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 cursor-pointer"
+            className="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
             onClick={handleResetPassword}
           >
             <h3 className="text-lg font-medium text-gray-900">Reset Password</h3>
             <p className="mt-1 text-sm text-gray-500">
               Send a password reset email to this user, allowing them to set a new password.
             </p>
+            <button 
+              className="mt-3 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleResetPassword();
+              }}
+            >
+              Send Reset Link
+            </button>
           </div>
           
           <div 
-            className="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 cursor-pointer"
+            className="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
             onClick={handleImpersonateUser}
           >
             <h3 className="text-lg font-medium text-gray-900">Impersonate User</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Log in as this user to see what they see. Your admin session will be restored afterwards.
+              Log in as this user to see what they see. You&apos;ll need to log out to return to your admin account.
             </p>
+            <button 
+              className="mt-3 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleImpersonateUser();
+              }}
+            >
+              Impersonate
+            </button>
           </div>
         </div>
       </div>
@@ -252,7 +441,7 @@ export default function UserDetailPage() {
                 href={`/admin/talents/profile/${user.tenantId}`}
                 className="text-blue-600 hover:text-blue-800"
               >
-                View Talent Profile →
+                View Talent Profile &rarr;
               </Link>
             </div>
           </div>
