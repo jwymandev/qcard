@@ -18,6 +18,53 @@ export async function GET(
   try {
     const { id } = params;
     
+    // Get the current user data including tenant information
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true, Profile: true },
+    });
+    
+    if (!user) {
+      return NextResponse.json({ error: "User data not found" }, { status: 404 });
+    }
+    
+    let isAuthorized = false;
+    
+    // If it's an admin or super admin, they can access all profiles
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+      isAuthorized = true;
+    }
+    // If talent user, they can only see their own profile
+    else if (user.Tenant?.type === 'TALENT' && user.Profile) {
+      isAuthorized = user.Profile.id === id;
+    }
+    // If studio user, check if this talent was converted from their external actor
+    else if (user.Tenant?.type === 'STUDIO') {
+      // Find the studio for this user
+      const studio = await prisma.studio.findFirst({
+        where: { tenantId: user.tenantId || '' },
+      });
+      
+      if (studio) {
+        // Check if this profile was converted from this studio's external actor
+        const externalActor = await prisma.externalActor.findFirst({
+          where: {
+            studioId: studio.id,
+            convertedProfileId: id,
+            status: 'CONVERTED',
+          },
+        });
+        
+        isAuthorized = !!externalActor;
+      }
+    }
+    
+    if (!isAuthorized) {
+      return NextResponse.json({ 
+        error: "You don't have permission to view this profile"
+      }, { status: 403 });
+    }
+    
     // Get user profile with related data
     const profile = await prisma.profile.findUnique({
       where: { id },

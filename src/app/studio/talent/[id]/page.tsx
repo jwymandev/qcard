@@ -89,14 +89,15 @@ export default function TalentProfilePage({ params }: { params: { id: string } }
       const response = await fetch(`/api/talent/profile/${params.id}`);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch talent profile');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch talent profile');
       }
       
       const data = await response.json();
       setProfile(data);
     } catch (error) {
       console.error('Error fetching talent profile:', error);
-      setError('Failed to load talent profile. Please try again later.');
+      setError(error instanceof Error ? error.message : 'Failed to load talent profile. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -205,14 +206,29 @@ export default function TalentProfilePage({ params }: { params: { id: string } }
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 p-4 rounded-md text-red-600 mb-4">
-          {error}
+          {error.includes("permission") ? (
+            <>
+              <h3 className="font-bold mb-2">Access Denied</h3>
+              <p>You don&apos;t have permission to view this talent profile. This profile might not be from an external actor that you added to the system.</p>
+            </>
+          ) : (
+            <>{error}</>
+          )}
         </div>
-        <button
-          onClick={() => fetchTalentProfile()}
-          className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-        >
-          Try Again
-        </button>
+        <div className="flex space-x-4">
+          <button
+            onClick={() => fetchTalentProfile()}
+            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+          >
+            Try Again
+          </button>
+          <Link
+            href="/studio/talent-search"
+            className="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600"
+          >
+            Back to Talent Search
+          </Link>
+        </div>
       </div>
     );
   }
