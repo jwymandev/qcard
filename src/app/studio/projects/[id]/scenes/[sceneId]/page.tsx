@@ -31,6 +31,20 @@ type SceneTalent = {
   };
 };
 
+type SceneExternalActor = {
+  id: string;
+  role: string | null;
+  notes: string | null;
+  status: string;
+  externalActor: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    phoneNumber: string | null;
+  };
+};
+
 type Scene = {
   id: string;
   title: string;
@@ -43,6 +57,7 @@ type Scene = {
   status: string;
   projectId: string;
   talents: SceneTalent[];
+  externalActors: SceneExternalActor[];
   createdAt: string;
   updatedAt: string;
 };
@@ -76,6 +91,10 @@ export default function SceneDetailPage({
   const [talentRole, setTalentRole] = useState('');
   const [talentNotes, setTalentNotes] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
+  const [talentType, setTalentType] = useState('registered'); // 'registered' or 'external'
+  const [externalSearchQuery, setExternalSearchQuery] = useState('');
+  const [externalSearchResults, setExternalSearchResults] = useState([]);
+  const [selectedExternalActor, setSelectedExternalActor] = useState<string | null>(null);
   
   // Form state for scene details
   const [formData, setFormData] = useState({
@@ -122,6 +141,7 @@ export default function SceneDetailPage({
   const fetchSceneDetails = async () => {
     setLoading(true);
     try {
+      // Fetch scene details
       const response = await fetch(`/api/studio/projects/${projectId}/scenes/${sceneId}`);
       
       if (!response.ok) {
@@ -136,8 +156,23 @@ export default function SceneDetailPage({
         throw new Error('Failed to fetch scene details');
       }
       
-      const data = await response.json();
-      setScene(data);
+      const sceneData = await response.json();
+      
+      // Fetch external actors for the scene
+      const externalActorsResponse = await fetch(`/api/studio/projects/${projectId}/scenes/${sceneId}/external-actors`);
+      
+      let externalActors = [];
+      if (externalActorsResponse.ok) {
+        externalActors = await externalActorsResponse.json();
+      } else {
+        console.error('Error fetching external actors for scene:', await externalActorsResponse.text());
+      }
+      
+      // Combine the data
+      setScene({
+        ...sceneData,
+        externalActors: externalActors || []
+      });
     } catch (error) {
       console.error('Error fetching scene details:', error);
       setError('Failed to load scene details. Please try again later.');
@@ -256,6 +291,23 @@ export default function SceneDetailPage({
     }
   };
   
+  const handleSearchExternalActors = async () => {
+    if (externalSearchQuery.length < 2) return;
+    
+    try {
+      const response = await fetch(`/api/studio/external-actors/search?query=${encodeURIComponent(externalSearchQuery)}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to search external actors');
+      }
+      
+      const data = await response.json();
+      setExternalSearchResults(data.results || []);
+    } catch (error) {
+      console.error('Error searching external actors:', error);
+    }
+  };
+  
   const handleAssignTalent = async () => {
     if (!selectedTalent) return;
     
@@ -295,6 +347,46 @@ export default function SceneDetailPage({
       setAssignLoading(false);
     }
   };
+
+  const handleAssignExternalActor = async () => {
+    if (!selectedExternalActor) return;
+    
+    setAssignLoading(true);
+    try {
+      const response = await fetch(`/api/studio/projects/${projectId}/scenes/${sceneId}/external-actors`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          externalActorId: selectedExternalActor,
+          role: talentRole || null,
+          notes: talentNotes || null,
+          status: 'CONFIRMED',
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to assign external actor to scene');
+      }
+      
+      // Reset form and close modal
+      setSelectedExternalActor(null);
+      setTalentRole('');
+      setTalentNotes('');
+      setExternalSearchQuery('');
+      setExternalSearchResults([]);
+      setShowTalentModal(false);
+      
+      // Refresh scene data
+      fetchSceneDetails();
+    } catch (error) {
+      console.error('Error assigning external actor:', error);
+      setError('Failed to assign external actor. Please try again.');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
   
   const handleRemoveTalent = async (talentId: string) => {
     if (!confirm('Are you sure you want to remove this talent from the scene?')) {
@@ -315,6 +407,28 @@ export default function SceneDetailPage({
     } catch (error) {
       console.error('Error removing talent:', error);
       setError('Failed to remove talent. Please try again.');
+    }
+  };
+  
+  const handleRemoveExternalActor = async (actorId: string) => {
+    if (!confirm('Are you sure you want to remove this external actor from the scene?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/studio/projects/${projectId}/scenes/${sceneId}/external-actors/${actorId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to remove external actor from scene');
+      }
+      
+      // Refresh scene data
+      fetchSceneDetails();
+    } catch (error) {
+      console.error('Error removing external actor:', error);
+      setError('Failed to remove external actor. Please try again.');
     }
   };
   
@@ -588,7 +702,7 @@ export default function SceneDetailPage({
               <div className="border-t pt-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-medium">
-                    Assigned Talent {scene.talents?.length > 0 ? `(${scene.talents.length})` : ''}
+                    Assigned Talent ({(scene.talents?.length || 0) + (scene.externalActors?.length || 0)})
                   </h3>
                   <button
                     onClick={() => setShowTalentModal(true)}
@@ -598,13 +712,14 @@ export default function SceneDetailPage({
                   </button>
                 </div>
                 
-                {scene.talents?.length === 0 ? (
+                {scene.talents?.length === 0 && scene.externalActors?.length === 0 ? (
                   <div className="bg-gray-50 p-4 rounded-md text-center text-gray-500">
                     No talent has been assigned to this scene yet.
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {scene.talents.map(talent => (
+                    {/* Render registered talents */}
+                    {scene.talents?.map(talent => (
                       <div key={talent.id} className="bg-white border rounded-lg p-4 flex">
                         <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
                           {talent.profile.images && talent.profile.images[0] && (
@@ -642,6 +757,51 @@ export default function SceneDetailPage({
                               Remove
                             </button>
                           </div>
+                          <div className="mt-1 text-right">
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Registered</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Render external actors */}
+                    {scene.externalActors?.map(actor => (
+                      <div key={actor.id} className="bg-white border rounded-lg p-4 flex">
+                        <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center text-gray-600 font-medium">
+                          {actor.externalActor.firstName ? actor.externalActor.firstName.charAt(0).toUpperCase() : 'E'}
+                        </div>
+                        <div className="ml-3 flex-1">
+                          <div className="font-medium">
+                            {actor.externalActor.firstName || actor.externalActor.lastName 
+                              ? `${actor.externalActor.firstName || ''} ${actor.externalActor.lastName || ''}`.trim() 
+                              : actor.externalActor.email}
+                          </div>
+                          
+                          {actor.role && (
+                            <div className="text-sm text-gray-600 mt-1">
+                              Role: {actor.role}
+                            </div>
+                          )}
+                          
+                          <div className="mt-2 flex justify-between items-center">
+                            <span className={`px-2 py-0.5 text-xs rounded-full ${
+                              actor.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
+                              actor.status === 'TENTATIVE' ? 'bg-yellow-100 text-yellow-800' :
+                              actor.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {actor.status}
+                            </span>
+                            <button
+                              onClick={() => handleRemoveExternalActor(actor.id)}
+                              className="text-red-600 hover:text-red-800 text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <div className="mt-1 text-right">
+                            <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">External</span>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -667,61 +827,139 @@ export default function SceneDetailPage({
               </button>
             </div>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Search for Talent
-              </label>
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by name, skills, or attributes"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
+            {/* Tabs for talent type selection */}
+            <div className="mb-4 border-b">
+              <div className="flex">
                 <button
-                  onClick={handleSearchTalent}
-                  disabled={searchQuery.length < 2}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
+                  className={`py-2 px-4 ${talentType === 'registered' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
+                  onClick={() => setTalentType('registered')}
                 >
-                  Search
+                  Registered Talent
+                </button>
+                <button
+                  className={`py-2 px-4 ${talentType === 'external' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
+                  onClick={() => setTalentType('external')}
+                >
+                  External Actors
                 </button>
               </div>
             </div>
             
-            {searchResults.length > 0 && (
-              <div className="mb-4 max-h-48 overflow-y-auto border border-gray-200 rounded-md">
-                <div className="divide-y divide-gray-200">
-                  {searchResults.map((talent: any) => (
-                    <div 
-                      key={talent.id}
-                      className={`p-3 flex items-center hover:bg-gray-50 cursor-pointer ${
-                        selectedTalent === talent.id ? 'bg-blue-50' : ''
-                      }`}
-                      onClick={() => setSelectedTalent(talent.id)}
+            {/* Registered Talent Tab Content */}
+            {talentType === 'registered' && (
+              <>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Search for Talent
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search by name, skills, or attributes"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <button
+                      onClick={handleSearchTalent}
+                      disabled={searchQuery.length < 2}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
                     >
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex-shrink-0 mr-3">
-                        {talent.imageUrl && (
-                          <img 
-                            src={talent.imageUrl} 
-                            alt={talent.name}
-                            className="h-10 w-10 rounded-full object-cover"
-                          />
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">{talent.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {talent.skills?.map((skill: any) => skill.name).join(', ')}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                      Search
+                    </button>
+                  </div>
                 </div>
-              </div>
+                
+                {searchResults.length > 0 && (
+                  <div className="mb-4 max-h-48 overflow-y-auto border border-gray-200 rounded-md">
+                    <div className="divide-y divide-gray-200">
+                      {searchResults.map((talent: any) => (
+                        <div 
+                          key={talent.id}
+                          className={`p-3 flex items-center hover:bg-gray-50 cursor-pointer ${
+                            selectedTalent === talent.id ? 'bg-blue-50' : ''
+                          }`}
+                          onClick={() => setSelectedTalent(talent.id)}
+                        >
+                          <div className="h-10 w-10 rounded-full bg-gray-200 flex-shrink-0 mr-3">
+                            {talent.imageUrl && (
+                              <img 
+                                src={talent.imageUrl} 
+                                alt={talent.name}
+                                className="h-10 w-10 rounded-full object-cover"
+                              />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{talent.name}</div>
+                            <div className="text-sm text-gray-500">
+                              {talent.skills?.map((skill: any) => skill.name).join(', ')}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
             
-            {selectedTalent && (
+            {/* External Actors Tab Content */}
+            {talentType === 'external' && (
+              <>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Search for External Actors
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={externalSearchQuery}
+                      onChange={(e) => setExternalSearchQuery(e.target.value)}
+                      placeholder="Search by name or email"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <button
+                      onClick={handleSearchExternalActors}
+                      disabled={externalSearchQuery.length < 2}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
+                    >
+                      Search
+                    </button>
+                  </div>
+                </div>
+                
+                {externalSearchResults.length > 0 && (
+                  <div className="mb-4 max-h-48 overflow-y-auto border border-gray-200 rounded-md">
+                    <div className="divide-y divide-gray-200">
+                      {externalSearchResults.map((actor: any) => (
+                        <div 
+                          key={actor.id}
+                          className={`p-3 flex items-center hover:bg-gray-50 cursor-pointer ${
+                            selectedExternalActor === actor.id ? 'bg-blue-50' : ''
+                          }`}
+                          onClick={() => setSelectedExternalActor(actor.id)}
+                        >
+                          <div className="h-10 w-10 rounded-full bg-gray-200 flex-shrink-0 mr-3 flex items-center justify-center text-gray-500 font-medium">
+                            {actor.name ? actor.name.charAt(0).toUpperCase() : 'E'}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{actor.name}</div>
+                            <div className="text-sm text-gray-500">{actor.email}</div>
+                            {actor.phone && (
+                              <div className="text-sm text-gray-500">{actor.phone}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            
+            {/* Common fields for both talent types */}
+            {(selectedTalent || selectedExternalActor) && (
               <>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -758,18 +996,33 @@ export default function SceneDetailPage({
               >
                 Cancel
               </button>
-              <button
-                onClick={handleAssignTalent}
-                disabled={!selectedTalent || assignLoading}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-300 flex items-center"
-              >
-                {assignLoading ? (
-                  <>
-                    <span className="h-4 w-4 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2"></span>
-                    Assigning...
-                  </>
-                ) : 'Add to Scene'}
-              </button>
+              {talentType === 'registered' ? (
+                <button
+                  onClick={handleAssignTalent}
+                  disabled={!selectedTalent || assignLoading}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-300 flex items-center"
+                >
+                  {assignLoading ? (
+                    <>
+                      <span className="h-4 w-4 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2"></span>
+                      Assigning...
+                    </>
+                  ) : 'Add to Scene'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleAssignExternalActor}
+                  disabled={!selectedExternalActor || assignLoading}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-300 flex items-center"
+                >
+                  {assignLoading ? (
+                    <>
+                      <span className="h-4 w-4 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2"></span>
+                      Assigning...
+                    </>
+                  ) : 'Add to Scene'}
+                </button>
+              )}
             </div>
           </div>
         </div>

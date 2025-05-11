@@ -198,20 +198,21 @@ model ProjectInvitation {
 }
 
 model Scene {
-  id           String        @id
-  projectId    String
-  title        String
-  description  String?
-  locationId   String?
-  shootDate    DateTime?
-  duration     Int?
-  talentNeeded Int?
-  status       String        @default("PLANNING")
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime
-  Location     Location?     @relation(fields: [locationId], references: [id])
-  Project      Project       @relation(fields: [projectId], references: [id])
-  SceneTalent  SceneTalent[]
+  id                String              @id
+  projectId         String
+  title             String
+  description       String?
+  locationId        String?
+  shootDate         DateTime?
+  duration          Int?
+  talentNeeded      Int?
+  status            String              @default("PLANNING")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime
+  Location          Location?           @relation(fields: [locationId], references: [id])
+  Project           Project             @relation(fields: [projectId], references: [id])
+  SceneTalent       SceneTalent[]
+  SceneExternalActor SceneExternalActor[]
 }
 
 model SceneTalent {
@@ -225,6 +226,19 @@ model SceneTalent {
   updatedAt DateTime
   Profile   Profile  @relation(fields: [profileId], references: [id])
   Scene     Scene    @relation(fields: [sceneId], references: [id])
+}
+
+model SceneExternalActor {
+  id             String       @id @default(uuid())
+  sceneId        String
+  externalActorId String
+  role           String?
+  notes          String?
+  status         String       @default("CONFIRMED")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  externalActor  ExternalActor @relation(fields: [externalActorId], references: [id], onDelete: Cascade)
+  scene          Scene        @relation(fields: [sceneId], references: [id], onDelete: Cascade)
 }
 
 model Session {
@@ -525,9 +539,9 @@ model StudioFieldValue {
 
 model ExternalActor {
   id                 String                @id @default(uuid())
-  email              String
-  firstName          String?
-  lastName           String?
+  email              String?               // Now optional
+  firstName          String                // Required
+  lastName           String                // Required
   phoneNumber        String?
   notes              String?
   studioId           String
@@ -539,8 +553,11 @@ model ExternalActor {
   studio             Studio                @relation(fields: [studioId], references: [id], onDelete: Cascade)
   convertedProfile   Profile?              @relation(fields: [convertedProfileId], references: [id])
   projects           ExternalActorProject[]
+  scenes             SceneExternalActor[]
 
-  @@unique([email, studioId])
+  // Modified unique constraint to handle null email values
+  @@unique([email, studioId], name: "unique_email_per_studio")
+  @@index([studioId, firstName, lastName], name: "idx_external_actor_name")
 }
 
 model ExternalActorProject {

@@ -6,20 +6,32 @@ import { parse as csvParse } from 'csv-parse/sync';
 
 // Schema for validating CSV row data
 const csvRowSchema = z.object({
-  email: z.string().email({ message: "Invalid email format" }),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
+  email: z.string().email({ message: "Invalid email format" }).optional(),
+  firstName: z.string().min(1, { message: "First name is required" }),
+  lastName: z.string().min(1, { message: "Last name is required" }),
   phoneNumber: z.string().optional(),
   notes: z.string().optional(),
+}).refine(data => {
+  // Ensure there's either an email or phone number for contact
+  return !!data.email || !!data.phoneNumber;
+}, {
+  message: "Either email or phone number must be provided",
+  path: ["email"]
 });
 
 // Schema for manually adding a single external actor
 const externalActorSchema = z.object({
-  email: z.string().email({ message: "Invalid email format" }),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
+  email: z.string().email({ message: "Invalid email format" }).optional(),
+  firstName: z.string().min(1, { message: "First name is required" }),
+  lastName: z.string().min(1, { message: "Last name is required" }),
   phoneNumber: z.string().optional(),
   notes: z.string().optional(),
+}).refine(data => {
+  // Ensure there's either an email or phone number for contact
+  return !!data.email || !!data.phoneNumber;
+}, {
+  message: "Either email or phone number must be provided",
+  path: ["email"]
 });
 
 // Schema for CSV upload request
@@ -205,24 +217,31 @@ export async function POST(request: Request) {
           const rowNum = i + 1; // For error reporting (1-based)
           const row = records[i];
           
-          // Check if the row has the required email field
-          if (!row.email || row.email.trim() === '') {
-            results.errors.push({
-              row: rowNum,
-              email: 'Missing',
-              error: 'Email is required'
-            });
-            continue;
-          }
-
           // Normalize the row data before validation
           const normalizedRow = {
-            email: row.email?.trim(),
+            email: row.email?.trim() || undefined,
             firstName: row.firstName?.trim() || undefined,
             lastName: row.lastName?.trim() || undefined,
             phoneNumber: row.phoneNumber?.trim() || undefined,
             notes: row.notes?.trim() || undefined,
           };
+          
+          // Check for required fields (either email or phone, and first/last name)
+          if ((!normalizedRow.email && !normalizedRow.phoneNumber) || 
+              !normalizedRow.firstName || !normalizedRow.lastName) {
+            
+            let missingFields = [];
+            if (!normalizedRow.firstName) missingFields.push('First Name');
+            if (!normalizedRow.lastName) missingFields.push('Last Name');
+            if (!normalizedRow.email && !normalizedRow.phoneNumber) missingFields.push('Email or Phone Number');
+            
+            results.errors.push({
+              row: rowNum,
+              email: normalizedRow.email || 'Missing',
+              error: `Missing required fields: ${missingFields.join(', ')}`
+            });
+            continue;
+          }
 
           // Validate the row data
           const validationResult = csvRowSchema.safeParse(normalizedRow);
@@ -259,11 +278,24 @@ export async function POST(request: Request) {
           const validatedRow = validationResult.data;
           
           // Check if this external actor already exists for this studio
+          let existingActorQuery: any = {
+            studioId: studio.id,
+          };
+          
+          if (validatedRow.email) {
+            // If email is provided, check for duplicate email
+            existingActorQuery.email = validatedRow.email;
+          } else {
+            // If no email, check for matching name and phone
+            existingActorQuery.AND = [
+              { firstName: validatedRow.firstName },
+              { lastName: validatedRow.lastName },
+              { phoneNumber: validatedRow.phoneNumber }
+            ];
+          }
+          
           const existingActor = await prisma.externalActor.findFirst({
-            where: {
-              email: validatedRow.email,
-              studioId: studio.id,
-            },
+            where: existingActorQuery,
           });
           
           if (existingActor) {
@@ -271,11 +303,14 @@ export async function POST(request: Request) {
             continue;
           }
           
-          // Check if a user with this email already exists in the system
-          const existingUser = await prisma.user.findUnique({
-            where: { email: validatedRow.email },
-            include: { Profile: true },
-          });
+          // Check if a user with this email already exists in the system (only if email is provided)
+          let existingUser = null;
+          if (validatedRow.email) {
+            existingUser = await prisma.user.findUnique({
+              where: { email: validatedRow.email },
+              include: { Profile: true },
+            });
+          }
           
           // Create the external actor
           await prisma.externalActor.create({
@@ -308,26 +343,42 @@ export async function POST(request: Request) {
       // This is a single actor addition
       const validatedData = externalActorSchema.parse(body);
       
-      // Check if this external actor already exists for this studio
+      // Check if this external actor already exists
+      let existingActorQuery: any = {
+        studioId: studio.id,
+      };
+      
+      if (validatedData.email) {
+        // If email is provided, check for duplicate email
+        existingActorQuery.email = validatedData.email;
+      } else {
+        // If no email, check for matching name and phone
+        existingActorQuery.AND = [
+          { firstName: validatedData.firstName },
+          { lastName: validatedData.lastName },
+          { phoneNumber: validatedData.phoneNumber }
+        ];
+      }
+      
       const existingActor = await prisma.externalActor.findFirst({
-        where: {
-          email: validatedData.email,
-          studioId: studio.id,
-        },
+        where: existingActorQuery,
       });
       
       if (existingActor) {
         return NextResponse.json(
-          { error: 'External actor with this email already exists' },
+          { error: 'External actor with the same details already exists' },
           { status: 409 }
         );
       }
       
-      // Check if a user with this email already exists in the system
-      const existingUser = await prisma.user.findUnique({
-        where: { email: validatedData.email },
-        include: { Profile: true },
-      });
+      // Check if a user with this email already exists in the system (only if email provided)
+      let existingUser = null;
+      if (validatedData.email) {
+        existingUser = await prisma.user.findUnique({
+          where: { email: validatedData.email },
+          include: { Profile: true },
+        });
+      }
       
       // Create the external actor
       const externalActor = await prisma.externalActor.create({

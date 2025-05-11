@@ -164,8 +164,20 @@ export default function ExternalActorsPage() {
   const handleAddActor = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newActor.email) {
-      setAddActorError('Email is required');
+    // Validation: Either email or phone is required
+    if (!newActor.email && !newActor.phoneNumber) {
+      setAddActorError('Either email or phone number is required');
+      return;
+    }
+    
+    // Validation: First and last name are required
+    if (!newActor.firstName) {
+      setAddActorError('First name is required');
+      return;
+    }
+    
+    if (!newActor.lastName) {
+      setAddActorError('Last name is required');
       return;
     }
     
@@ -337,25 +349,10 @@ export default function ExternalActorsPage() {
             )}
             
             <form onSubmit={handleAddActor} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={newActor.email}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name
+                    First Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -363,13 +360,14 @@ export default function ExternalActorsPage() {
                     name="firstName"
                     value={newActor.firstName}
                     onChange={handleInputChange}
+                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 
                 <div>
                   <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name
+                    Last Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -377,23 +375,43 @@ export default function ExternalActorsPage() {
                     name="lastName"
                     value={newActor.lastName}
                     onChange={handleInputChange}
+                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
               
-              <div>
-                <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number
-                </label>
-                <input
-                  type="text"
-                  id="phoneNumber"
-                  name="phoneNumber"
-                  value={newActor.phoneNumber}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email {(!newActor.phoneNumber && <span className="text-red-500">*</span>)}
+                    <span className="text-xs text-gray-500 ml-1">(Email or Phone Required)</span>
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={newActor.email}
+                    onChange={handleInputChange}
+                    required={!newActor.phoneNumber}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number {(!newActor.email && <span className="text-red-500">*</span>)}
+                  </label>
+                  <input
+                    type="text"
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    value={newActor.phoneNumber}
+                    onChange={handleInputChange}
+                    required={!newActor.email}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
               
               <div>
@@ -503,7 +521,7 @@ export default function ExternalActorsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{actor.email}</div>
+                      <div className="text-sm text-gray-900">{actor.email || 'N/A'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 

@@ -1,0 +1,256 @@
+import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { z } from 'zod';
+import { prisma } from '@/lib/db';
+
+// Schema for validating PATCH request body
+const updateExternalActorSchema = z.object({
+  role: z.string().optional(),
+  notes: z.string().optional(),
+  status: z.string().optional(),
+});
+
+// GET: Get specific external actor for a scene
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string; sceneId: string; actorId: string } }
+) {
+  try {
+    const session = await auth();
+    
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Get studio ID from user's tenant
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true },
+    });
+    
+    if (!user?.Tenant || user.Tenant.type !== 'STUDIO') {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+    
+    const studio = await prisma.studio.findUnique({
+      where: { tenantId: user.tenantId! },
+    });
+    
+    if (!studio) {
+      return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
+    }
+    
+    // Get the scene external actor assignment
+    const sceneExternalActor = await prisma.sceneExternalActor.findUnique({
+      where: {
+        id: params.actorId,
+      },
+      include: {
+        externalActor: true,
+        scene: {
+          include: {
+            Project: true,
+          },
+        },
+      },
+    });
+    
+    if (!sceneExternalActor) {
+      return NextResponse.json(
+        { error: 'Scene external actor not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Verify the studio owns this assignment
+    if (sceneExternalActor.externalActor.studioId !== studio.id ||
+        sceneExternalActor.scene.Project.studioId !== studio.id) {
+      return NextResponse.json(
+        { error: 'Not authorized to access this assignment' },
+        { status: 403 }
+      );
+    }
+    
+    return NextResponse.json(sceneExternalActor);
+  } catch (error) {
+    console.error('Error fetching scene external actor:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch scene external actor' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH: Update an external actor's assignment in a scene
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string; sceneId: string; actorId: string } }
+) {
+  try {
+    const session = await auth();
+    
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Get studio ID from user's tenant
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true },
+    });
+    
+    if (!user?.Tenant || user.Tenant.type !== 'STUDIO') {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+    
+    // Validate request body
+    const body = await request.json();
+    const validatedData = updateExternalActorSchema.parse(body);
+    
+    const studio = await prisma.studio.findUnique({
+      where: { tenantId: user.tenantId! },
+    });
+    
+    if (!studio) {
+      return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
+    }
+    
+    // Get the scene external actor assignment
+    const sceneExternalActor = await prisma.sceneExternalActor.findUnique({
+      where: {
+        id: params.actorId,
+      },
+      include: {
+        externalActor: true,
+        scene: {
+          include: {
+            Project: true,
+          },
+        },
+      },
+    });
+    
+    if (!sceneExternalActor) {
+      return NextResponse.json(
+        { error: 'Scene external actor not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Verify the studio owns this assignment
+    if (sceneExternalActor.externalActor.studioId !== studio.id ||
+        sceneExternalActor.scene.Project.studioId !== studio.id) {
+      return NextResponse.json(
+        { error: 'Not authorized to update this assignment' },
+        { status: 403 }
+      );
+    }
+    
+    // Update the assignment
+    const updatedAssignment = await prisma.sceneExternalActor.update({
+      where: {
+        id: params.actorId,
+      },
+      data: {
+        role: validatedData.role !== undefined ? validatedData.role : undefined,
+        notes: validatedData.notes !== undefined ? validatedData.notes : undefined,
+        status: validatedData.status !== undefined ? validatedData.status : undefined,
+        updatedAt: new Date(),
+      },
+    });
+    
+    return NextResponse.json(updatedAssignment);
+  } catch (error) {
+    console.error('Error updating scene external actor:', error);
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Validation error', details: error.format() },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'Failed to update scene external actor' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE: Remove an external actor from a scene
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string; sceneId: string; actorId: string } }
+) {
+  try {
+    const session = await auth();
+    
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Get studio ID from user's tenant
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true },
+    });
+    
+    if (!user?.Tenant || user.Tenant.type !== 'STUDIO') {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+    
+    const studio = await prisma.studio.findUnique({
+      where: { tenantId: user.tenantId! },
+    });
+    
+    if (!studio) {
+      return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
+    }
+    
+    // Get the scene external actor assignment
+    const sceneExternalActor = await prisma.sceneExternalActor.findUnique({
+      where: {
+        id: params.actorId,
+      },
+      include: {
+        externalActor: true,
+        scene: {
+          include: {
+            Project: true,
+          },
+        },
+      },
+    });
+    
+    if (!sceneExternalActor) {
+      return NextResponse.json(
+        { error: 'Scene external actor not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Verify the studio owns this assignment
+    if (sceneExternalActor.externalActor.studioId !== studio.id ||
+        sceneExternalActor.scene.Project.studioId !== studio.id) {
+      return NextResponse.json(
+        { error: 'Not authorized to delete this assignment' },
+        { status: 403 }
+      );
+    }
+    
+    // Remove the assignment
+    await prisma.sceneExternalActor.delete({
+      where: {
+        id: params.actorId,
+      },
+    });
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error removing external actor from scene:', error);
+    return NextResponse.json(
+      { error: 'Failed to remove external actor from scene' },
+      { status: 500 }
+    );
+  }
+}
