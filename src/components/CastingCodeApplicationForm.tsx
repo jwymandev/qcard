@@ -4,24 +4,15 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { 
-  Button,
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  Input,
-  Textarea,
-  Checkbox,
-  Spinner,
-  Alert,
-  AlertDescription,
-  Separator,
-  Badge
-} from '@/components/ui';
+import Button from '@/components/ui/button';
+import Form, { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import Input from '@/components/ui/input';
+import Textarea from '@/components/ui/textarea';
+import Checkbox from '@/components/ui/checkbox';
+import Spinner from '@/components/ui/spinner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import Separator from '@/components/ui/separator';
+import Badge from '@/components/ui/badge';
 import { SurveyFieldType } from './SurveyFieldBuilder';
 
 // Form validation schema

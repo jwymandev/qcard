@@ -4,18 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  Card,
-  Spinner,
-  Badge,
-  Button,
-  Alert,
-  AlertDescription,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui';
+import Card from '@/components/ui/card';
+import Spinner from '@/components/ui/spinner';
+import Badge from '@/components/ui/badge';
+import Button from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CastingSubmissionSurveyDisplay from '@/components/CastingSubmissionSurveyDisplay';
 
 interface Submission {
