@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import ExternalTalentUpload from '@/components/ExternalTalentUpload';
+import CastingCodeManager from '@/components/CastingCodeManager';
 import { 
   Button, 
   Card, 
@@ -17,7 +18,8 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
-  TabsContent
+  TabsContent,
+  Separator
 } from '@/components/ui';
 
 interface ExternalActor {
@@ -60,6 +62,7 @@ export default function ExternalActorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
+  const [activeSection, setActiveSection] = useState('talent');
   
   const [newActor, setNewActor] = useState({
     email: '',
@@ -333,253 +336,276 @@ export default function ExternalActorsPage() {
           </AlertDescription>
         </Alert>
       )}
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Add Actor Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Add External Talent</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {addActorError && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{addActorError}</AlertDescription>
-              </Alert>
-            )}
-            
-            <form onSubmit={handleAddActor} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    name="firstName"
-                    value={newActor.firstName}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    name="lastName"
-                    value={newActor.lastName}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email {(!newActor.phoneNumber && <span className="text-red-500">*</span>)}
-                    <span className="text-xs text-gray-500 ml-1">(Email or Phone Required)</span>
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={newActor.email}
-                    onChange={handleInputChange}
-                    required={!newActor.phoneNumber}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number {(!newActor.email && <span className="text-red-500">*</span>)}
-                  </label>
-                  <input
-                    type="text"
-                    id="phoneNumber"
-                    name="phoneNumber"
-                    value={newActor.phoneNumber}
-                    onChange={handleInputChange}
-                    required={!newActor.email}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
-                </label>
-                <textarea
-                  id="notes"
-                  name="notes"
-                  value={newActor.notes}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              
-              <Button type="submit" disabled={isAddingActor}>
-                {isAddingActor ? 'Adding...' : 'Add External Talent'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+
+      {/* Section Tabs */}
+      <Tabs 
+        defaultValue="talent" 
+        value={activeSection}
+        onValueChange={setActiveSection}
+        className="mb-8"
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="talent">Manage Talent</TabsTrigger>
+          <TabsTrigger value="casting-codes">Casting Codes</TabsTrigger>
+        </TabsList>
         
-        {/* CSV Upload */}
-        <ExternalTalentUpload onUploadComplete={handleUploadComplete} />
-      </div>
-      
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="p-4 sm:p-6 border-b">
-          <h2 className="text-xl font-semibold">Manage External Talent</h2>
-          
-          <div className="mt-4 flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4">
-            <Tabs 
-              defaultValue="all" 
-              value={activeTab}
-              onValueChange={handleTabChange}
-              className="w-full sm:w-auto"
-            >
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="ACTIVE">Active</TabsTrigger>
-                <TabsTrigger value="CONVERTED">Converted</TabsTrigger>
-              </TabsList>
-            </Tabs>
+        <TabsContent value="talent" className="pt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* Add Actor Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Add External Talent</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {addActorError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{addActorError}</AlertDescription>
+                  </Alert>
+                )}
+                
+                <form onSubmit={handleAddActor} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                        First Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="firstName"
+                        name="firstName"
+                        value={newActor.firstName}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                        Last Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="lastName"
+                        name="lastName"
+                        value={newActor.lastName}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                        Email {(!newActor.phoneNumber && <span className="text-red-500">*</span>)}
+                        <span className="text-xs text-gray-500 ml-1">(Email or Phone Required)</span>
+                      </label>
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={newActor.email}
+                        onChange={handleInputChange}
+                        required={!newActor.phoneNumber}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone Number {(!newActor.email && <span className="text-red-500">*</span>)}
+                      </label>
+                      <input
+                        type="text"
+                        id="phoneNumber"
+                        name="phoneNumber"
+                        value={newActor.phoneNumber}
+                        onChange={handleInputChange}
+                        required={!newActor.email}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes
+                    </label>
+                    <textarea
+                      id="notes"
+                      name="notes"
+                      value={newActor.notes}
+                      onChange={handleInputChange}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  <Button type="submit" disabled={isAddingActor}>
+                    {isAddingActor ? 'Adding...' : 'Add External Talent'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
             
-            <div className="flex items-center space-x-2">
-              <label htmlFor="project-filter" className="text-sm font-medium text-gray-700">
-                Project:
-              </label>
-              <select
-                id="project-filter"
-                value={selectedProject}
-                onChange={(e) => handleProjectFilterChange(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">All Projects</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.title}
-                  </option>
-                ))}
-              </select>
+            {/* CSV Upload */}
+            <ExternalTalentUpload onUploadComplete={handleUploadComplete} />
+          </div>
+          
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <div className="p-4 sm:p-6 border-b">
+              <h2 className="text-xl font-semibold">Manage External Talent</h2>
+              
+              <div className="mt-4 flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+                <Tabs 
+                  defaultValue="all" 
+                  value={activeTab}
+                  onValueChange={handleTabChange}
+                  className="w-full sm:w-auto"
+                >
+                  <TabsList>
+                    <TabsTrigger value="all">All</TabsTrigger>
+                    <TabsTrigger value="ACTIVE">Active</TabsTrigger>
+                    <TabsTrigger value="CONVERTED">Converted</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="project-filter" className="text-sm font-medium text-gray-700">
+                    Project:
+                  </label>
+                  <select
+                    id="project-filter"
+                    value={selectedProject}
+                    onChange={(e) => handleProjectFilterChange(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">All Projects</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              {externalActors.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  No external talent found. Add talent manually or upload a CSV file.
+                </div>
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Projects
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Added
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {externalActors.map((actor) => (
+                      <tr key={actor.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {actor.firstName || actor.lastName 
+                              ? `${actor.firstName || ''} ${actor.lastName || ''}`.trim() 
+                              : 'Not specified'}
+                          </div>
+                          {actor.phoneNumber && (
+                            <div className="text-xs text-gray-500">{actor.phoneNumber}</div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{actor.email || 'N/A'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${actor.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                              actor.status === 'CONVERTED' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'}`}
+                          >
+                            {actor.status === 'ACTIVE' ? 'Active' :
+                             actor.status === 'CONVERTED' ? 'Converted' : actor.status}
+                          </span>
+                          {actor.convertedToTalentAt && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Converted on {formatDate(actor.convertedToTalentAt)}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {actor.projects.length > 0 ? (
+                            <div className="text-sm text-gray-900">
+                              {actor.projects.length === 1 
+                                ? actor.projects[0].project.title
+                                : `${actor.projects.length} projects`}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500">None</div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(actor.createdAt)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push(`/studio/external-actors/${actor.id}`)}
+                            >
+                              View
+                            </Button>
+                            {actor.status !== 'CONVERTED' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-red-300 text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteActor(actor.id)}
+                              >
+                                Delete
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
-        </div>
+        </TabsContent>
         
-        <div className="overflow-x-auto">
-          {externalActors.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No external talent found. Add talent manually or upload a CSV file.
-            </div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Projects
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Added
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {externalActors.map((actor) => (
-                  <tr key={actor.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {actor.firstName || actor.lastName 
-                          ? `${actor.firstName || ''} ${actor.lastName || ''}`.trim() 
-                          : 'Not specified'}
-                      </div>
-                      {actor.phoneNumber && (
-                        <div className="text-xs text-gray-500">{actor.phoneNumber}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{actor.email || 'N/A'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${actor.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                          actor.status === 'CONVERTED' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'}`}
-                      >
-                        {actor.status === 'ACTIVE' ? 'Active' :
-                         actor.status === 'CONVERTED' ? 'Converted' : actor.status}
-                      </span>
-                      {actor.convertedToTalentAt && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Converted on {formatDate(actor.convertedToTalentAt)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {actor.projects.length > 0 ? (
-                        <div className="text-sm text-gray-900">
-                          {actor.projects.length === 1 
-                            ? actor.projects[0].project.title
-                            : `${actor.projects.length} projects`}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-500">None</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(actor.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/studio/external-actors/${actor.id}`)}
-                        >
-                          View
-                        </Button>
-                        {actor.status !== 'CONVERTED' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                            onClick={() => handleDeleteActor(actor.id)}
-                          >
-                            Delete
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
+        <TabsContent value="casting-codes" className="pt-4">
+          <Card className="bg-white shadow overflow-hidden">
+            <CardContent className="p-6">
+              <CastingCodeManager projects={projects} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

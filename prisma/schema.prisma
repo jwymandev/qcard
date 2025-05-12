@@ -137,6 +137,7 @@ model Profile {
   QuestionnaireResponse                     QuestionnaireResponse[]
   convertedFromExternalActor                ExternalActor[]
   projectInvitations                        ProjectInvitation[]
+  castingSubmissions                        CastingSubmission[]
   // Region relationship
   regions                                   ProfileRegion[]
 }
@@ -168,6 +169,7 @@ model Project {
   Scene              Scene[]
   ProjectInvitation  ProjectInvitation[]
   externalActors     ExternalActorProject[]
+  castingCodes       CastingCode[]
 }
 
 model ProjectMember {
@@ -279,6 +281,7 @@ model Studio {
   Location                                 Location[]
   Questionnaire                            Questionnaire[]
   externalActors                           ExternalActor[]
+  castingCodes                             CastingCode[]
   // Subscription relationships
   subscriptions                            Subscription[]
   // Region relationship
@@ -554,6 +557,7 @@ model ExternalActor {
   convertedProfile   Profile?              @relation(fields: [convertedProfileId], references: [id])
   projects           ExternalActorProject[]
   scenes             SceneExternalActor[]
+  submissions        CastingSubmission[]
 
   // Modified unique constraint to handle null email values
   @@unique([email, studioId], name: "unique_email_per_studio")
@@ -732,4 +736,57 @@ model UserRegionSubscription {
   mainSubscription   Subscription           @relation(fields: [mainSubscriptionId], references: [id], onDelete: Cascade)
   
   @@unique([userId, regionPlanId])
+}
+
+// Casting Code models for the QR code feature
+model CastingCode {
+  id          String             @id @default(uuid())
+  code        String             @unique
+  name        String
+  description String?
+  isActive    Boolean            @default(true)
+  expiresAt   DateTime?
+  studioId    String
+  projectId   String?
+  surveyFields Json?             // Store custom survey fields as JSON
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  
+  // Relations
+  studio      Studio             @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  project     Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  submissions CastingSubmission[]
+}
+
+model CastingSubmission {
+  id                  String        @id @default(uuid())
+  firstName           String
+  lastName            String
+  email               String?
+  phoneNumber         String?
+  message             String?
+  externalActorId     String?
+  castingCodeId       String
+  status              String        @default("PENDING") // PENDING, APPROVED, REJECTED, CONVERTED
+  convertedToProfileId String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  // Relations
+  castingCode         CastingCode   @relation(fields: [castingCodeId], references: [id], onDelete: Cascade)
+  externalActor       ExternalActor? @relation(fields: [externalActorId], references: [id], onDelete: SetNull)
+  convertedToProfile  Profile?      @relation(fields: [convertedToProfileId], references: [id], onDelete: SetNull)
+  survey              CastingSubmissionSurvey?
+}
+
+// New model to store survey responses for casting submissions
+model CastingSubmissionSurvey {
+  id           String           @id @default(uuid())
+  submissionId String           @unique
+  responses    Json             // Store survey responses as JSON
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  
+  // Relations
+  submission   CastingSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 }

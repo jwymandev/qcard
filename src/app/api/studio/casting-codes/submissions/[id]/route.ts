@@ -1,0 +1,91 @@
+import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
+import { z } from 'zod';
+
+// Schema for validation
+const updateSubmissionSchema = z.object({
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CONVERTED']),
+});
+
+// PATCH - Update a submission status
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await auth();
+    
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Get studio ID from user's tenant
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true },
+    });
+    
+    if (!user?.Tenant || user.Tenant.type !== 'STUDIO') {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+    
+    const studio = await prisma.studio.findUnique({
+      where: { tenantId: user.tenantId! },
+    });
+    
+    if (!studio) {
+      return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
+    }
+    
+    // Find the submission and verify it belongs to this studio
+    const submission = await prisma.castingSubmission.findUnique({
+      where: { id: params.id },
+      include: {
+        castingCode: {
+          select: {
+            studioId: true,
+          },
+        },
+      },
+    });
+    
+    if (!submission) {
+      return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+    }
+    
+    // Check if the submission belongs to the studio
+    if (submission.castingCode.studioId !== studio.id) {
+      return NextResponse.json({ error: 'Not authorized to update this submission' }, { status: 403 });
+    }
+    
+    // Parse and validate request body
+    const body = await request.json();
+    const validatedData = updateSubmissionSchema.parse(body);
+    
+    // Update the submission
+    const updatedSubmission = await prisma.castingSubmission.update({
+      where: { id: params.id },
+      data: {
+        status: validatedData.status,
+        updatedAt: new Date(),
+      },
+    });
+    
+    return NextResponse.json(updatedSubmission);
+  } catch (error) {
+    console.error('Error updating submission:', error);
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Validation error', details: error.format() },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'Failed to update submission' },
+      { status: 500 }
+    );
+  }
+}
