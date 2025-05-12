@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
-import { Card } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, Spinner, Card, Alert, AlertDescription } from '@/components/ui';
 
 interface CastingCodeQRDisplayProps {
   castingCode: string;
@@ -99,9 +96,9 @@ export default function CastingCodeQRDisplay({
                 readOnly
                 className="flex-1 p-2 text-sm border rounded bg-muted"
               />
-              <Button 
-                variant="secondary" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleCopyLink}
               >
                 {copied ? 'Copied!' : 'Copy'}

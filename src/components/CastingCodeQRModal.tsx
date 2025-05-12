@@ -6,8 +6,8 @@ import {
   AlertDialogTitle,
   AlertDialogFooter,
   AlertDialogDescription,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+  Button
+} from '@/components/ui';
 import CastingCodeQRDisplay from './CastingCodeQRDisplay';
 
 interface CastingCodeQRModalProps {
