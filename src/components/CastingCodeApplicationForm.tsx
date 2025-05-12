@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import {
+import { 
+  Button,
   Form,
   FormControl,
   FormDescription,
@@ -13,15 +13,16 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Spinner } from '@/components/ui/spinner';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+  Input,
+  Textarea,
+  Checkbox,
+  Spinner,
+  Alert,
+  AlertDescription,
+  Separator,
+  Badge
+} from '@/components/ui';
 import { SurveyFieldType } from './SurveyFieldBuilder';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 
 // Form validation schema
 const applicationFormSchema = z.object({
@@ -125,12 +126,12 @@ export default function CastingCodeApplicationForm({
       <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
         <h3 className="text-xl font-semibold text-green-800 mb-2">Application Submitted Successfully!</h3>
         <p className="text-green-700 mb-4">
-          Thank you for your submission. The studio has been notified and will contact you if they're interested.
+          Thank you for your submission. The studio has been notified and will contact you if they&apos;re interested.
         </p>
         {form.getValues('createAccount') && (
           <p className="text-sm text-green-600 border-t border-green-200 pt-4 mt-4">
-            You've requested to create an account. If the studio approves your application, 
-            you'll receive an email with instructions to set up your account.
+            You&apos;ve requested to create an account. If the studio approves your application, 
+            you&apos;ll receive an email with instructions to set up your account.
           </p>
         )}
       </div>

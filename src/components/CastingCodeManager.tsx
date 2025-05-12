@@ -426,7 +426,7 @@ export default function CastingCodeManager({ projects }: CastingCodeManagerProps
                     <div className="p-4 bg-green-50 border border-green-200 rounded-md">
                       <h4 className="font-medium text-green-800">Survey Created</h4>
                       <p className="text-sm text-green-700">
-                        You've added {surveyFields.fields.length} fields to this survey.
+                        You&apos;ve added {surveyFields.fields.length} fields to this survey.
                       </p>
                     </div>
                     

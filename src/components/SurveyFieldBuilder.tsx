@@ -4,22 +4,24 @@ import React, { useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import {
+import { 
+  Button,
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+  Input,
+  Textarea,
+  Switch,
+  Separator,
+  Badge,
+  Checkbox,
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from '@/components/ui';
 
 // Define field types
 export enum SurveyFieldType {
@@ -208,7 +210,7 @@ export default function SurveyFieldBuilder({
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           {fields.length === 0 ? (
             <div className="p-4 border border-dashed rounded-md text-center text-gray-500">
-              No fields added yet. Click "Add Field" to start building your survey.
+              No fields added yet. Click &quot;Add Field&quot; to start building your survey.
             </div>
           ) : (
             <div className="space-y-4">
