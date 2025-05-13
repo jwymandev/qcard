@@ -60,7 +60,7 @@ export default function CastingCodeQRModal({
               <div className="mt-6 pt-4 border-t border-gray-200">
                 <h4 className="font-medium text-sm mb-2">How to Use This Code</h4>
                 <p className="text-sm text-gray-600 mb-2">
-                  If the QR code doesn't appear above, you can still use this code by:
+                  If the QR code doesn&apos;t appear above, you can still use this code by:
                 </p>
                 <ol className="text-sm text-gray-600 list-decimal list-inside space-y-1">
                   <li>Sharing the application link</li>

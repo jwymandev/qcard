@@ -523,48 +523,47 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
                 )}
 
                 {/* Application form - accessible to all users */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Why are you a good fit for this role?
-                      </label>
-                      <Textarea
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Describe your relevant experience, skills, and why you're interested in this role..."
-                        className="w-full h-32"
-                        disabled={submitting}
-                      />
-                    </div>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button disabled={submitting || message.trim().length < 10}>
-                          {submitting ? (
-                            <>
-                              <Spinner className="mr-2 h-4 w-4" />
-                              Submitting...
-                            </>
-                          ) : (
-                            'Submit Application'
-                          )}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirm Application</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to apply for this casting call? You won&apos;t be able to edit your application after submission.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleSubmit}>Submit Application</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Why are you a good fit for this role?
+                    </label>
+                    <Textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Describe your relevant experience, skills, and why you're interested in this role..."
+                      className="w-full h-32"
+                      disabled={submitting}
+                    />
                   </div>
-                )}
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button disabled={submitting || message.trim().length < 10}>
+                        {submitting ? (
+                          <>
+                            <Spinner className="mr-2 h-4 w-4" />
+                            Submitting...
+                          </>
+                        ) : (
+                          'Submit Application'
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Application</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to apply for this casting call? You won&apos;t be able to edit your application after submission.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSubmit}>Submit Application</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </>
             )}
           </div>
