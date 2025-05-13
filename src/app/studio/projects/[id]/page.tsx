@@ -13,6 +13,7 @@ import {
   TabsTrigger,
 } from '@/components/ui';
 import TalentRequirements, { TalentRequirementsFormValues, TalentRole } from '@/components/TalentRequirements';
+import ProjectQRDisplay from '@/components/ProjectQRDisplay';
 
 type Project = {
   id: string;
@@ -236,26 +237,26 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
               <h2 className="text-lg font-semibold mb-2">Project Details</h2>
               <div className="bg-gray-50 p-4 rounded-md">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-gray-600">Start Date</div>
                   <div>{formatDate(project.startDate)}</div>
-                  
+
                   <div className="text-gray-600">End Date</div>
                   <div>{formatDate(project.endDate)}</div>
-                  
+
                   <div className="text-gray-600">Created</div>
                   <div>{formatDate(project.createdAt)}</div>
-                  
+
                   <div className="text-gray-600">Last Updated</div>
                   <div>{formatDate(project.updatedAt)}</div>
                 </div>
               </div>
             </div>
-            
+
             <div>
               <h2 className="text-lg font-semibold mb-2">Project Actions</h2>
               <div className="space-y-2">
@@ -290,6 +291,11 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                   Invite Talent Directly
                 </Link>
               </div>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Quick Share</h2>
+              <ProjectQRDisplay projectId={projectId} size={200} />
             </div>
           </div>
           
@@ -330,8 +336,32 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               </TabsList>
 
               <TabsContent value="overview" className="py-6">
-                <div className="text-center text-gray-500">
-                  Project overview and details coming soon.
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Project Overview</h3>
+                    <div className="bg-gray-50 p-4 rounded-md">
+                      <p className="text-gray-700 mb-4">
+                        {project.description || 'No description provided.'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 border-t border-gray-200 pt-4 mt-2">
+                        <div className="text-gray-600">Status</div>
+                        <div>
+                          <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadgeClass(project.status)}`}>
+                            {project.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <div className="text-gray-600">Timeline</div>
+                        <div>{formatDate(project.startDate)} - {formatDate(project.endDate)}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Application QR Code</h3>
+                    <div className="bg-white border border-gray-200 rounded-md shadow-sm">
+                      <ProjectQRDisplay projectId={projectId} size={200} />
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
 
@@ -397,9 +427,25 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                     View All Submissions
                   </Link>
                 </div>
-                <Card className="p-6 text-center">
-                  <p className="text-gray-500">View all application and casting code submissions for this project.</p>
-                </Card>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="p-6">
+                    <h4 className="font-medium mb-3">Application Management</h4>
+                    <p className="text-gray-500 mb-4">View all application and casting code submissions for this project.</p>
+                    <Link
+                      href={`/studio/projects/${projectId}/submissions`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Manage submissions →
+                    </Link>
+                  </Card>
+                  <Card className="p-6">
+                    <h4 className="font-medium mb-3">Share Application Link</h4>
+                    <p className="text-gray-500 mb-4">Use this QR code to quickly share with potential talent.</p>
+                    <div className="flex justify-center">
+                      <ProjectQRDisplay projectId={projectId} size={150} />
+                    </div>
+                  </Card>
+                </div>
               </TabsContent>
 
               <TabsContent value="team" className="py-6">
