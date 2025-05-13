@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -59,23 +59,23 @@ export default function TalentCalendarPage() {
     } else if (authStatus === 'unauthenticated') {
       router.push('/sign-in');
     }
-  }, [authStatus]);
+  }, [authStatus, router, fetchCalendarEvents]);
   
-  const fetchCalendarEvents = async () => {
+  const fetchCalendarEvents = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/talent/calendar');
-      
+
       if (response.ok) {
         const data = await response.json();
-        
+
         // Parse dates into Date objects
         const formattedEvents = data.map((event: any) => ({
           ...event,
           start: new Date(event.start),
           end: new Date(event.end || event.start),
         }));
-        
+
         setEvents(formattedEvents);
       } else {
         const errorData = await response.json();
@@ -87,7 +87,7 @@ export default function TalentCalendarPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
   
   const handleSelectEvent = (event: CalendarEvent) => {
     setSelectedEvent(event);
@@ -195,31 +195,69 @@ export default function TalentCalendarPage() {
         setError(null); // Clear any existing errors
         const instructionsAlert = document.createElement('div');
         instructionsAlert.className = 'fixed bottom-4 right-4 bg-blue-100 text-blue-800 p-4 rounded-md shadow-lg max-w-md';
-        instructionsAlert.innerHTML = `
-          <div class="flex justify-between items-start">
-            <div>
-              <h3 class="font-bold mb-2">Import to Google Calendar</h3>
-              <p class="text-sm">To import multiple events to Google Calendar:</p>
-              <ol class="text-sm list-decimal pl-4 mt-2">
-                <li>Open <a href="https://calendar.google.com" target="_blank" class="underline">Google Calendar</a></li>
-                <li>Click the gear icon (Settings)</li>
-                <li>Select "Import & Export"</li>
-                <li>Upload the downloaded .ics file</li>
-              </ol>
-            </div>
-            <button class="text-blue-800 hover:text-blue-600">✕</button>
-          </div>
-        `;
+        // Create a safer approach using DOM methods instead of innerHTML
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'flex justify-between items-start';
 
+        const contentDiv = document.createElement('div');
+
+        const heading = document.createElement('h3');
+        heading.className = 'font-bold mb-2';
+        heading.textContent = 'Import to Google Calendar';
+        contentDiv.appendChild(heading);
+
+        const intro = document.createElement('p');
+        intro.className = 'text-sm';
+        intro.textContent = 'To import multiple events to Google Calendar:';
+        contentDiv.appendChild(intro);
+
+        const list = document.createElement('ol');
+        list.className = 'text-sm list-decimal pl-4 mt-2';
+
+        const steps = [
+          { text: 'Open ', link: 'https://calendar.google.com', linkText: 'Google Calendar' },
+          { text: 'Click the gear icon (Settings)' },
+          { text: 'Select "Import & Export"' },
+          { text: 'Upload the downloaded .ics file' }
+        ];
+
+        steps.forEach(step => {
+          const li = document.createElement('li');
+
+          if (step.link) {
+            const textNode = document.createTextNode(step.text);
+            li.appendChild(textNode);
+
+            const link = document.createElement('a');
+            link.href = step.link;
+            link.target = '_blank';
+            link.className = 'underline';
+            link.textContent = step.linkText;
+            li.appendChild(link);
+          } else {
+            li.textContent = step.text;
+          }
+
+          list.appendChild(li);
+        });
+
+        contentDiv.appendChild(list);
+        alertDiv.appendChild(contentDiv);
+
+        const closeButton = document.createElement('button');
+        closeButton.className = 'text-blue-800 hover:text-blue-600';
+        closeButton.textContent = '✕';
+        alertDiv.appendChild(closeButton);
+
+        instructionsAlert.appendChild(alertDiv);
+
+        // Now we can safely append the element
         document.body.appendChild(instructionsAlert);
 
         // Add click event to close button
-        const closeButton = instructionsAlert.querySelector('button');
-        if (closeButton) {
-          closeButton.addEventListener('click', () => {
-            document.body.removeChild(instructionsAlert);
-          });
-        }
+        closeButton.addEventListener('click', () => {
+          document.body.removeChild(instructionsAlert);
+        });
 
         // Auto-remove after 20 seconds
         setTimeout(() => {
@@ -506,7 +544,7 @@ export default function TalentCalendarPage() {
             <div className="mt-6 text-xs text-gray-500">
               <p>
                 Note: Direct Google Calendar export opens a new browser tab for single events.
-                For multiple events, you'll download an .ics file with instructions for importing.
+                For multiple events, you&apos;ll download an .ics file with instructions for importing.
               </p>
             </div>
           </div>
