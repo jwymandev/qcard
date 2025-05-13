@@ -9,6 +9,7 @@ const messageSchema = z.object({
   recipientId: z.string().min(1, { message: "Recipient ID is required" }),
   subject: z.string().min(1, { message: "Subject is required" }),
   content: z.string().min(1, { message: "Message content is required" }),
+  originalMessageId: z.string().optional(), // Original message ID for replies
   relatedToProjectId: z.string().optional().nullable(),
   relatedToCastingCallId: z.string().optional().nullable(),
 });
@@ -210,18 +211,30 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      
-      const { recipientId, subject, content, relatedToProjectId, relatedToCastingCallId } = result.data;
-      
+
+      const { recipientId, subject, content, originalMessageId, relatedToProjectId, relatedToCastingCallId } = result.data;
+
       // Verify recipient exists
       const recipient = await prisma.profile.findUnique({
         where: { id: recipientId },
       });
-      
+
       if (!recipient) {
         return NextResponse.json({ error: "Recipient not found" }, { status: 404 });
       }
-      
+
+      // Check if this is a reply to a message
+      if (originalMessageId) {
+        // Verify the original message exists
+        const originalMessage = await prisma.message.findUnique({
+          where: { id: originalMessageId },
+        });
+
+        if (!originalMessage) {
+          return NextResponse.json({ error: "Original message not found" }, { status: 404 });
+        }
+      }
+
       // Create the message
       const message = await prisma.message.create({
         data: {

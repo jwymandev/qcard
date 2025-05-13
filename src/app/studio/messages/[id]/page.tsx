@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui';
 
 type Message = {
   id: string;
@@ -47,6 +48,10 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
   const [message, setMessage] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [replyContent, setReplyContent] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [replySent, setReplySent] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   const fetchMessage = async () => {
     setLoading(true);
@@ -118,6 +123,74 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
       } else {
         console.error('Cannot reply: No recipient ID available');
       }
+    }
+  };
+
+  const handleReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!message?.sender || !replyContent.trim()) {
+      return;
+    }
+
+    setSendingReply(true);
+
+    try {
+      // Get recipient ID (talent profile ID)
+      const recipientId = message.sender.id || message.sender.user.id;
+
+      if (!recipientId) {
+        throw new Error("Missing recipient information");
+      }
+
+      const response = await fetch('/api/studio/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipientId: recipientId,
+          subject: `Re: ${message.subject}`,
+          content: replyContent,
+          originalMessageId: params.id,
+          // Pass along related project/casting call if present
+          ...(message.relatedToProject && { relatedToProjectId: message.relatedToProject.id }),
+          ...(message.relatedToCastingCall && { relatedToCastingCallId: message.relatedToCastingCall.id }),
+        }),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        console.error('Error response data:', responseData);
+        throw new Error(responseData.error || responseData.details || 'Failed to send reply');
+      }
+
+      setReplyContent('');
+
+      // Show success message but keep user on the current message page
+      setReplySent(true);
+      setSuccessMessage('Your reply has been sent successfully');
+
+      // Reload the current message view to see the update with the new reply
+      setTimeout(() => {
+        fetchMessage(); // First refresh the current thread view to show the reply
+
+        // Reset reply form after 3 seconds
+        setTimeout(() => {
+          setReplySent(false);
+          setSuccessMessage(null);
+        }, 3000);
+      }, 500);
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      setError('Failed to send reply: ' + (error instanceof Error ? error.message : String(error)));
+      setSendingReply(false);
+
+      // Clear error after 3 seconds
+      setTimeout(() => {
+        setError('');
+      }, 3000);
     }
   };
   
@@ -192,8 +265,22 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
           ← Back to Messages
         </Link>
       </div>
-      
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {successMessage && (
+        <Alert className="mb-6 bg-green-50 border-green-200 text-green-900">
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription>{successMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
         <div className="p-6">
           <div className="flex justify-between items-start mb-6">
             <div>
@@ -212,14 +299,6 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
               </div>
             </div>
             <div className="flex space-x-3">
-              {!isSent && (
-                <button
-                  onClick={replyToMessage}
-                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Reply
-                </button>
-              )}
               <button
                 onClick={archiveMessage}
                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -234,7 +313,7 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
               </button>
             </div>
           </div>
-          
+
           {(message.relatedToProject || message.relatedToCastingCall) && (
             <div className="mb-4 flex items-center space-x-2">
               {message.relatedToProject && (
@@ -255,21 +334,13 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
               )}
             </div>
           )}
-          
+
           <div className="prose max-w-none mt-6 pb-6 border-b border-gray-200">
             <p>{message.content}</p>
           </div>
-          
+
           <div className="mt-6 flex justify-between">
             <div className="flex space-x-3">
-              {!isSent && (
-                <button
-                  onClick={replyToMessage}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Reply
-                </button>
-              )}
               {!isSent && (
                 <Link
                   href={`/studio/messages/new?recipientId=${message.sender?.id || message.sender?.user.id || ''}`}
@@ -290,6 +361,52 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
           </div>
         </div>
       </div>
+
+      {!isSent && message.sender && (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="p-6">
+            <h2 className="text-lg font-semibold mb-2 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              Reply to {message.sender.user.firstName} {message.sender.user.lastName}
+            </h2>
+            <form onSubmit={handleReply}>
+              <div className="mb-4">
+                <textarea
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  placeholder="Write your reply here..."
+                  rows={6}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={sendingReply || replySent || !replyContent.trim()}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300"
+                >
+                  {sendingReply ? (
+                    <>
+                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      Send Reply
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
