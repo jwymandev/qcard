@@ -574,30 +574,41 @@ export default function CastingCodeManager({ projects }: CastingCodeManagerProps
                               Show QR Code
                             </Button>
                           </Link>
+                          <Button
+                            variant="ghost"
+                            className="justify-start w-full text-left"
+                            onClick={() => {
+                              // Open QR modal
+                              setSelectedCode(code);
+                              setQrModalOpen(true);
+                            }}
+                          >
+                            Show QR (Modal)
+                          </Button>
                           <Link href={`/studio/casting-codes/${code.id}/submissions`}>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               className="justify-start w-full text-left"
                             >
                               View Submissions {code.submissions.length > 0 && `(${code.submissions.length})`}
                             </Button>
                           </Link>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             className="justify-start"
                             onClick={() => editSurvey(code)}
                           >
                             Edit Survey
                           </Button>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             className="justify-start"
                             onClick={() => toggleCodeStatus(code)}
                           >
                             {code.isActive ? 'Deactivate' : 'Activate'}
                           </Button>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             className="justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
                             onClick={() => deleteCode(code.id)}
                           >

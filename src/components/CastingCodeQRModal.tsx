@@ -55,6 +55,19 @@ export default function CastingCodeQRModal({
                   Casting Code: <span className="font-mono">{castingCode.code}</span>
                 </p>
               </div>
+
+              {/* Fallback manual instructions */}
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <h4 className="font-medium text-sm mb-2">How to Use This Code</h4>
+                <p className="text-sm text-gray-600 mb-2">
+                  If the QR code doesn't appear above, you can still use this code by:
+                </p>
+                <ol className="text-sm text-gray-600 list-decimal list-inside space-y-1">
+                  <li>Sharing the application link</li>
+                  <li>Providing the code directly: <span className="font-mono font-bold">{castingCode.code}</span></li>
+                  <li>Directing talent to: {window.location.origin}/apply/{castingCode.code}</li>
+                </ol>
+              </div>
             </>
           ) : (
             <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-md">

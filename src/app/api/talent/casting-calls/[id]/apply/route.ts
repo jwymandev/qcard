@@ -79,21 +79,8 @@ export async function POST(
       return NextResponse.json({ error: "This casting call is no longer accepting applications" }, { status: 400 });
     }
 
-    // Check if the user has an active subscription for the casting call's region
-    if (castingCall.Location?.region) {
-      const castingCallRegionId = castingCall.Location.region.id;
-      const hasSubscriptionForRegion = user.regionSubscriptions.some(
-        subscription => subscription.regionPlan.region.id === castingCallRegionId
-      );
-
-      if (!hasSubscriptionForRegion) {
-        return NextResponse.json({
-          error: "You need an active subscription for this region to apply",
-          regionId: castingCallRegionId,
-          regionName: castingCall.Location.region.name
-        }, { status: 403 });
-      }
-    }
+    // NOTE: Subscription check removed to allow non-subscribers to apply to casting calls
+    // Users will only need subscriptions for talent search/discovery features
 
     // Check if already applied
     const existingApplication = await prisma.application.findFirst({

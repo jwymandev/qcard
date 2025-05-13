@@ -219,6 +219,7 @@ export default function OpportunitiesPage() {
         </div>
 
         <div className="flex flex-wrap gap-4 items-center">
+          {/* Note: The following checkbox is subscription-restricted because it filters by subscribed regions */}
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -232,6 +233,7 @@ export default function OpportunitiesPage() {
             </label>
           </div>
 
+          {/* Location filter - accessible to all users */}
           <select
             className="border rounded px-3 py-1"
             value={selectedLocation}
@@ -245,6 +247,7 @@ export default function OpportunitiesPage() {
             ))}
           </select>
 
+          {/* Date filter - accessible to all users */}
           <select
             className="border rounded px-3 py-1"
             value={dateFilter}

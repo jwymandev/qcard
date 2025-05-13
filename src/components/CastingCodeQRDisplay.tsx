@@ -143,8 +143,8 @@ export default function CastingCodeQRDisplay({
 
   return (
     <Card className="p-6 flex flex-col items-center">
-      {qrCodeData ? (
-        <div className="text-center space-y-4">
+      <div className="text-center space-y-4">
+        {qrCodeData ? (
           <div className="border p-4 inline-block bg-white">
             <img
               src={qrCodeData}
@@ -153,41 +153,46 @@ export default function CastingCodeQRDisplay({
               height={size}
             />
           </div>
-
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Scan this QR code or share the link below:</p>
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={applicationUrl || ''}
-                readOnly
-                className="flex-1 p-2 text-sm border rounded bg-muted"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopyLink}
-              >
-                {copied ? 'Copied!' : 'Copy'}
-              </Button>
-            </div>
+        ) : error ? (
+          <Alert variant="destructive" className="w-full mb-4">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : (
+          <div className="text-center py-4">
+            <p className="text-muted-foreground">
+              QR code generation in progress...
+            </p>
           </div>
+        )}
 
-          <div className="pt-2 text-xs text-muted-foreground">
-            <p>Code: <span className="font-bold tracking-wider">{castingCode}</span></p>
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">Share the application link below:</p>
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              value={applicationUrl || generateApplicationUrl()}
+              readOnly
+              className="flex-1 p-2 text-sm border rounded bg-muted"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyLink}
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </Button>
           </div>
         </div>
-      ) : error ? (
-        <Alert variant="destructive" className="w-full mb-4">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : (
-        <div className="text-center py-4">
-          <p className="text-muted-foreground">
-            No QR code data available. Please try again or check the console for errors.
-          </p>
+
+        <div className="pt-2 text-xs text-muted-foreground">
+          <p>Code: <span className="font-bold tracking-wider">{castingCode}</span></p>
+          {usedDirectGeneration && (
+            <p className="mt-1 text-xs text-blue-600">
+              <small>* Direct browser QR generation</small>
+            </p>
+          )}
         </div>
-      )}
+      </div>
     </Card>
   );
 }

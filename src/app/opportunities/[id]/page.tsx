@@ -501,20 +501,28 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
                   </Alert>
                 )}
 
-                {subscriptionStatus === 'inactive' ? (
-                  <div className="bg-gray-50 p-6 rounded-md mb-6">
-                    <h3 className="font-semibold mb-2">Subscription Required</h3>
-                    <p className="mb-4">
-                      You need an active subscription to the {castingCall.location?.name} region to apply for this casting call.
+                {/* Subscription is no longer required for applications via casting calls or direct links */}
+                {subscriptionStatus === 'inactive' && (
+                  <div className="bg-blue-50 p-4 mb-4 rounded-md border border-blue-200">
+                    <h3 className="text-blue-700 font-medium mb-1">Subscription Benefits</h3>
+                    <p className="text-sm text-blue-700 mb-2">
+                      While you can apply without a subscription, subscribing to the {castingCall.location?.name} region offers:
                     </p>
+                    <ul className="text-sm text-blue-700 list-disc list-inside mb-3">
+                      <li>Talent discovery by casting directors</li>
+                      <li>Advanced search features for roles</li>
+                      <li>Priority application processing</li>
+                    </ul>
                     <Link
                       href={`/subscription${castingCall.location?.region ? `?regionId=${castingCall.location.region.id}` : ''}`}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                      className="text-blue-600 text-sm hover:text-blue-800 underline"
                     >
-                      Subscribe Now
+                      Learn about subscriptions
                     </Link>
                   </div>
-                ) : (
+                )}
+
+                {/* Application form - accessible to all users */}
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -531,7 +539,7 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button disabled={submitting || message.trim().length < 10 || subscriptionStatus !== 'active'}>
+                        <Button disabled={submitting || message.trim().length < 10}>
                           {submitting ? (
                             <>
                               <Spinner className="mr-2 h-4 w-4" />
