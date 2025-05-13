@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Spinner, Badge, Button, Textarea, Alert, AlertTitle, AlertDescription } from '@/components/ui';
 
-type Message = {
+type MessageDetails = {
   id: string;
   subject: string;
   content: string;
@@ -36,6 +36,35 @@ type Message = {
     title: string;
     description?: string;
   };
+  // Thread-related fields
+  thread?: ThreadMessage[];
+  baseSubject?: string;
+  // UI state fields (not from API)
+  _deleteSuccess?: boolean;
+  _archiveSuccess?: boolean;
+};
+
+type ThreadMessage = {
+  id: string;
+  subject: string;
+  content: string;
+  isRead: boolean;
+  isArchived: boolean;
+  createdAt: string;
+  isSent: boolean;
+  isCurrentMessage: boolean;
+  sender: {
+    id: string;
+    name: string;
+    description?: string;
+    email?: string;
+  } | null;
+  recipient: {
+    id: string;
+    name: string;
+    description?: string;
+    email?: string;
+  } | null;
 };
 
 export default function MessageDetailPage({ params }: { params: { id: string } }) {
@@ -43,7 +72,7 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
   const router = useRouter();
   const messageId = params.id;
   
-  const [message, setMessage] = useState<Message | null>(null);
+  const [message, setMessage] = useState<MessageDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
@@ -113,12 +142,20 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
       }
       
       setReplyContent('');
+
+      // Show success message but keep user on the current message page
+      // to see their reply added to the thread
       setReplySent(true);
-      
-      // Reload the message to see the update
+
+      // Reload the current message view to see the update with the new reply
       setTimeout(() => {
-        router.push('/talent/messages');
-      }, 2000);
+        fetchMessage(); // First refresh the current thread view to show the reply
+
+        // Reset reply form after 2 seconds
+        setTimeout(() => {
+          setReplySent(false);
+        }, 2000);
+      }, 500);
     } catch (error) {
       console.error('Error sending reply:', error);
       setError('Failed to send reply: ' + (error instanceof Error ? error.message : String(error)));
@@ -147,30 +184,50 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
         },
         body: JSON.stringify({ isArchived: true }),
       });
-      
+
       if (response.ok) {
-        router.push('/talent/messages');
+        setError(null);
+        setReplySent(false);
+        // Show success message and then redirect
+        setMessage(prev => ({
+          ...prev!,
+          _archiveSuccess: true
+        } as any));
+
+        // Redirect after a brief delay to show the success message
+        setTimeout(() => {
+          router.push('/talent/messages');
+        }, 2000);
       }
     } catch (error) {
       console.error('Error archiving message:', error);
+      setError('Failed to archive message');
     }
   };
   
   const deleteMessage = async () => {
-    if (!confirm('Are you sure you want to delete this message? This action cannot be undone.')) {
-      return;
-    }
-    
     try {
       const response = await fetch(`/api/talent/messages/${messageId}`, {
         method: 'DELETE',
       });
-      
+
       if (response.ok) {
-        router.push('/talent/messages');
+        setError(null);
+        setReplySent(false);
+        // Show success message and then redirect
+        setMessage(prev => ({
+          ...prev!,
+          _deleteSuccess: true
+        } as any));
+
+        // Redirect after a brief delay to show the success message
+        setTimeout(() => {
+          router.push('/talent/messages');
+        }, 2000);
       }
     } catch (error) {
       console.error('Error deleting message:', error);
+      setError('Failed to delete message');
     }
   };
   
@@ -222,14 +279,41 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
       {replySent && (
         <Alert className="mb-6 bg-green-50 border-green-200 text-green-900">
           <AlertTitle>Success</AlertTitle>
-          <AlertDescription>Your reply has been sent successfully. Returning to messages...</AlertDescription>
+          <AlertDescription>
+            Your reply has been sent successfully and added to this conversation thread.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {message?._deleteSuccess && (
+        <Alert className="mb-6 bg-green-50 border-green-200 text-green-900">
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription>
+            Message deleted successfully. Redirecting to conversations...
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {message?._archiveSuccess && (
+        <Alert className="mb-6 bg-green-50 border-green-200 text-green-900">
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription>
+            Message archived successfully. Redirecting to conversations...
+          </AlertDescription>
         </Alert>
       )}
       
       <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
-            <h1 className="text-xl font-bold text-gray-900">{message.subject}</h1>
+            <h1 className="text-xl font-bold text-gray-900">
+              {message.baseSubject ? message.baseSubject : message.subject}
+              {message.thread && message.thread.length > 1 && (
+                <span className="ml-2 text-sm text-gray-500 font-normal">
+                  ({message.thread.length} messages)
+                </span>
+              )}
+            </h1>
             <div className="flex space-x-2">
               <Button variant="outline" size="sm" onClick={archiveMessage}>
                 Archive
@@ -239,27 +323,7 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
               </Button>
             </div>
           </div>
-          
-          <div className="mb-4 text-sm">
-            <div className="flex justify-between">
-              <div>
-                <p>
-                  <span className="text-gray-500">From:</span>{' '}
-                  <span className="font-medium">
-                    {message.isSent ? 'You' : message.sender?.name}
-                  </span>
-                </p>
-                <p>
-                  <span className="text-gray-500">To:</span>{' '}
-                  <span className="font-medium">
-                    {message.isSent ? message.recipient?.name : 'You'}
-                  </span>
-                </p>
-              </div>
-              <p className="text-gray-500">{formatDate(message.createdAt)}</p>
-            </div>
-          </div>
-          
+
           {(message.relatedToProject || message.relatedToCastingCall) && (
             <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
               {message.relatedToProject && (
@@ -282,17 +346,95 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
               )}
             </div>
           )}
-          
-          <div className="border-t border-gray-200 pt-4">
-            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br>') }} />
-          </div>
+
+          {/* Thread View */}
+          {message.thread && message.thread.length > 0 ? (
+            <div className="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                <div className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  <span className="font-medium text-gray-700">Conversation Thread ({message.thread.length} messages)</span>
+                </div>
+              </div>
+              {message.thread.map((threadMsg, index) => (
+                <div
+                  key={threadMsg.id}
+                  className={`p-4 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${
+                    threadMsg.isCurrentMessage ? 'border-l-4 border-blue-500' : ''
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <span className={`font-medium ${threadMsg.isSent ? 'text-blue-600' : 'text-gray-800'}`}>
+                        {threadMsg.isSent ? 'You' : threadMsg.sender?.name}
+                      </span>
+                      <span className="text-gray-500 mx-2">→</span>
+                      <span className="text-gray-700">
+                        {threadMsg.isSent ? threadMsg.recipient?.name : 'You'}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {formatDate(threadMsg.createdAt)}
+                    </span>
+                  </div>
+
+                  <div className={`ml-0 p-3 rounded-lg ${
+                    threadMsg.isSent ? 'bg-blue-50 border border-blue-100' : 'bg-gray-100 border border-gray-200'
+                  }`}>
+                    <div className="prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: threadMsg.content.replace(/\n/g, '<br>') }}
+                    />
+                  </div>
+
+                  {threadMsg.isCurrentMessage && (
+                    <div className="mt-1 text-xs text-blue-600 flex items-center">
+                      <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1"></span>
+                      <span>Current message</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            // Fallback to display only the current message if no thread is available
+            <div className="border-t border-gray-200 pt-4 mb-6">
+              <div className="mb-4 text-sm">
+                <div className="flex justify-between">
+                  <div>
+                    <p>
+                      <span className="text-gray-500">From:</span>{' '}
+                      <span className="font-medium">
+                        {message.isSent ? 'You' : message.sender?.name}
+                      </span>
+                    </p>
+                    <p>
+                      <span className="text-gray-500">To:</span>{' '}
+                      <span className="font-medium">
+                        {message.isSent ? message.recipient?.name : 'You'}
+                      </span>
+                    </p>
+                  </div>
+                  <p className="text-gray-500">{formatDate(message.createdAt)}</p>
+                </div>
+              </div>
+              <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br>') }} />
+            </div>
+          )}
         </div>
       </div>
       
       {!message.isSent && message.sender && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Reply</h2>
+            <h2 className="text-lg font-semibold mb-2 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              Reply to this thread
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">Your response will be sent to {message.sender.name}</p>
             <form onSubmit={handleReply}>
               <div className="mb-4">
                 <Textarea
@@ -301,14 +443,28 @@ export default function MessageDetailPage({ params }: { params: { id: string } }
                   placeholder="Write your reply here..."
                   rows={6}
                   required
+                  className="focus:border-blue-500"
                 />
               </div>
               <div className="flex justify-end">
                 <Button
                   type="submit"
                   disabled={sendingReply || replySent || !replyContent.trim()}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
-                  {sendingReply ? 'Sending...' : 'Send Reply'}
+                  {sendingReply ? (
+                    <>
+                      <Spinner className="h-4 w-4 mr-2" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      Send Reply
+                    </>
+                  )}
                 </Button>
               </div>
             </form>

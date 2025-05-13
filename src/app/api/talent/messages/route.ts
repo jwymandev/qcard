@@ -3,52 +3,48 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
-// GET /api/talent/messages - Get all messages for the current talent
+// GET /api/talent/messages - Get all messages organized as conversations
 export async function GET(request: Request) {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Parse query parameters
     const url = new URL(request.url);
-    const sent = url.searchParams.get('sent') === 'true';
     const unreadOnly = url.searchParams.get('unread') === 'true';
-    
+
     // Find the user and their profile
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { 
+      include: {
         Tenant: true,
         Profile: true
       },
     });
-    
+
     if (!user?.Tenant || user.Tenant.type !== "TALENT" || !user.Profile) {
       return NextResponse.json({ error: "Only talent accounts can access their messages" }, { status: 403 });
     }
 
     const profileId = user.Profile.id;
-    
+
     // Base query conditions
     const baseConditions = {
       isArchived: false,
       ...(unreadOnly ? { isRead: false } : {}),
     };
-    
-    // Define query based on whether we're getting received or sent messages
+
+    // Query both sent and received messages to build conversations
     const query = {
       where: {
         ...baseConditions,
-        ...(sent
-          ? { 
-              talentSenderId: profileId, // Sent messages
-            }
-          : { 
-              talentReceiverId: profileId, // Received messages
-            }),
+        OR: [
+          { talentSenderId: profileId }, // Sent messages
+          { talentReceiverId: profileId }, // Received messages
+        ]
       },
       include: {
         // Include details about the studio (sender/receiver)
@@ -71,7 +67,7 @@ export async function GET(request: Request) {
         createdAt: 'desc' as const,
       },
     };
-    
+
     const messages = await prisma.message.findMany(query);
     
     // Collect all project and casting call IDs that we need to fetch
@@ -103,38 +99,98 @@ export async function GET(request: Request) {
     const projectMap = new Map(projects.map(p => [p.id, p]));
     const castingCallMap = new Map(castingCalls.map(c => [c.id, c]));
     
-    // Map the result to match the expected format
-    const mappedMessages = messages.map(message => ({
-      id: message.id,
-      subject: message.subject,
-      content: message.content,
-      isRead: message.isRead,
-      isArchived: message.isArchived,
-      createdAt: message.createdAt,
-      // Set sender or recipient based on whether this is a sent or received message
-      sender: sent
-        ? null // Talent is the sender
-        : message.Studio_Message_studioSenderIdToStudio
-          ? {
-              id: message.Studio_Message_studioSenderIdToStudio.id,
-              name: message.Studio_Message_studioSenderIdToStudio.name,
-              description: message.Studio_Message_studioSenderIdToStudio.description,
-            }
-          : null,
-      recipient: sent
-        ? message.Studio_Message_studioReceiverIdToStudio
-          ? {
-              id: message.Studio_Message_studioReceiverIdToStudio.id,
-              name: message.Studio_Message_studioReceiverIdToStudio.name,
-              description: message.Studio_Message_studioReceiverIdToStudio.description,
-            }
-          : null
-        : null, // Talent is the recipient
-      relatedToProject: message.relatedToProjectId ? projectMap.get(message.relatedToProjectId) || null : null,
-      relatedToCastingCall: message.relatedToCastingCallId ? castingCallMap.get(message.relatedToCastingCallId) || null : null,
-    }));
+    // Group messages into conversations
+    const conversations = new Map(); // Map of conversation IDs to message arrays
+    const messageToConversation = new Map(); // Map of message IDs to conversation IDs
+
+    // First, group messages by conversation
+    messages.forEach(message => {
+      // Normalize subject (remove Re: prefixes)
+      const normalizedSubject = message.subject.replace(/^(Re:\s*)+/i, '').trim();
+
+      // Create a unique conversation key using normalized subject and studio ID
+      const studioId = message.studioSenderId || message.studioReceiverId;
+      const conversationKey = `${normalizedSubject}__${studioId}`;
+
+      // Store mapping of this message to its conversation
+      messageToConversation.set(message.id, conversationKey);
+
+      // Add message to the conversation
+      if (!conversations.has(conversationKey)) {
+        conversations.set(conversationKey, []);
+      }
+      conversations.get(conversationKey).push(message);
+    });
+
+    // Now build the conversations to return
+    // Define a type for our conversation objects
+    type ConversationThread = {
+      id: string;
+      subject: string;
+      preview: string;
+      latestMessageId: string;
+      latestMessageDate: string;
+      messageCount: number;
+      unreadCount: number;
+      hasUnread: boolean;
+      studio: {
+        id: string;
+        name: string;
+        description?: string;
+      } | null;
+      relatedToProject: any;
+      relatedToCastingCall: any;
+    };
+
+    const conversationThreads: ConversationThread[] = [];
+
+    // Process each conversation - using Array.from to avoid TS iterator issues
+    Array.from(conversations.entries()).forEach(([conversationKey, conversationMessages]) => {
+      // Sort messages in this conversation by date (newest first)
+      conversationMessages.sort((a: any, b: any) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      // The latest message is the first one after sorting
+      const latestMessage = conversationMessages[0];
+
+      // Get the studio involved in this conversation
+      const studioId = latestMessage.studioSenderId || latestMessage.studioReceiverId;
+      const studioInfo = latestMessage.studioSenderId
+        ? latestMessage.Studio_Message_studioSenderIdToStudio
+        : latestMessage.Studio_Message_studioReceiverIdToStudio;
+
+      // Count unread messages in this conversation
+      const unreadCount = conversationMessages.filter(
+        (msg: any) => msg.talentReceiverId === profileId && !msg.isRead
+      ).length;
+
+      // Create the conversation object
+      conversationThreads.push({
+        id: conversationKey, // Use the conversation key as the ID
+        subject: latestMessage.subject.replace(/^(Re:\s*)+/i, '').trim(), // Use normalized subject
+        preview: latestMessage.content.substring(0, 100) + (latestMessage.content.length > 100 ? '...' : ''),
+        latestMessageId: latestMessage.id,
+        latestMessageDate: latestMessage.createdAt,
+        messageCount: conversationMessages.length,
+        unreadCount: unreadCount,
+        hasUnread: unreadCount > 0,
+        studio: studioInfo ? {
+          id: studioInfo.id,
+          name: studioInfo.name,
+          description: studioInfo.description,
+        } : null,
+        relatedToProject: latestMessage.relatedToProjectId ? projectMap.get(latestMessage.relatedToProjectId) || null : null,
+        relatedToCastingCall: latestMessage.relatedToCastingCallId ? castingCallMap.get(latestMessage.relatedToCastingCallId) || null : null,
+      });
+    });
+
+    // Sort conversations by the date of their latest message
+    conversationThreads.sort((a: any, b: any) =>
+      new Date(b.latestMessageDate).getTime() - new Date(a.latestMessageDate).getTime()
+    );
     
-    return NextResponse.json(mappedMessages);
+    return NextResponse.json(conversationThreads);
   } catch (error) {
     console.error("Error fetching messages:", error);
     return NextResponse.json({ 

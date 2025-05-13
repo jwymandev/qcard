@@ -99,6 +99,116 @@ export async function GET(
       relatedCastingCall = castingCall;
     }
     
+    // Find all related messages in the same thread
+    // Messages are in the same thread if they have the same subject (excluding Re: prefix)
+    // and involve the same talent and studio
+    const baseSubject = message.subject.replace(/^(Re:\s*)+/i, '').trim();
+    const studioId = message.studioSenderId || message.studioReceiverId;
+
+    // Find all messages that match this thread (more precise matching)
+    const threadMessages = await prisma.message.findMany({
+      where: {
+        OR: [
+          // Messages where the talent is either sender or recipient
+          {
+            talentSenderId: profileId,
+            studioReceiverId: studioId,
+            // Use more precise subject matching to avoid false positives
+            OR: [
+              { subject: { equals: baseSubject, mode: 'insensitive' } },
+              { subject: { startsWith: `Re: ${baseSubject}`, mode: 'insensitive' } },
+              { subject: { equals: `Re: ${baseSubject}`, mode: 'insensitive' } }
+            ]
+          },
+          {
+            talentReceiverId: profileId,
+            studioSenderId: studioId,
+            // Same precise matching for received messages
+            OR: [
+              { subject: { equals: baseSubject, mode: 'insensitive' } },
+              { subject: { startsWith: `Re: ${baseSubject}`, mode: 'insensitive' } },
+              { subject: { equals: `Re: ${baseSubject}`, mode: 'insensitive' } }
+            ]
+          },
+        ],
+        // Exclude the current message from being included twice
+        NOT: {
+          id: messageId
+        }
+      },
+      include: {
+        Studio_Message_studioSenderIdToStudio: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            contactEmail: true,
+          },
+        },
+        Studio_Message_studioReceiverIdToStudio: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            contactEmail: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    // Add the current message at the appropriate position based on timestamp
+    const allThreadMessages = [...threadMessages];
+    const currentMessage = {
+      ...message,
+      isCurrentMessage: true as unknown as boolean // Type casting to avoid TypeScript error
+    };
+
+    // Find the correct position for the current message
+    let inserted = false;
+    for (let i = 0; i < allThreadMessages.length; i++) {
+      if (new Date(message.createdAt) < new Date(allThreadMessages[i].createdAt)) {
+        allThreadMessages.splice(i, 0, currentMessage);
+        inserted = true;
+        break;
+      }
+    }
+
+    // If the current message is newer than all others, add it at the end
+    if (!inserted) {
+      allThreadMessages.push(currentMessage);
+    }
+
+    // Format thread messages
+    const formattedThreadMessages = allThreadMessages.map(threadMsg => ({
+      id: threadMsg.id,
+      subject: threadMsg.subject,
+      content: threadMsg.content,
+      isRead: threadMsg.isRead,
+      isArchived: threadMsg.isArchived,
+      createdAt: threadMsg.createdAt,
+      isSent: threadMsg.talentSenderId === profileId,
+      isCurrentMessage: ('isCurrentMessage' in threadMsg ? threadMsg.isCurrentMessage : false) || threadMsg.id === messageId,
+      sender: threadMsg.talentSenderId === profileId
+        ? null // This talent is the sender
+        : {
+            id: threadMsg.Studio_Message_studioSenderIdToStudio?.id,
+            name: threadMsg.Studio_Message_studioSenderIdToStudio?.name,
+            description: threadMsg.Studio_Message_studioSenderIdToStudio?.description,
+            email: threadMsg.Studio_Message_studioSenderIdToStudio?.contactEmail,
+          },
+      recipient: threadMsg.talentReceiverId === profileId
+        ? null // This talent is the recipient
+        : {
+            id: threadMsg.Studio_Message_studioReceiverIdToStudio?.id,
+            name: threadMsg.Studio_Message_studioReceiverIdToStudio?.name,
+            description: threadMsg.Studio_Message_studioReceiverIdToStudio?.description,
+            email: threadMsg.Studio_Message_studioReceiverIdToStudio?.contactEmail,
+          },
+    }));
+
     // Map message to a friendly response format
     const formattedMessage = {
       id: message.id,
@@ -126,8 +236,12 @@ export async function GET(
           },
       relatedToProject: relatedProject,
       relatedToCastingCall: relatedCastingCall,
+      // Include thread messages
+      thread: formattedThreadMessages,
+      // Include base subject for thread
+      baseSubject: baseSubject,
     };
-    
+
     return NextResponse.json(formattedMessage);
   } catch (error) {
     console.error("Error fetching message:", error);

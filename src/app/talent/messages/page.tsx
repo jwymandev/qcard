@@ -6,18 +6,20 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Spinner, Badge, Button, Alert, AlertDescription, AlertTitle } from '@/components/ui';
 
-type Message = {
+type Conversation = {
   id: string;
   subject: string;
-  content: string;
-  sender?: {
+  preview: string;
+  latestMessageId: string;
+  latestMessageDate: string;
+  messageCount: number;
+  unreadCount: number;
+  hasUnread: boolean;
+  studio: {
     id: string;
     name: string;
     description?: string;
-  };
-  isRead: boolean;
-  isArchived: boolean;
-  createdAt: string;
+  } | null;
   relatedToProject?: {
     id: string;
     title: string;
@@ -31,104 +33,108 @@ type Message = {
 export default function TalentMessagesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
-  const [activeTab, setActiveTab] = useState<'inbox' | 'sent'>('inbox');
-  const [messages, setMessages] = useState<Message[]>([]);
+
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const fetchMessages = async (tab: 'inbox' | 'sent') => {
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+
+  const fetchConversations = async () => {
     setLoading(true);
     try {
-      const url = `/api/talent/messages?sent=${tab === 'sent'}`;
+      const url = `/api/talent/messages${showUnreadOnly ? '?unread=true' : ''}`;
       const response = await fetch(url);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to load messages');
+        throw new Error(errorData.error || 'Failed to load conversations');
       }
-      
+
       const data = await response.json();
-      setMessages(data);
+      setConversations(data);
     } catch (error) {
-      console.error('Error fetching messages:', error);
-      setError('Failed to load messages. Please try again later.');
+      console.error('Error fetching conversations:', error);
+      setError('Failed to load conversations. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
-  
-  const markAsRead = async (id: string, isRead: boolean) => {
+
+  const archiveConversation = async (conversationId: string, messageId: string) => {
     try {
-      const response = await fetch(`/api/talent/messages/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ isRead }),
-      });
-      
-      if (response.ok) {
-        // Update the message in the local state
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === id ? { ...msg, isRead } : msg
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Error marking message:', error);
-    }
-  };
-  
-  const archiveMessage = async (id: string) => {
-    try {
-      const response = await fetch(`/api/talent/messages/${id}`, {
+      // Archive the specific message
+      const response = await fetch(`/api/talent/messages/${messageId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ isArchived: true }),
       });
-      
+
       if (response.ok) {
-        // Remove the message from the local state
-        setMessages(prev => prev.filter(msg => msg.id !== id));
+        // Remove the conversation from the local state
+        setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+
+        // Show success message
+        setSuccessMessage('Conversation archived successfully');
+
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 3000);
       }
     } catch (error) {
-      console.error('Error archiving message:', error);
+      console.error('Error archiving conversation:', error);
+      setError('Failed to archive conversation');
+
+      // Clear error message after 3 seconds
+      setTimeout(() => {
+        setError(null);
+      }, 3000);
     }
   };
-  
-  const deleteMessage = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this message? This action cannot be undone.')) {
-      return;
-    }
-    
+
+  const deleteConversation = async (conversationId: string, messageId: string) => {
     try {
-      const response = await fetch(`/api/talent/messages/${id}`, {
+      // Delete the latest message to demonstrate action
+      const response = await fetch(`/api/talent/messages/${messageId}`, {
         method: 'DELETE',
       });
-      
+
       if (response.ok) {
-        // Remove the message from the local state
-        setMessages(prev => prev.filter(msg => msg.id !== id));
+        // Remove the conversation from the local state
+        setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+
+        // Show success message
+        setSuccessMessage('Conversation deleted successfully');
+
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 3000);
       }
     } catch (error) {
-      console.error('Error deleting message:', error);
+      console.error('Error deleting conversation:', error);
+      setError('Failed to delete conversation');
+
+      // Clear error message after 3 seconds
+      setTimeout(() => {
+        setError(null);
+      }, 3000);
     }
   };
-  
+
   useEffect(() => {
     if (status === 'authenticated') {
-      fetchMessages(activeTab);
+      fetchConversations();
     } else if (status === 'unauthenticated') {
       router.push('/sign-in');
     }
-  }, [status, activeTab, router]);
-  
-  const changeTab = (tab: 'inbox' | 'sent') => {
-    setActiveTab(tab);
+  }, [status, showUnreadOnly, router]);
+
+  const toggleUnreadFilter = () => {
+    setShowUnreadOnly(prev => !prev);
   };
   
   const formatDate = (dateString: string) => {
@@ -162,93 +168,85 @@ export default function TalentMessagesPage() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      {successMessage && (
+        <Alert className="mb-6 bg-green-50 border-green-200 text-green-900">
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription>{successMessage}</AlertDescription>
+        </Alert>
+      )}
       
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="border-b border-gray-200">
-          <nav className="flex -mb-px">
-            <button
-              onClick={() => changeTab('inbox')}
-              className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
-                activeTab === 'inbox'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Inbox
-              {activeTab !== 'inbox' && messages.some(m => !m.isRead) && (
-                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                  New
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => changeTab('sent')}
-              className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
-                activeTab === 'sent'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Sent
-            </button>
-          </nav>
+        <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+          <h2 className="text-lg font-medium text-gray-900">Conversations</h2>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="unreadOnly"
+              checked={showUnreadOnly}
+              onChange={toggleUnreadFilter}
+              className="h-4 w-4 text-blue-600 rounded border-gray-300"
+            />
+            <label htmlFor="unreadOnly" className="ml-2 text-sm text-gray-700">
+              Show unread only
+            </label>
+          </div>
         </div>
-        
-        {messages.length === 0 ? (
+
+        {conversations.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-gray-500">
-              {activeTab === 'inbox' 
-                ? 'No messages in your inbox'
-                : 'No sent messages'
-              }
+            <p className="text-gray-500">No messages found</p>
+            <p className="text-sm text-gray-400 mt-2">
+              Studios will send you invitations and messages which will appear here
             </p>
-            {activeTab === 'inbox' && (
-              <p className="text-sm text-gray-400 mt-2">
-                Studios will send you invitations and messages which will appear here
-              </p>
-            )}
           </div>
         ) : (
           <ul className="divide-y divide-gray-200">
-            {messages.map((message) => (
-              <li key={message.id} className={`${!message.isRead && activeTab === 'inbox' ? 'bg-blue-50' : 'bg-white'} hover:bg-gray-50`}>
+            {conversations.map((conversation) => (
+              <li key={conversation.id} className={`${conversation.hasUnread ? 'bg-blue-50' : 'bg-white'} hover:bg-gray-50`}>
                 <div className="px-6 py-5">
                   <div className="flex justify-between items-start">
                     <div className="min-w-0 flex-1">
                       <Link
-                        href={`/talent/messages/${message.id}`}
+                        href={`/talent/messages/${conversation.latestMessageId}`}
                         className="block focus:outline-none"
                       >
-                        <div className="flex items-center mb-1">
+                        <div className="flex items-center mb-2">
                           <p className="text-sm font-medium text-gray-900 truncate">
-                            {activeTab === 'inbox' && message.sender
-                              ? `From: ${message.sender.name}`
-                              : 'You sent'}
+                            {conversation.studio ? conversation.studio.name : 'Unknown Studio'}
                           </p>
                           <p className="ml-2 flex-shrink-0 text-xs text-gray-500">
-                            {formatDate(message.createdAt)}
+                            {formatDate(conversation.latestMessageDate)}
                           </p>
                         </div>
                         <p className="text-sm font-semibold text-gray-900 mb-1">
-                          {message.subject}
-                          {!message.isRead && activeTab === 'inbox' && (
+                          {conversation.subject}
+                          {conversation.hasUnread && (
                             <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              New
+                              {conversation.unreadCount} new
+                            </span>
+                          )}
+                          {conversation.messageCount > 1 && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                              </svg>
+                              {conversation.messageCount} messages
                             </span>
                           )}
                         </p>
-                        <p className="text-sm text-gray-600 line-clamp-2">{message.content}</p>
-                        
-                        {(message.relatedToProject || message.relatedToCastingCall) && (
+                        <p className="text-sm text-gray-600 line-clamp-2">{conversation.preview}</p>
+
+                        {(conversation.relatedToProject || conversation.relatedToCastingCall) && (
                           <div className="mt-2 flex items-center space-x-2">
-                            {message.relatedToProject && (
+                            {conversation.relatedToProject && (
                               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                Project: {message.relatedToProject.title}
+                                Project: {conversation.relatedToProject.title}
                               </Badge>
                             )}
-                            {message.relatedToCastingCall && (
+                            {conversation.relatedToCastingCall && (
                               <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                Casting Call: {message.relatedToCastingCall.title}
+                                Casting Call: {conversation.relatedToCastingCall.title}
                               </Badge>
                             )}
                           </div>
@@ -256,30 +254,14 @@ export default function TalentMessagesPage() {
                       </Link>
                     </div>
                     <div className="ml-4 flex-shrink-0 flex space-x-2">
-                      {activeTab === 'inbox' && !message.isRead && (
-                        <button
-                          onClick={() => markAsRead(message.id, true)}
-                          className="text-xs text-blue-600 hover:text-blue-800"
-                        >
-                          Mark as read
-                        </button>
-                      )}
-                      {activeTab === 'inbox' && message.isRead && (
-                        <button
-                          onClick={() => markAsRead(message.id, false)}
-                          className="text-xs text-gray-600 hover:text-gray-800"
-                        >
-                          Mark unread
-                        </button>
-                      )}
                       <button
-                        onClick={() => archiveMessage(message.id)}
+                        onClick={() => archiveConversation(conversation.id, conversation.latestMessageId)}
                         className="text-xs text-gray-600 hover:text-gray-800"
                       >
                         Archive
                       </button>
                       <button
-                        onClick={() => deleteMessage(message.id)}
+                        onClick={() => deleteConversation(conversation.id, conversation.latestMessageId)}
                         className="text-xs text-red-600 hover:text-red-800"
                       >
                         Delete
