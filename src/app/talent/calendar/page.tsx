@@ -4,11 +4,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
+import { Calendar, dateFnsLocalizer, Views, View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, parseISO } from 'date-fns';
 import { Spinner, Alert, AlertTitle, AlertDescription, Button } from '@/components/ui';
 
-// Import calendar styles in your own CSS file
+// Import calendar styles
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 type CalendarEvent = {
@@ -53,14 +53,6 @@ export default function TalentCalendarPage() {
     }
   });
   
-  useEffect(() => {
-    if (authStatus === 'authenticated') {
-      fetchCalendarEvents();
-    } else if (authStatus === 'unauthenticated') {
-      router.push('/sign-in');
-    }
-  }, [authStatus, router, fetchCalendarEvents]);
-  
   const fetchCalendarEvents = useCallback(async () => {
     try {
       setLoading(true);
@@ -88,6 +80,14 @@ export default function TalentCalendarPage() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (authStatus === 'authenticated') {
+      fetchCalendarEvents();
+    } else if (authStatus === 'unauthenticated') {
+      router.push('/sign-in');
+    }
+  }, [authStatus, router, fetchCalendarEvents]);
   
   const handleSelectEvent = (event: CalendarEvent) => {
     setSelectedEvent(event);
@@ -393,10 +393,10 @@ export default function TalentCalendarPage() {
             onSelectSlot={handleSelectSlot}
             selectable
             eventPropGetter={eventStyleGetter}
-            tooltipAccessor={event => `${event.title} - ${event.role || 'Talent'}`}
+            tooltipAccessor={(event: CalendarEvent) => `${event.title} - ${event.role || 'Talent'}`}
             views={['month', 'week', 'day']}
-            onView={(view) => setView(view)}
-            onNavigate={(date) => setDate(date)}
+            onView={(view: View) => setView(view as string)}
+            onNavigate={(date: Date) => setDate(date)}
           />
         </div>
       </div>
