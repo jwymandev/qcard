@@ -15,15 +15,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   const session = await auth();
-  
+
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  
+
   try {
     const castingCallId = params.id;
     const body = await request.json();
-    
+
     // Validate input data
     const result = applicationSchema.safeParse(body);
     if (!result.success) {
@@ -32,32 +32,69 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     const validatedData = result.data;
-    
+
     // Find the user and check if they have a talent profile
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { Profile: true },
+      include: {
+        Profile: true,
+        regionSubscriptions: {
+          where: {
+            status: { in: ['ACTIVE', 'TRIALING'] }
+          },
+          include: {
+            regionPlan: {
+              include: {
+                region: true
+              }
+            }
+          }
+        }
+      },
     });
-    
+
     if (!user?.Profile) {
       return NextResponse.json({ error: "Talent profile not found" }, { status: 404 });
     }
-    
+
     // Check if the casting call exists and is open
     const castingCall = await prisma.castingCall.findUnique({
       where: { id: castingCallId },
+      include: {
+        Location: {
+          include: {
+            region: true
+          }
+        }
+      }
     });
-    
+
     if (!castingCall) {
       return NextResponse.json({ error: "Casting call not found" }, { status: 404 });
     }
-    
+
     if (castingCall.status !== "OPEN") {
       return NextResponse.json({ error: "This casting call is no longer accepting applications" }, { status: 400 });
     }
-    
+
+    // Check if the user has an active subscription for the casting call's region
+    if (castingCall.Location?.region) {
+      const castingCallRegionId = castingCall.Location.region.id;
+      const hasSubscriptionForRegion = user.regionSubscriptions.some(
+        subscription => subscription.regionPlan.region.id === castingCallRegionId
+      );
+
+      if (!hasSubscriptionForRegion) {
+        return NextResponse.json({
+          error: "You need an active subscription for this region to apply",
+          regionId: castingCallRegionId,
+          regionName: castingCall.Location.region.name
+        }, { status: 403 });
+      }
+    }
+
     // Check if already applied
     const existingApplication = await prisma.application.findFirst({
       where: {
@@ -65,15 +102,15 @@ export async function POST(
         profileId: user.Profile.id,
       },
     });
-    
+
     if (existingApplication) {
       return NextResponse.json({ error: "You have already applied to this casting call" }, { status: 400 });
     }
-    
+
     // Create the application
     const applicationId = crypto.randomUUID();
     const now = new Date();
-    
+
     const application = await prisma.application.create({
       data: {
         id: applicationId,
@@ -84,11 +121,11 @@ export async function POST(
         updatedAt: now,
       },
     });
-    
+
     return NextResponse.json(application, { status: 201 });
   } catch (error) {
     console.error("Error applying to casting call:", error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: "Failed to submit application",
       details: error instanceof Error ? error.message : String(error)
     }, { status: 500 });

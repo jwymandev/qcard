@@ -36,6 +36,10 @@ interface CastingCallDetail {
   location?: {
     id: string;
     name: string;
+    region?: {
+      id: string;
+      name: string;
+    };
   };
   skills: {
     id: string;
@@ -71,13 +75,78 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<'loading' | 'active' | 'inactive'>('loading');
+  const [locationSubscribed, setLocationSubscribed] = useState<boolean>(false);
   
   // Fetch casting call details
   useEffect(() => {
     if (status === 'authenticated') {
       fetchCastingCallDetails();
+      checkSubscription();
     }
   }, [status, params.id]);
+
+  // Check subscription status
+  const checkSubscription = async () => {
+    try {
+      // First, check overall subscription status
+      const subscriptionResponse = await fetch('/api/user/subscription');
+
+      if (!subscriptionResponse.ok) {
+        setSubscriptionStatus('inactive');
+        return;
+      }
+
+      const subscriptionData = await subscriptionResponse.json();
+
+      if (!subscriptionData.isSubscribed) {
+        setSubscriptionStatus('inactive');
+        return;
+      }
+
+      // Then check subscribed regions
+      const regionResponse = await fetch('/api/talent/suggested-roles');
+
+      if (regionResponse.ok) {
+        const regionData = await regionResponse.json();
+
+        // Get the casting call to check its location
+        const castingCallResponse = await fetch(`/api/talent/casting-calls/${params.id}`);
+
+        if (castingCallResponse.ok) {
+          const castingCall = await castingCallResponse.json();
+
+          if (castingCall.location) {
+            // Check if the location belongs to a subscribed region
+            const locationResponse = await fetch(`/api/locations/${castingCall.location.id}`);
+
+            if (locationResponse.ok) {
+              const locationData = await locationResponse.json();
+
+              if (locationData.region) {
+                // Check if this region is in the user's subscribed regions
+                const isSubscribedToRegion = regionData.subscribedRegions?.some(
+                  (region: any) => region.id === locationData.region.id
+                );
+
+                setLocationSubscribed(isSubscribedToRegion);
+                setSubscriptionStatus(isSubscribedToRegion ? 'active' : 'inactive');
+                return;
+              }
+            }
+          }
+        }
+
+        // If we couldn't verify the location/region match, default to active if user has any subscriptions
+        setSubscriptionStatus(regionData.subscribedRegions?.length > 0 ? 'active' : 'inactive');
+      } else {
+        setSubscriptionStatus('inactive');
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+      setSubscriptionStatus('inactive');
+    }
+  };
   
   const fetchCastingCallDetails = async () => {
     try {
@@ -103,17 +172,30 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
     }
   };
   
+  // State for handling region subscription information
+  const [regionRequiredForApplication, setRegionRequiredForApplication] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
   // Handle application submission
   const handleSubmit = async () => {
     if (message.trim().length < 10) {
       setSubmitError('Please provide a detailed message explaining why you are a good fit (minimum 10 characters).');
       return;
     }
-    
+
+    // Check subscription status before submitting
+    if (subscriptionStatus !== 'active') {
+      setSubmitError('You need an active subscription to apply for casting opportunities in this region.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       setSubmitError(null);
-      
+      setRegionRequiredForApplication(null);
+
       const response = await fetch(`/api/talent/casting-calls/${params.id}/apply`, {
         method: 'POST',
         headers: {
@@ -121,13 +203,24 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
         },
         body: JSON.stringify({ message }),
       });
-      
+
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        setSubmitError(errorData.error || 'Failed to submit application. Please try again.');
+        // Check if this is a region subscription issue
+        if (response.status === 403 && responseData.regionId && responseData.regionName) {
+          setRegionRequiredForApplication({
+            id: responseData.regionId,
+            name: responseData.regionName
+          });
+          setSubmitError(`You need to subscribe to the ${responseData.regionName} region to apply for this opportunity.`);
+          return;
+        }
+
+        setSubmitError(responseData.error || 'Failed to submit application. Please try again.');
         return;
       }
-      
+
       setSubmitSuccess(true);
       // Refresh data to show the application status
       fetchCastingCallDetails();
@@ -379,7 +472,7 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
         {castingCall.status === 'OPEN' && !castingCall.application && (
           <div className="p-6 border-t">
             <h2 className="text-xl font-semibold mb-4">Apply for this role</h2>
-            
+
             {submitSuccess ? (
               <Alert className="mb-4">
                 <AlertTitle>Application Submitted</AlertTitle>
@@ -393,50 +486,77 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
                   <Alert variant="destructive" className="mb-4">
                     <AlertTitle>Error</AlertTitle>
                     <AlertDescription>{submitError}</AlertDescription>
+
+                    {/* Show subscribe button if region subscription is required */}
+                    {regionRequiredForApplication && (
+                      <div className="mt-4">
+                        <Link
+                          href={`/subscription?regionId=${regionRequiredForApplication.id}`}
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                        >
+                          Subscribe to {regionRequiredForApplication.name}
+                        </Link>
+                      </div>
+                    )}
                   </Alert>
                 )}
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Why are you a good fit for this role?
-                    </label>
-                    <Textarea
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Describe your relevant experience, skills, and why you're interested in this role..."
-                      className="w-full h-32"
-                      disabled={submitting}
-                    />
+
+                {subscriptionStatus === 'inactive' ? (
+                  <div className="bg-gray-50 p-6 rounded-md mb-6">
+                    <h3 className="font-semibold mb-2">Subscription Required</h3>
+                    <p className="mb-4">
+                      You need an active subscription to the {castingCall.location?.name} region to apply for this casting call.
+                    </p>
+                    <Link
+                      href={`/subscription${castingCall.location?.region ? `?regionId=${castingCall.location.region.id}` : ''}`}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                    >
+                      Subscribe Now
+                    </Link>
                   </div>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button disabled={submitting || message.trim().length < 10}>
-                        {submitting ? (
-                          <>
-                            <Spinner className="mr-2 h-4 w-4" />
-                            Submitting...
-                          </>
-                        ) : (
-                          'Submit Application'
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Application</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to apply for this casting call? You won&apos;t be able to edit your application after submission.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleSubmit}>Submit Application</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Why are you a good fit for this role?
+                      </label>
+                      <Textarea
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Describe your relevant experience, skills, and why you're interested in this role..."
+                        className="w-full h-32"
+                        disabled={submitting}
+                      />
+                    </div>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button disabled={submitting || message.trim().length < 10 || subscriptionStatus !== 'active'}>
+                          {submitting ? (
+                            <>
+                              <Spinner className="mr-2 h-4 w-4" />
+                              Submitting...
+                            </>
+                          ) : (
+                            'Submit Application'
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Application</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to apply for this casting call? You won&apos;t be able to edit your application after submission.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleSubmit}>Submit Application</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
               </>
             )}
           </div>

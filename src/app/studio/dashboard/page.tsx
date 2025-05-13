@@ -172,11 +172,24 @@ export default function StudioDashboard() {
           <p className="text-gray-600 mb-3">
             Update your studio information and settings
           </p>
-          <Link 
-            href="/studio/profile" 
+          <Link
+            href="/studio/profile"
             className="text-red-600 hover:text-red-800"
           >
             Edit Profile →
+          </Link>
+        </div>
+
+        <div className="bg-indigo-50 p-4 rounded-md shadow">
+          <h3 className="font-medium text-lg mb-2">Casting Codes</h3>
+          <p className="text-gray-600 mb-3">
+            Create and manage QR casting codes for quick talent submissions
+          </p>
+          <Link
+            href="/studio/casting-codes"
+            className="text-indigo-600 hover:text-indigo-800"
+          >
+            Manage Casting Codes →
           </Link>
         </div>
       </div>

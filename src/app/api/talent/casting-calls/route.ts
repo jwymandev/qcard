@@ -23,25 +23,38 @@ export async function GET(request: Request) {
     
     // Get search parameters from the URL
     const { searchParams } = new URL(request.url);
-    
+
     // Build the where clause for filtering
     const where: any = {
       status: "OPEN", // Only show open casting calls
     };
-    
+
     // Optional filters
     const locationId = searchParams.get('locationId');
     if (locationId) {
       where.locationId = locationId;
     }
-    
+
+    // Filter by region IDs if provided
+    const regionIds = searchParams.get('regionIds');
+    if (regionIds) {
+      const regionIdArray = regionIds.split(',');
+      where.Location = {
+        region: {
+          id: {
+            in: regionIdArray
+          }
+        }
+      };
+    }
+
     const startDate = searchParams.get('startDate');
     if (startDate) {
       where.startDate = {
         gte: new Date(startDate)
       };
     }
-    
+
     const endDate = searchParams.get('endDate');
     if (endDate) {
       where.endDate = {
@@ -53,7 +66,11 @@ export async function GET(request: Request) {
     const castingCalls = await prisma.castingCall.findMany({
       where,
       include: {
-        Location: true,
+        Location: {
+          include: {
+            region: true
+          }
+        },
         Skill: true,
         Studio: {
           select: {
@@ -94,6 +111,10 @@ export async function GET(request: Request) {
       location: call.Location ? {
         id: call.Location.id,
         name: call.Location.name,
+        region: call.Location.region ? {
+          id: call.Location.region.id,
+          name: call.Location.region.name
+        } : null
       } : null,
       skills: call.Skill.map(skill => ({
         id: skill.id,

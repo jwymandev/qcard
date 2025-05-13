@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Badge, Spinner } from '@/components/ui';
+import { Badge, Spinner, Card, Button } from '@/components/ui';
+import SuggestedRoles from '@/components/talent/SuggestedRoles';
 
 // Types for casting calls
 interface CastingCall {
@@ -19,6 +20,10 @@ interface CastingCall {
   location?: {
     id: string;
     name: string;
+    region?: {
+      id: string;
+      name: string;
+    };
   };
   skills: {
     id: string;
@@ -52,14 +57,17 @@ export default function OpportunitiesPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<string>('');
-  
+  // State for region filter
+  const [showSubscribedOnly, setShowSubscribedOnly] = useState(true);
+  const [subscribedRegions, setSubscribedRegions] = useState<string[]>([]);
+
   // Fetch casting calls
   useEffect(() => {
     if (status === 'authenticated') {
       fetchOpportunities();
       fetchLocations();
     }
-  }, [status, selectedLocation, dateFilter]);
+  }, [status, selectedLocation, dateFilter, showSubscribedOnly]);
   
   // Fetch locations for filtering
   const fetchLocations = async () => {
@@ -73,25 +81,45 @@ export default function OpportunitiesPage() {
       console.error('Error fetching locations:', error);
     }
   };
-  
+
+  // Fetch user's subscribed regions
+  const fetchSubscribedRegions = async () => {
+    try {
+      const response = await fetch('/api/talent/suggested-roles');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.subscribedRegions && Array.isArray(data.subscribedRegions)) {
+          setSubscribedRegions(data.subscribedRegions.map((region: any) => region.id));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching subscribed regions:', error);
+    }
+  };
+
   // Fetch casting calls with filters
   const fetchOpportunities = async () => {
     try {
       setLoading(true);
-      
+
+      // Fetch subscribed regions if we don't have them yet
+      if (subscribedRegions.length === 0) {
+        await fetchSubscribedRegions();
+      }
+
       // Build URL with filter parameters
       let url = '/api/talent/casting-calls';
       const params = new URLSearchParams();
-      
+
       if (selectedLocation) {
         params.append('locationId', selectedLocation);
       }
-      
+
       // Handle date filtering
       if (dateFilter) {
         const today = new Date();
         let filterDate = new Date();
-        
+
         switch (dateFilter) {
           case '7days':
             filterDate.setDate(today.getDate() + 7);
@@ -103,17 +131,22 @@ export default function OpportunitiesPage() {
             filterDate.setDate(today.getDate() + 90);
             break;
         }
-        
+
         params.append('startDate', today.toISOString());
         params.append('endDate', filterDate.toISOString());
       }
-      
+
+      // Add filter for region subscriptions
+      if (showSubscribedOnly && subscribedRegions.length > 0) {
+        params.append('regionIds', subscribedRegions.join(','));
+      }
+
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
-      
+
       const response = await fetch(url);
-      
+
       if (response.ok) {
         const data = await response.json();
         setOpportunities(data);
@@ -171,14 +204,35 @@ export default function OpportunitiesPage() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Casting Opportunities</h1>
-      
-      <div className="mb-6 flex justify-between items-center">
+
+      {/* Suggested Roles Section */}
+      <Card className="p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">Recommended For You</h2>
+        <SuggestedRoles />
+      </Card>
+
+      <h2 className="text-xl font-semibold mb-4">All Opportunities</h2>
+
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <span className="text-gray-600">{opportunities.length} opportunities found</span>
         </div>
-        
-        <div className="flex space-x-2">
-          <select 
+
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="subscribedOnly"
+              checked={showSubscribedOnly}
+              onChange={(e) => setShowSubscribedOnly(e.target.checked)}
+              className="mr-2 h-4 w-4"
+            />
+            <label htmlFor="subscribedOnly" className="text-sm text-gray-700">
+              Show subscribed regions only
+            </label>
+          </div>
+
+          <select
             className="border rounded px-3 py-1"
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
@@ -190,8 +244,8 @@ export default function OpportunitiesPage() {
               </option>
             ))}
           </select>
-          
-          <select 
+
+          <select
             className="border rounded px-3 py-1"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
@@ -234,16 +288,31 @@ export default function OpportunitiesPage() {
                       {opportunity.compensation}
                     </div>
                   )}
-                  {opportunity.application && (
-                    <Badge className="mt-1" variant={
-                      opportunity.application.status === "APPROVED" ? "success" :
-                      opportunity.application.status === "REJECTED" ? "destructive" :
-                      "outline"
-                    }>
-                      {opportunity.application.status === "PENDING" ? "Applied" : 
-                       opportunity.application.status === "APPROVED" ? "Approved" : "Rejected"}
-                    </Badge>
-                  )}
+                  <div className="flex gap-2 mt-1">
+                    {opportunity.location && opportunity.location.region && (
+                      subscribedRegions.includes(opportunity.location.region.id) ? (
+                        <Badge variant="success">
+                          ✓ {opportunity.location.region.name}
+                        </Badge>
+                      ) : (
+                        <Link href={`/subscription?regionId=${opportunity.location.region.id}`}>
+                          <Badge variant="secondary" className="cursor-pointer hover:bg-gray-300">
+                            Subscribe to {opportunity.location.region.name}
+                          </Badge>
+                        </Link>
+                      )
+                    )}
+                    {opportunity.application && (
+                      <Badge variant={
+                        opportunity.application.status === "APPROVED" ? "success" :
+                        opportunity.application.status === "REJECTED" ? "destructive" :
+                        "outline"
+                      }>
+                        {opportunity.application.status === "PENDING" ? "Applied" :
+                         opportunity.application.status === "APPROVED" ? "Approved" : "Rejected"}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
               

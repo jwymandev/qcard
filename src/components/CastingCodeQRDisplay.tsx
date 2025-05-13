@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Spinner, Card, Alert, AlertDescription } from '@/components/ui';
+import QRCode from 'qrcode';
 
 interface CastingCodeQRDisplayProps {
   castingCode: string;
@@ -15,6 +16,42 @@ export default function CastingCodeQRDisplay({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+  const [usedDirectGeneration, setUsedDirectGeneration] = useState<boolean>(false);
+
+  // Generate the application URL directly
+  const generateApplicationUrl = () => {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin || 'https://qcard.app';
+    return `${baseUrl}/apply/${castingCode}`;
+  };
+
+  // Direct QR code generation function (fallback)
+  const generateQRCodeDirectly = async () => {
+    if (!castingCode) return false;
+
+    try {
+      console.log("Generating QR code directly for code:", castingCode);
+      const appUrl = generateApplicationUrl();
+      console.log("Application URL for direct generation:", appUrl);
+
+      const dataUrl = await QRCode.toDataURL(appUrl, {
+        width: size,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+      });
+
+      console.log("Direct QR code generation successful");
+      setQrCodeData(dataUrl);
+      setApplicationUrl(appUrl);
+      setUsedDirectGeneration(true);
+      return true;
+    } catch (err) {
+      console.error("Error in direct QR code generation:", err);
+      return false;
+    }
+  };
 
   useEffect(() => {
     if (!castingCode) return;
@@ -24,22 +61,52 @@ export default function CastingCodeQRDisplay({
         setLoading(true);
         setError(null);
 
+        // Start with direct generation for immediate display
+        const directSuccess = await generateQRCodeDirectly();
+        if (directSuccess) {
+          console.log("Successfully generated QR code directly as first option");
+          return;
+        }
+
+        console.log("Direct generation didn't work, falling back to API");
+        console.log("Fetching QR code for casting code:", castingCode);
+
         // Make API call to get QR code
         const response = await fetch(
           `/api/studio/casting-codes/qrcode?code=${castingCode}&size=${size}`
         );
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to generate QR code');
+        console.log("QR code API response status:", response.status);
+
+        // Get the response body
+        const responseText = await response.text();
+
+        // Try to parse as JSON
+        let data;
+        try {
+          data = JSON.parse(responseText);
+          console.log("QR code API response data:", data);
+        } catch (e) {
+          console.error("Failed to parse QR code response as JSON:", responseText);
+          throw new Error("Failed to parse QR code response");
         }
 
-        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to generate QR code');
+        }
+
+        if (!data.qrCode) {
+          console.error("No QR code data in response:", data);
+          throw new Error("No QR code generated");
+        }
+
         setQrCodeData(data.qrCode);
         setApplicationUrl(data.applicationUrl);
+        console.log("QR code and application URL set successfully");
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
         console.error('Error fetching QR code:', err);
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -76,17 +143,17 @@ export default function CastingCodeQRDisplay({
 
   return (
     <Card className="p-6 flex flex-col items-center">
-      {qrCodeData && (
+      {qrCodeData ? (
         <div className="text-center space-y-4">
-          <div className="border p-4 inline-block">
-            <img 
-              src={qrCodeData} 
+          <div className="border p-4 inline-block bg-white">
+            <img
+              src={qrCodeData}
               alt={`QR Code for casting code ${castingCode}`}
               width={size}
               height={size}
             />
           </div>
-          
+
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Scan this QR code or share the link below:</p>
             <div className="flex items-center space-x-2">
@@ -105,10 +172,20 @@ export default function CastingCodeQRDisplay({
               </Button>
             </div>
           </div>
-          
+
           <div className="pt-2 text-xs text-muted-foreground">
             <p>Code: <span className="font-bold tracking-wider">{castingCode}</span></p>
           </div>
+        </div>
+      ) : error ? (
+        <Alert variant="destructive" className="w-full mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : (
+        <div className="text-center py-4">
+          <p className="text-muted-foreground">
+            No QR code data available. Please try again or check the console for errors.
+          </p>
         </div>
       )}
     </Card>

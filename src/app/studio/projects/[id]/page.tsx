@@ -4,6 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import {
+  Card,
+  Badge,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui';
+import TalentRequirements, { TalentRequirementsFormValues, TalentRole } from '@/components/TalentRequirements';
 
 type Project = {
   id: string;
@@ -16,6 +25,7 @@ type Project = {
   updatedAt: string;
   members?: any[];
   castingCalls?: any[];
+  talentRequirements?: TalentRole[];
 };
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
@@ -26,6 +36,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [projectTalentRoles, setProjectTalentRoles] = useState<TalentRole[]>([]);
   
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -38,17 +49,29 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const fetchProject = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/studio/projects/${projectId}`);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
+      // Fetch both project and talent requirements in parallel
+      const [projectResponse, talentRequirementsResponse] = await Promise.all([
+        fetch(`/api/studio/projects/${projectId}`),
+        fetch(`/api/studio/projects/${projectId}/talent-requirements`)
+      ]);
+
+      if (!projectResponse.ok) {
+        const errorData = await projectResponse.json();
         console.error('Error response:', errorData);
-        
         throw new Error(errorData.error || 'Failed to fetch project');
       }
-      
-      const data = await response.json();
-      setProject(data);
+
+      const projectData = await projectResponse.json();
+      setProject(projectData);
+
+      // Handle talent requirements separately to avoid failing if that API isn't ready
+      if (talentRequirementsResponse.ok) {
+        const talentRequirementsData = await talentRequirementsResponse.json();
+        setProjectTalentRoles(talentRequirementsData);
+      } else {
+        console.warn('Could not fetch talent requirements, may not be implemented yet');
+        setProjectTalentRoles([]);
+      }
     } catch (error) {
       console.error('Error fetching project:', error);
       setError('Failed to load project. Please try again later.');
@@ -103,6 +126,67 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     );
   }
   
+  // Save talent role requirements
+  const handleSaveTalentRole = async (roleData: TalentRequirementsFormValues & { survey?: any, id?: string }) => {
+    try {
+      // Check if we're updating or creating
+      const isUpdating = roleData.id && projectTalentRoles.some(role => 'id' in role && role.id === roleData.id);
+
+      let url = `/api/studio/projects/${projectId}/talent-requirements`;
+      let method = 'POST';
+
+      if (isUpdating && roleData.id) {
+        url += `/${roleData.id}`;
+        method = 'PATCH';
+      }
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(roleData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save talent requirements');
+      }
+
+      // Refresh talent requirements
+      const refreshResponse = await fetch(`/api/studio/projects/${projectId}/talent-requirements`);
+      if (refreshResponse.ok) {
+        const updatedRoles = await refreshResponse.json();
+        setProjectTalentRoles(updatedRoles);
+      }
+
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error saving talent role:', error);
+      return Promise.reject(error);
+    }
+  };
+
+  // Delete a talent role
+  const handleDeleteTalentRole = async (roleId: string) => {
+    try {
+      const response = await fetch(`/api/studio/projects/${projectId}/talent-requirements/${roleId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete talent requirement');
+      }
+
+      // Update local state
+      setProjectTalentRoles(prev => prev.filter(role => role.id !== roleId));
+
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error deleting talent role:', error);
+      return Promise.reject(error);
+    }
+  };
+
   // Format dates for display
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not set';
@@ -194,6 +278,12 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                   Create Casting Call
                 </Link>
                 <Link
+                  href={`/studio/projects/${projectId}/submissions`}
+                  className="block w-full px-4 py-2 bg-amber-600 text-white rounded text-center hover:bg-amber-700"
+                >
+                  View Submissions
+                </Link>
+                <Link
                   href={`/studio/talent-invitation?projectId=${projectId}`}
                   className="block w-full px-4 py-2 bg-indigo-600 text-white rounded text-center hover:bg-indigo-700"
                 >
@@ -203,25 +293,121 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             </div>
           </div>
           
-          {/* Project Tabs - can be expanded later */}
+          {/* Project Tabs */}
           <div className="border-t border-gray-200 pt-6">
-            <div className="flex border-b border-gray-200">
-              <button className="px-4 py-2 border-b-2 border-blue-500 text-blue-600 font-medium">
-                Overview
-              </button>
-              <button className="px-4 py-2 text-gray-500 font-medium">
-                Team Members
-              </button>
-              <button className="px-4 py-2 text-gray-500 font-medium">
-                Casting Calls
-              </button>
-            </div>
-            
-            <div className="py-6">
-              <div className="text-center text-gray-500">
-                Project details and team management features coming soon.
-              </div>
-            </div>
+            <Tabs defaultValue="overview" value="overview">
+              <TabsList className="border-b border-gray-200 w-full justify-start">
+                <TabsTrigger
+                  value="overview"
+                  className="px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 font-medium"
+                >
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="castingRequirements"
+                  className="px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 font-medium"
+                >
+                  Casting Requirements
+                </TabsTrigger>
+                <TabsTrigger
+                  value="castingCalls"
+                  className="px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 font-medium"
+                >
+                  Casting Calls
+                </TabsTrigger>
+                <TabsTrigger
+                  value="submissions"
+                  className="px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 font-medium"
+                >
+                  Submissions
+                </TabsTrigger>
+                <TabsTrigger
+                  value="team"
+                  className="px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 font-medium"
+                >
+                  Team Members
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="overview" className="py-6">
+                <div className="text-center text-gray-500">
+                  Project overview and details coming soon.
+                </div>
+              </TabsContent>
+
+              <TabsContent value="castingRequirements" className="py-6">
+                <TalentRequirements
+                  projectId={projectId}
+                  roles={projectTalentRoles}
+                  onSave={handleSaveTalentRole}
+                  onDelete={handleDeleteTalentRole}
+                />
+              </TabsContent>
+
+              <TabsContent value="castingCalls" className="py-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Casting Calls</h3>
+                  <Link
+                    href={`/studio/projects/${projectId}/casting/new`}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Create Casting Call
+                  </Link>
+                </div>
+                {project.castingCalls && project.castingCalls.length > 0 ? (
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                    {project.castingCalls.map((call: any) => (
+                      <Card key={call.id} className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-semibold">{call.title}</h4>
+                          <Badge variant={call.status === 'OPEN' ? 'default' : 'secondary'}>
+                            {call.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{call.description}</p>
+                        <Link
+                          href={`/studio/casting-calls/${call.id}`}
+                          className="text-blue-600 hover:underline text-sm"
+                        >
+                          View Details →
+                        </Link>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <Card className="p-6 text-center">
+                    <p className="text-gray-500">No casting calls created for this project yet.</p>
+                    <Link
+                      href={`/studio/projects/${projectId}/casting/new`}
+                      className="text-blue-600 hover:underline mt-2 inline-block"
+                    >
+                      Create your first casting call
+                    </Link>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="submissions" className="py-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Submissions</h3>
+                  <Link
+                    href={`/studio/projects/${projectId}/submissions`}
+                    className="px-4 py-2 border border-blue-600 text-blue-600 rounded hover:bg-blue-50"
+                  >
+                    View All Submissions
+                  </Link>
+                </div>
+                <Card className="p-6 text-center">
+                  <p className="text-gray-500">View all application and casting code submissions for this project.</p>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="team" className="py-6">
+                <div className="text-center text-gray-500">
+                  Team management features coming soon.
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>

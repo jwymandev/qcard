@@ -100,14 +100,18 @@ export default function CastingCodeManager({ projects }: CastingCodeManagerProps
     try {
       setLoading(true);
       setError(null);
-      
+
+      console.log("Fetching casting codes");
       const response = await fetch('/api/studio/casting-codes');
-      
+
+      console.log("Fetch response status:", response.status);
+
       if (!response.ok) {
         throw new Error('Failed to fetch casting codes');
       }
-      
+
       const data = await response.json();
+      console.log("Fetched casting codes:", data);
       setCastingCodes(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -127,15 +131,23 @@ export default function CastingCodeManager({ projects }: CastingCodeManagerProps
     try {
       setSubmitLoading(true);
       setError(null);
-      
+
+      console.log("Creating casting code with data:", data);
+
       // Include survey fields in the submission if they exist
+      // Create a default empty survey structure if none exists
+      const emptySurveyStructure = { fields: [] };
+
       const requestBody = {
         ...data,
         projectId: data.projectId && data.projectId !== '' ? data.projectId : undefined,
         expiresAt: data.expiresAt && data.expiresAt !== '' ? data.expiresAt : undefined,
-        surveyFields: surveyFields,
+        surveyFields: surveyFields || emptySurveyStructure,
       };
-      
+
+      console.log("Prepared request body:", requestBody);
+
+      console.log("Sending POST request to /api/studio/casting-codes");
       const response = await fetch('/api/studio/casting-codes', {
         method: 'POST',
         headers: {
@@ -143,22 +155,26 @@ export default function CastingCodeManager({ projects }: CastingCodeManagerProps
         },
         body: JSON.stringify(requestBody),
       });
-      
+
+      console.log("Response status:", response.status);
+      const responseBody = await response.json();
+      console.log("Response body:", responseBody);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create casting code');
+        throw new Error(responseBody.error || 'Failed to create casting code');
       }
-      
+
       // Reset form and survey fields
       form.reset();
       setSurveyFields(null);
       setCreateMode(false);
-      
+
       // Refresh the casting codes list
+      console.log("Successfully created casting code, refreshing list");
       fetchCastingCodes();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
       console.error('Error creating casting code:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setSubmitLoading(false);
     }
@@ -419,6 +435,12 @@ export default function CastingCodeManager({ projects }: CastingCodeManagerProps
                   </div>
                 </form>
               </Form>
+
+              {error && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm">
+                  <strong>Error:</strong> {error}
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="survey">
@@ -477,10 +499,15 @@ export default function CastingCodeManager({ projects }: CastingCodeManagerProps
                 >
                   Back to Details
                 </Button>
-                
+
                 <Button
                   onClick={() => {
-                    form.handleSubmit(onSubmit)();
+                    // Return to details tab and submit from there
+                    setActiveTab("details");
+                    // Give time for tab switch before submitting
+                    setTimeout(() => {
+                      form.handleSubmit(onSubmit)();
+                    }, 100);
                   }}
                   disabled={submitLoading}
                 >
@@ -539,13 +566,14 @@ export default function CastingCodeManager({ projects }: CastingCodeManagerProps
                       </PopoverTrigger>
                       <PopoverContent className="w-40 p-0" align="end">
                         <div className="flex flex-col">
-                          <Button 
-                            variant="ghost" 
-                            className="justify-start"
-                            onClick={() => openQRModal(code)}
-                          >
-                            Show QR Code
-                          </Button>
+                          <Link href={`/studio/casting-codes/qr/${code.code}`}>
+                            <Button
+                              variant="ghost"
+                              className="justify-start w-full text-left"
+                            >
+                              Show QR Code
+                            </Button>
+                          </Link>
                           <Link href={`/studio/casting-codes/${code.id}/submissions`}>
                             <Button 
                               variant="ghost" 
@@ -581,18 +609,30 @@ export default function CastingCodeManager({ projects }: CastingCodeManagerProps
                   </div>
                   
                   <div className="mt-4 space-y-2">
-                    <p className="text-xs">
-                      <span className="font-mono bg-gray-100 px-1 py-0.5 rounded">
-                        {code.code}
-                      </span>
-                    </p>
-                    
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs">
+                        <span className="font-mono bg-gray-100 px-1 py-0.5 rounded">
+                          {code.code}
+                        </span>
+                      </p>
+                      <Link href={`/studio/casting-codes/qr/${code.code}`}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                        >
+                          <span className="mr-1">QR</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><rect width="7" height="7" x="7" y="7" rx="1"></rect><path d="M10 17v-2"></path><path d="M14 17v-6h2"></path><path d="M17 17v-6"></path><path d="M17 11h-3"></path></svg>
+                        </Button>
+                      </Link>
+                    </div>
+
                     {code.description && (
                       <p className="text-sm text-muted-foreground">
                         {code.description}
                       </p>
                     )}
-                    
+
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>
                         Created: {new Date(code.createdAt).toLocaleDateString()}

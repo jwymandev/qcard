@@ -8,7 +8,7 @@ import {
   AlertDialogDescription,
   Button
 } from '@/components/ui';
-import CastingCodeQRDisplay from './CastingCodeQRDisplay';
+import SimpleCastingCodeQRDisplay from './SimpleCastingCodeQRDisplay';
 
 interface CastingCodeQRModalProps {
   isOpen: boolean;
@@ -31,6 +31,9 @@ export default function CastingCodeQRModal({
 
   if (!castingCode) return null;
 
+  // Log the casting code for debugging purposes
+  console.log("Displaying QR modal for casting code:", castingCode);
+
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent className="sm:max-w-md">
@@ -42,24 +45,36 @@ export default function CastingCodeQRModal({
         </AlertDialogHeader>
 
         <div className="py-4">
-          <CastingCodeQRDisplay castingCode={castingCode.code} />
-          
-          <div className="mt-4 text-center">
-            <h3 className="font-semibold">{castingCode.name}</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Casting Code: <span className="font-mono">{castingCode.code}</span>
-            </p>
-          </div>
+          {castingCode && castingCode.code ? (
+            <>
+              <SimpleCastingCodeQRDisplay castingCode={castingCode.code} />
+
+              <div className="mt-4 text-center">
+                <h3 className="font-semibold">{castingCode.name}</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Casting Code: <span className="font-mono">{castingCode.code}</span>
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-yellow-800">
+                Could not display QR code. Missing casting code information.
+              </p>
+            </div>
+          )}
         </div>
 
         <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={handlePrint}
-            className="sm:w-auto w-full"
-          >
-            Print QR Code
-          </Button>
+          {castingCode && castingCode.code && (
+            <Button
+              variant="outline"
+              onClick={handlePrint}
+              className="sm:w-auto w-full"
+            >
+              Print QR Code
+            </Button>
+          )}
           <Button onClick={onClose} className="sm:w-auto w-full">
             Close
           </Button>

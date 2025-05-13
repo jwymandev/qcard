@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AutoInitProfile from '../init-profile-auto';
+import SuggestedRoles from '@/components/talent/SuggestedRoles';
 
 export default function TalentDashboard() {
   const { data: session, status } = useSession();
@@ -119,7 +120,12 @@ export default function TalentDashboard() {
           Manage your profile, applications, and projects from this dashboard.
         </p>
       </div>
-      
+
+      {/* Suggested Roles Section */}
+      <div className="bg-white shadow rounded-lg p-6 mb-6">
+        <SuggestedRoles />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
         <div className="bg-blue-50 p-4 rounded-md shadow">
           <h3 className="font-medium text-lg mb-2">Your Profile</h3>
@@ -139,8 +145,8 @@ export default function TalentDashboard() {
           <p className="text-gray-600 mb-3">
             Browse available casting calls
           </p>
-          <Link 
-            href="/talent/opportunities" 
+          <Link
+            href="/opportunities"
             className="text-green-600 hover:text-green-800"
           >
             View Opportunities →

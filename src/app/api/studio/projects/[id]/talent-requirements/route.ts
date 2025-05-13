@@ -1,0 +1,132 @@
+import { prisma } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+
+// GET /api/studio/projects/[id]/talent-requirements - Get talent requirements for a project
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const session = await auth();
+  
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  try {
+    const projectId = params.id;
+    
+    // Find the user and their tenant
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true },
+    });
+    
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
+      return NextResponse.json({ error: "Only studio accounts can manage talent requirements" }, { status: 403 });
+    }
+    
+    // Find the studio associated with this tenant
+    const studio = await prisma.studio.findFirst({
+      where: { tenantId: user.Tenant.id },
+    });
+    
+    if (!studio) {
+      return NextResponse.json({ error: "Studio not found" }, { status: 404 });
+    }
+    
+    // Check if the project belongs to this studio
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+    });
+    
+    if (!project || project.studioId !== studio.id) {
+      return NextResponse.json({ error: "Project not found or unauthorized" }, { status: 404 });
+    }
+    
+    // Get all talent requirements for this project
+    const talentRequirements = await prisma.talentRequirement.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    return NextResponse.json(talentRequirements);
+  } catch (error) {
+    console.error("Error fetching talent requirements:", error);
+    return NextResponse.json({ 
+      error: "Failed to fetch talent requirements",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
+  }
+}
+
+// POST /api/studio/projects/[id]/talent-requirements - Create a new talent requirement
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const session = await auth();
+  
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  try {
+    const projectId = params.id;
+    const data = await request.json();
+    
+    // Find the user and their tenant
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { Tenant: true },
+    });
+    
+    if (!user?.Tenant || user.Tenant.type !== "STUDIO") {
+      return NextResponse.json({ error: "Only studio accounts can manage talent requirements" }, { status: 403 });
+    }
+    
+    // Find the studio associated with this tenant
+    const studio = await prisma.studio.findFirst({
+      where: { tenantId: user.Tenant.id },
+    });
+    
+    if (!studio) {
+      return NextResponse.json({ error: "Studio not found" }, { status: 404 });
+    }
+    
+    // Check if the project belongs to this studio
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+    });
+    
+    if (!project || project.studioId !== studio.id) {
+      return NextResponse.json({ error: "Project not found or unauthorized" }, { status: 404 });
+    }
+    
+    // Create a new talent requirement
+    const talentRequirement = await prisma.talentRequirement.create({
+      data: {
+        title: data.title,
+        description: data.description || null,
+        isActive: data.isActive === false ? false : true,
+        gender: data.gender || null,
+        minAge: data.minAge || null,
+        maxAge: data.maxAge || null,
+        ethnicity: data.ethnicity || null,
+        height: data.height || null,
+        skills: data.skills || null,
+        otherRequirements: data.otherRequirements || null,
+        survey: data.survey || null,
+        projectId,
+      },
+    });
+    
+    return NextResponse.json(talentRequirement);
+  } catch (error) {
+    console.error("Error creating talent requirement:", error);
+    return NextResponse.json({ 
+      error: "Failed to create talent requirement",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
+  }
+}

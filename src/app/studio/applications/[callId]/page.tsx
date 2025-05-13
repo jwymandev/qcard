@@ -262,9 +262,14 @@ export default function ApplicationsPage({ params }: { params: { callId: string 
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-        <Link href="/studio/casting-calls" className="text-blue-600 hover:text-blue-800">
-          Back to Casting Calls
-        </Link>
+        <div className="flex space-x-4">
+          <Link href="/studio/applications" className="text-blue-600 hover:text-blue-800">
+            Back to Applications
+          </Link>
+          <Link href="/studio/casting-calls" className="text-blue-600 hover:text-blue-800">
+            Back to Casting Calls
+          </Link>
+        </div>
       </div>
     );
   }
@@ -281,6 +286,12 @@ export default function ApplicationsPage({ params }: { params: { callId: string 
           )}
         </div>
         <div className="flex space-x-3">
+          <Link
+            href="/studio/applications"
+            className="px-4 py-2 text-blue-600 border border-blue-600 rounded hover:bg-blue-50"
+          >
+            Back to Applications
+          </Link>
           <Link
             href={`/studio/casting-calls/${castingCallId}`}
             className="px-4 py-2 text-blue-600 border border-blue-600 rounded hover:bg-blue-50"
