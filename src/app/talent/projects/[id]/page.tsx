@@ -268,9 +268,15 @@ export default function TalentProjectDetailPage({ params }: { params: { id: stri
   
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
+      <div className="mb-6 flex justify-between">
         <Link href="/talent/projects" className="text-blue-600 hover:text-blue-800">
           ← Back to Projects
+        </Link>
+        <Link
+          href="/talent/calendar"
+          className="text-blue-600 hover:text-blue-800 flex items-center"
+        >
+          <span className="mr-1">📅</span> View Calendar
         </Link>
       </div>
       

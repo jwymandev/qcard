@@ -164,16 +164,28 @@ export default function Navigation() {
                 </Link>
               )}
               {session?.user?.tenantType === 'TALENT' && (
-                <Link
-                  href="/talent/questionnaires"
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                    pathname.startsWith('/talent/questionnaires')
-                      ? 'border-blue-500 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                  }`}
-                >
-                  Questionnaires
-                </Link>
+                <>
+                  <Link
+                    href="/talent/questionnaires"
+                    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                      pathname.startsWith('/talent/questionnaires')
+                        ? 'border-blue-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                    }`}
+                  >
+                    Questionnaires
+                  </Link>
+                  <Link
+                    href="/talent/calendar"
+                    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                      pathname.startsWith('/talent/calendar')
+                        ? 'border-blue-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                    }`}
+                  >
+                    Calendar
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -421,16 +433,28 @@ export default function Navigation() {
               </Link>
             )}
             {session?.user?.tenantType === 'TALENT' && (
-              <Link
-                href="/talent/questionnaires"
-                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
-                  pathname.startsWith('/talent/questionnaires')
-                    ? 'bg-blue-50 border-blue-500 text-blue-700'
-                    : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                Questionnaires
-              </Link>
+              <>
+                <Link
+                  href="/talent/questionnaires"
+                  className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                    pathname.startsWith('/talent/questionnaires')
+                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
+                  }`}
+                >
+                  Questionnaires
+                </Link>
+                <Link
+                  href="/talent/calendar"
+                  className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                    pathname.startsWith('/talent/calendar')
+                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
+                  }`}
+                >
+                  Calendar
+                </Link>
+              </>
             )}
           </div>
           <div className="pt-4 pb-3 border-t border-gray-200">
