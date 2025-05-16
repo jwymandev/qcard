@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { cookies } from 'next/headers';
 import { handleSubscriptionCheck } from './lib/subscription-middleware';
+import { ensureHttps } from './lib/utils';
 
 export async function middleware(request: NextRequest) {
   // Get the pathname of the request
@@ -25,7 +26,17 @@ export async function middleware(request: NextRequest) {
                     path === '/role-redirect' ||
                     path.startsWith('/studio/') || 
                     path.startsWith('/talent/') ||
-                    path.startsWith('/admin/');
+                    path.startsWith('/admin/') ||
+                    path === '/api/debug-ssl';
+  
+  // Special debug for SSL issues - log detailed information
+  if (path === '/api/debug-ssl') {
+    const proto = request.headers.get('x-forwarded-proto') || 'none';
+    const scheme = request.nextUrl.protocol;
+    console.log(`SSL Debug - Request Protocol: ${scheme}, X-Forwarded-Proto: ${proto}`);
+    console.log(`SSL Debug - Request URL: ${request.url}`);
+    console.log(`SSL Debug - Is Secure: ${request.nextUrl.protocol === 'https:'}`);
+  }
   
   if (isKeyPath) {
     console.log(`Middleware processing path: ${path}`);
@@ -64,7 +75,7 @@ export async function middleware(request: NextRequest) {
       req: request,
       cookieName: 'next-auth.session-token',
       secret: process.env.NEXTAUTH_SECRET || "development-secret",
-      secureCookie: false,
+      secureCookie: true, // Enforce secure cookies for HTTPS
     };
     
     token = await getToken(tokenOptions);
@@ -137,7 +148,11 @@ export async function middleware(request: NextRequest) {
     // Check if we need to initialize studio (this will only run once per user)
     try {
       const checkStudioUrl = new URL('/api/studio/check-access', request.url);
-      const checkResponse = await fetch(checkStudioUrl.toString(), {
+      // Ensure the URL uses HTTPS
+      const secureUrl = ensureHttps(checkStudioUrl, request);
+      console.log(`Making secure request to: ${secureUrl}`);
+      
+      const checkResponse = await fetch(secureUrl, {
         headers: { cookie: request.headers.get('cookie') || '' },
       });
       

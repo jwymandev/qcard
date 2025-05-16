@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { ensureHttps } from './lib/utils';
 
 /**
  * List of paths that require an active subscription
@@ -61,8 +62,12 @@ export async function checkSubscriptionAccess(request: NextRequest): Promise<Nex
   }
   
   try {
-    // Make a request to check subscription status
-    const subscriptionCheck = await fetch(new URL('/api/user/subscription', request.url), {
+    // Make a request to check subscription status with HTTPS
+    const subscriptionUrl = new URL('/api/user/subscription', request.url);
+    const secureUrl = ensureHttps(subscriptionUrl, request);
+    console.log(`Making secure subscription request to: ${secureUrl}`);
+    
+    const subscriptionCheck = await fetch(secureUrl, {
       headers: {
         cookie: request.headers.get('cookie') || '',
       },
@@ -95,15 +100,16 @@ export async function checkSubscriptionAccess(request: NextRequest): Promise<Nex
     if (premiumFeatureKey && !isSubscribed) {
       const featureKey = PREMIUM_FEATURE_PATHS[premiumFeatureKey];
       
-      // Make a request to check feature access
-      const featureCheck = await fetch(
-        new URL(`/api/user/features/${featureKey}`, request.url),
-        {
-          headers: {
-            cookie: request.headers.get('cookie') || '',
-          },
-        }
-      );
+      // Make a request to check feature access with HTTPS
+      const featureUrl = new URL(`/api/user/features/${featureKey}`, request.url);
+      const secureFeatureUrl = ensureHttps(featureUrl, request);
+      console.log(`Making secure feature check request to: ${secureFeatureUrl}`);
+      
+      const featureCheck = await fetch(secureFeatureUrl, {
+        headers: {
+          cookie: request.headers.get('cookie') || '',
+        },
+      });
       
       if (featureCheck.ok) {
         const { hasAccess } = await featureCheck.json();

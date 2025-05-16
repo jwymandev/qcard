@@ -39,7 +39,7 @@ export const {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: false, // Allow non-HTTPS for development
+        secure: true, // Enforce HTTPS for session token
         domain: undefined, // Don't set domain to avoid issues
       },
     },
@@ -48,7 +48,7 @@ export const {
       options: {
         sameSite: "lax",
         path: "/",
-        secure: false,
+        secure: true, // Enforce HTTPS for callback URL
         domain: undefined, // Don't set domain to avoid issues
       },
     },
@@ -58,7 +58,7 @@ export const {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: false,
+        secure: true, // Enforce HTTPS for CSRF token
         domain: undefined, // Don't set domain to avoid issues
       },
     },

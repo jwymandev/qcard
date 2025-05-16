@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { ensureHttps } from './utils';
 
 // Paths that require a subscription
 const SUBSCRIPTION_PROTECTED_PATHS = [
