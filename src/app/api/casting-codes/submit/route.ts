@@ -64,6 +64,7 @@ export async function POST(request: Request) {
           studioId: castingCode.studioId,
         },
       });
+      console.log('Existing actor found by email:', externalActor?.id);
     }
     
     // If not found by email, try to match by name
@@ -75,23 +76,32 @@ export async function POST(request: Request) {
           studioId: castingCode.studioId,
         },
       });
+      console.log('Existing actor found by name:', externalActor?.id);
     }
     
     // If we still don't have an external actor, create one
     if (!externalActor) {
-      externalActor = await prisma.externalActor.create({
-        data: {
-          firstName: validatedData.firstName,
-          lastName: validatedData.lastName,
-          email: validatedData.email,
-          phoneNumber: validatedData.phoneNumber,
-          studioId: castingCode.studioId,
-          status: 'ACTIVE',
-          updatedAt: new Date(),
-        },
-      });
+      console.log('Creating new external actor for studio:', castingCode.studioId);
+      try {
+        externalActor = await prisma.externalActor.create({
+          data: {
+            firstName: validatedData.firstName,
+            lastName: validatedData.lastName,
+            email: validatedData.email,
+            phoneNumber: validatedData.phoneNumber,
+            studioId: castingCode.studioId,
+            status: 'ACTIVE',
+            updatedAt: new Date(),
+          },
+        });
+        console.log('New external actor created:', externalActor.id);
+      } catch (error) {
+        console.error('Error creating external actor:', error);
+        throw error;
+      }
     } else {
       // Update existing external actor with any new information
+      console.log('Updating existing external actor:', externalActor.id);
       externalActor = await prisma.externalActor.update({
         where: { id: externalActor.id },
         data: {
@@ -105,19 +115,27 @@ export async function POST(request: Request) {
     }
     
     // Create the casting submission
-    const submission = await prisma.castingSubmission.create({
-      data: {
-        firstName: validatedData.firstName,
-        lastName: validatedData.lastName,
-        email: validatedData.email,
-        phoneNumber: validatedData.phoneNumber,
-        message: validatedData.message,
-        castingCodeId: castingCode.id,
-        externalActorId: externalActor.id,
-        status: 'PENDING',
-        updatedAt: new Date(),
-      },
-    });
+    console.log('Creating casting submission with external actor ID:', externalActor.id);
+    let submission;
+    try {
+      submission = await prisma.castingSubmission.create({
+        data: {
+          firstName: validatedData.firstName,
+          lastName: validatedData.lastName,
+          email: validatedData.email,
+          phoneNumber: validatedData.phoneNumber,
+          message: validatedData.message,
+          castingCodeId: castingCode.id,
+          externalActorId: externalActor.id,
+          status: 'PENDING',
+          updatedAt: new Date(),
+        },
+      });
+      console.log('Created submission:', submission.id);
+    } catch (error) {
+      console.error('Error creating submission:', error);
+      throw error;
+    }
     
     // Process survey responses if they exist
     if (validatedData.surveyResponses && Object.keys(validatedData.surveyResponses).length > 0 && castingCode.surveyFields) {
@@ -133,30 +151,41 @@ export async function POST(request: Request) {
     
     // Add this external actor to the project if there is one
     if (castingCode.projectId) {
-      // Check if the external actor is already in this project
-      const existingProjectAssociation = await prisma.externalActorProject.findFirst({
-        where: {
-          externalActorId: externalActor.id,
-          projectId: castingCode.projectId,
-        },
-      });
-      
-      if (!existingProjectAssociation) {
-        // Add the external actor to the project
-        await prisma.externalActorProject.create({
-          data: {
+      console.log('Checking if external actor is already in project:', castingCode.projectId);
+      try {
+        // Check if the external actor is already in this project
+        const existingProjectAssociation = await prisma.externalActorProject.findFirst({
+          where: {
             externalActorId: externalActor.id,
             projectId: castingCode.projectId,
-            updatedAt: new Date(),
           },
         });
+        
+        if (!existingProjectAssociation) {
+          console.log('Adding external actor to project');
+          // Add the external actor to the project
+          const projectAssociation = await prisma.externalActorProject.create({
+            data: {
+              externalActorId: externalActor.id,
+              projectId: castingCode.projectId,
+              updatedAt: new Date(),
+            },
+          });
+          console.log('Created project association:', projectAssociation.id);
+        } else {
+          console.log('External actor already in project:', existingProjectAssociation.id);
+        }
+      } catch (error) {
+        console.error('Error adding external actor to project:', error);
+        // Continue even if project association fails
       }
     }
     
     // Handle the create account option
     // Return the submission ID and user data for redirecting to sign-up
+    console.log('Returning submission response with createAccount:', validatedData.createAccount);
     
-    return NextResponse.json({
+    const response = {
       success: true,
       message: "Your submission has been received successfully!",
       submissionId: submission.id,
@@ -167,7 +196,10 @@ export async function POST(request: Request) {
         email: validatedData.email || '',
         phoneNumber: validatedData.phoneNumber || '',
       }
-    });
+    };
+    
+    console.log('Final response:', response);
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error processing casting submission:', error);
     

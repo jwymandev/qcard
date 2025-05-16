@@ -97,23 +97,42 @@ export default function CastingCodeApplicationForm({
         code,
       };
 
+      console.log('Submitting form with data:', submissionPayload);
+
       // Submit the application
-      const response = await fetch('/api/casting-codes/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submissionPayload),
-      });
+      let responseData;
+      try {
+        const response = await fetch('/api/casting-codes/submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(submissionPayload),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to submit application');
+        // Parse the response JSON only once
+        responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.error || 'Failed to submit application');
+        }
+
+        console.log('Submission response data:', responseData);
+      } catch (fetchError) {
+        console.error('Fetch error:', fetchError);
+        throw fetchError;
       }
-
-      // Get the response data including submission ID
-      const responseData = await response.json();
-      setSubmissionData(responseData);
+      
+      // Make sure we have the createAccount value properly set
+      const createAccountValue = form.getValues('createAccount');
+      console.log('Form create account value:', createAccountValue);
+      
+      // Ensure the submissionData has all required fields
+      setSubmissionData({
+        ...responseData,
+        submissionId: responseData.submissionId,
+        createAccount: createAccountValue
+      });
 
       // Handle success
       setSubmitSuccess(true);
@@ -387,12 +406,16 @@ export default function CastingCodeApplicationForm({
             <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-4 border rounded-md">
               <FormControl>
                 <Checkbox
+                  id="create-account-checkbox"
                   checked={field.value}
-                  onCheckedChange={field.onChange}
+                  onCheckedChange={(checked) => {
+                    console.log('Checkbox changed to:', checked);
+                    field.onChange(checked);
+                  }}
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>Create an account on the platform</FormLabel>
+                <FormLabel htmlFor="create-account-checkbox" className="cursor-pointer">Create an account on the platform</FormLabel>
                 <p className="text-sm text-muted-foreground">
                   Creating an account will allow you to manage your profile and easily apply to future casting calls.
                 </p>

@@ -29,8 +29,11 @@ export default function SignUpPage() {
     const phoneNumber = searchParams.get('phoneNumber');
     const submissionId = searchParams.get('submissionId');
     
-    // Set data from URL parameters if available
+    console.log('URL parameters:', { firstName, lastName, email, phoneNumber, submissionId });
+    
+    // Always set data from URL parameters if available
     if (firstName || lastName || email || phoneNumber || submissionId) {
+      // If coming from casting submission, always set as TALENT
       setFormData(prev => ({
         ...prev,
         firstName: firstName || prev.firstName,
@@ -38,9 +41,18 @@ export default function SignUpPage() {
         email: email || prev.email,
         phoneNumber: phoneNumber || prev.phoneNumber,
         submissionId: submissionId || prev.submissionId,
-        // If coming from QR code application, default to TALENT type
-        userType: submissionId ? 'TALENT' : prev.userType,
+        // Always default to TALENT when coming from QR code
+        userType: 'TALENT',
       }));
+      
+      // Disable the account type selection if coming from QR code
+      if (submissionId) {
+        const studioOption = document.querySelector('[data-user-type="STUDIO"]');
+        if (studioOption) {
+          (studioOption as HTMLElement).style.opacity = '0.5';
+          (studioOption as HTMLElement).style.pointerEvents = 'none';
+        }
+      }
     }
     
     // If there's a submission ID, display a message about the application
@@ -280,6 +292,7 @@ export default function SignUpPage() {
                       : 'border-gray-300 hover:border-gray-400'
                   }`}
                   onClick={() => handleUserTypeChange('TALENT')}
+                  data-user-type="TALENT"
                 >
                   <div className="flex items-center justify-between">
                     <div className="font-medium">Talent</div>
@@ -299,6 +312,7 @@ export default function SignUpPage() {
                       : 'border-gray-300 hover:border-gray-400'
                   }`}
                   onClick={() => handleUserTypeChange('STUDIO')}
+                  data-user-type="STUDIO"
                 >
                   <div className="flex items-center justify-between">
                     <div className="font-medium">Studio</div>
