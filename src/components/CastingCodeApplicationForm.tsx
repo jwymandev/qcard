@@ -415,7 +415,7 @@ export default function CastingCodeApplicationForm({
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel htmlFor="create-account-checkbox" className="cursor-pointer">Create an account on the platform</FormLabel>
+                <FormLabel className="cursor-pointer">Create an account on the platform</FormLabel>
                 <p className="text-sm text-muted-foreground">
                   Creating an account will allow you to manage your profile and easily apply to future casting calls.
                 </p>
