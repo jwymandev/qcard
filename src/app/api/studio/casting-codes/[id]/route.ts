@@ -67,7 +67,16 @@ export async function GET(
             createdAt: true,
             externalActorId: true,
             convertedToProfileId: true,
+            convertedUserId: true,
             survey: true, // Include survey responses
+            externalActor: {
+              select: {
+                id: true,
+                status: true,
+                convertedProfileId: true,
+                convertedToUserId: true
+              }
+            }
           },
           orderBy: {
             createdAt: 'desc',

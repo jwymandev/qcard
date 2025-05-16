@@ -92,7 +92,7 @@ export default function CastingCodeApplicationForm({
       setSubmitError(null);
 
       // Add the code to the submission data
-      const submissionData = {
+      const submissionPayload = {
         ...data,
         code,
       };
@@ -103,13 +103,17 @@ export default function CastingCodeApplicationForm({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(submissionData),
+        body: JSON.stringify(submissionPayload),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to submit application');
       }
+
+      // Get the response data including submission ID
+      const responseData = await response.json();
+      setSubmissionData(responseData);
 
       // Handle success
       setSubmitSuccess(true);
@@ -121,6 +125,8 @@ export default function CastingCodeApplicationForm({
     }
   };
 
+  const [submissionData, setSubmissionData] = useState<any>(null);
+
   if (submitSuccess) {
     return (
       <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
@@ -128,11 +134,32 @@ export default function CastingCodeApplicationForm({
         <p className="text-green-700 mb-4">
           Thank you for your submission. The studio has been notified and will contact you if they&apos;re interested.
         </p>
-        {form.getValues('createAccount') && (
-          <p className="text-sm text-green-600 border-t border-green-200 pt-4 mt-4">
-            You&apos;ve requested to create an account. If the studio approves your application, 
-            you&apos;ll receive an email with instructions to set up your account.
-          </p>
+        {form.getValues('createAccount') && submissionData && (
+          <div className="border-t border-green-200 pt-4 mt-4">
+            <p className="text-sm text-green-600 mb-4">
+              Create your account now to manage your profile and easily apply to future casting calls.
+            </p>
+            <a 
+              href={`/sign-up?firstName=${encodeURIComponent(form.getValues('firstName'))}&lastName=${encodeURIComponent(form.getValues('lastName'))}&email=${encodeURIComponent(form.getValues('email') || '')}&phoneNumber=${encodeURIComponent(form.getValues('phoneNumber') || '')}&submissionId=${encodeURIComponent(submissionData.submissionId || '')}`}
+              className="inline-block bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded"
+            >
+              Create Account
+            </a>
+          </div>
+        )}
+        
+        {submissionData && !form.getValues('createAccount') && (
+          <div className="mt-6 text-center">
+            <p className="text-gray-600 mb-4">
+              Changed your mind? You can still create an account to keep track of your submissions.
+            </p>
+            <a 
+              href={`/sign-up?firstName=${encodeURIComponent(form.getValues('firstName'))}&lastName=${encodeURIComponent(form.getValues('lastName'))}&email=${encodeURIComponent(form.getValues('email') || '')}&phoneNumber=${encodeURIComponent(form.getValues('phoneNumber') || '')}&submissionId=${encodeURIComponent(submissionData.submissionId || '')}`}
+              className="inline-block border border-blue-600 text-blue-600 hover:bg-blue-50 py-2 px-4 rounded"
+            >
+              Create Account Now
+            </a>
+          </div>
         )}
       </div>
     );

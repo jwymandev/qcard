@@ -153,15 +153,20 @@ export async function POST(request: Request) {
       }
     }
     
-    // If the user wants to create an account, we'll handle that separately
-    // This would involve sending an invitation email or generating a signup link
-    // For now, we'll just mark that they requested an account in the response
+    // Handle the create account option
+    // Return the submission ID and user data for redirecting to sign-up
     
     return NextResponse.json({
       success: true,
       message: "Your submission has been received successfully!",
       submissionId: submission.id,
       createAccount: validatedData.createAccount,
+      userData: {
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
+        email: validatedData.email || '',
+        phoneNumber: validatedData.phoneNumber || '',
+      }
     });
   } catch (error) {
     console.error('Error processing casting submission:', error);

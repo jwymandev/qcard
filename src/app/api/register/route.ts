@@ -12,6 +12,7 @@ const registerSchema = z.object({
   lastName: z.string().min(1),
   phoneNumber: z.string().optional(),
   userType: z.enum(["TALENT", "STUDIO"]),
+  submissionId: z.string().optional(), // ID of the casting submission if coming from QR code
 });
 
 export async function POST(req: Request) {
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
       );
     }
     
-    const { email, password, firstName, lastName, phoneNumber, userType } = result.data;
+    const { email, password, firstName, lastName, phoneNumber, userType, submissionId } = result.data;
     
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -67,6 +68,93 @@ export async function POST(req: Request) {
         updatedAt: new Date()
       },
     });
+    
+    // If there's a submission ID, mark the casting submission as converted
+    if (submissionId && userType === 'TALENT') {
+      try {
+        // Find the casting submission
+        const submission = await prisma.castingSubmission.findUnique({
+          where: { id: submissionId },
+          include: { 
+            externalActor: true,
+            castingCode: {
+              include: {
+                studio: true,
+                project: true
+              }
+            }
+          }
+        });
+        
+        if (submission) {
+          // Get the created profile for the new user
+          const profile = await prisma.profile.findUnique({
+            where: { userId: user.id }
+          });
+          
+          if (!profile) {
+            throw new Error('Profile not found for new user');
+          }
+          
+          // Update the submission status
+          await prisma.castingSubmission.update({
+            where: { id: submissionId },
+            data: {
+              status: 'CONVERTED',
+              convertedUserId: user.id,
+              convertedToProfileId: profile.id,
+              updatedAt: new Date()
+            }
+          });
+          
+          // If there's an external actor record, mark it as converted too
+          if (submission.externalActor) {
+            await prisma.externalActor.update({
+              where: { id: submission.externalActor.id },
+              data: {
+                status: 'CONVERTED',
+                convertedToUserId: user.id,
+                convertedProfileId: profile.id,
+                convertedToTalentAt: new Date(),
+                updatedAt: new Date()
+              }
+            });
+            
+            // If the submission has a project, add the user to the project
+            if (submission.castingCode?.projectId) {
+              try {
+                // Check if the user is already in this project
+                const existingProjectMember = await prisma.projectMember.findFirst({
+                  where: {
+                    projectId: submission.castingCode.projectId,
+                    profileId: profile.id
+                  }
+                });
+                
+                if (!existingProjectMember) {
+                  // Add the new user to the project as a member
+                  await prisma.projectMember.create({
+                    data: {
+                      id: crypto.randomUUID(),
+                      projectId: submission.castingCode.projectId,
+                      profileId: profile.id,
+                      role: 'Talent',
+                      updatedAt: new Date()
+                    }
+                  });
+                }
+              } catch (projectError) {
+                console.error('Error adding user to project:', projectError);
+                // Continue with registration even if project association fails
+              }
+            }
+          }
+        }
+      } catch (submissionError) {
+        console.error('Error updating casting submission:', submissionError);
+        // Continue with registration even if this fails
+      }
+    }
     
     // Create profile based on user type
     if (userType === "TALENT") {

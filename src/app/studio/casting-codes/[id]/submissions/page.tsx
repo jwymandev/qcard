@@ -27,7 +27,13 @@ interface Submission {
   status: string;
   createdAt: string;
   convertedToProfileId: string | null;
+  convertedUserId: string | null;
   externalActorId: string | null;
+  externalActor?: {
+    id: string;
+    status: string;
+    convertedToProfileId: string | null;
+  } | null;
   survey?: {
     id: string;
     responses: any;
@@ -126,6 +132,7 @@ export default function CastingCodeSubmissionsPage({
     
     return castingCode.submissions.filter(sub => {
       if (activeTab === 'all') return true;
+      if (activeTab === 'converted') return sub.status === 'CONVERTED' || sub.convertedToProfileId !== null;
       return sub.status.toLowerCase() === activeTab.toLowerCase();
     });
   };
@@ -215,7 +222,7 @@ export default function CastingCodeSubmissionsPage({
 
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-4">Submission Stats</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card className="p-4">
             <h4 className="text-sm text-gray-500">Total</h4>
             <p className="text-2xl font-bold">{castingCode.submissions.length}</p>
@@ -241,6 +248,13 @@ export default function CastingCodeSubmissionsPage({
               {castingCode.submissions.filter(sub => sub.status === 'REJECTED').length}
             </p>
           </Card>
+          
+          <Card className="p-4">
+            <h4 className="text-sm text-gray-500">Converted</h4>
+            <p className="text-2xl font-bold text-blue-600">
+              {castingCode.submissions.filter(sub => sub.status === 'CONVERTED' || sub.convertedToProfileId !== null).length}
+            </p>
+          </Card>
         </div>
       </div>
 
@@ -255,6 +269,9 @@ export default function CastingCodeSubmissionsPage({
           </TabsTrigger>
           <TabsTrigger value="rejected">
             Rejected ({castingCode.submissions.filter(sub => sub.status === 'REJECTED').length})
+          </TabsTrigger>
+          <TabsTrigger value="converted">
+            Converted ({castingCode.submissions.filter(sub => sub.status === 'CONVERTED' || sub.convertedToProfileId !== null).length})
           </TabsTrigger>
         </TabsList>
         
@@ -303,6 +320,41 @@ export default function CastingCodeSubmissionsPage({
                             </a>
                           </p>
                         )}
+                        
+                        {/* Show conversion status */}
+                        {submission.status === 'CONVERTED' || submission.convertedToProfileId ? (
+                          <div className="mt-3">
+                            <Badge className="bg-green-100 text-green-800 border-green-300">
+                              Converted to User
+                            </Badge>
+                            {submission.convertedToProfileId && (
+                              <Link href={`/studio/talent/${submission.convertedToProfileId}`}>
+                                <Button 
+                                  size="sm"
+                                  variant="outline"
+                                  className="mt-2"
+                                >
+                                  View Profile
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
+                        ) : submission.externalActor ? (
+                          <div className="mt-3">
+                            <Badge className="bg-blue-100 text-blue-800 border-blue-300">
+                              External Talent
+                            </Badge>
+                            <Link href={`/studio/external-actors/${submission.externalActorId}`}>
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                className="mt-2"
+                              >
+                                View in External Talent
+                              </Button>
+                            </Link>
+                          </div>
+                        ) : null}
                         
                         {submission.status === 'PENDING' && (
                           <div className="flex space-x-2 mt-4">

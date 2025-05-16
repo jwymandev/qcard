@@ -337,6 +337,10 @@ model User {
   // Subscription relationships
   subscriptions        Subscription[]
   regionSubscriptions  UserRegionSubscription[]
+  // Casting submission conversion relation
+  convertedSubmissions CastingSubmission[]
+  // External actor conversion relation
+  convertedExternalActors ExternalActor[]
 }
 
 model VerificationToken {
@@ -553,10 +557,12 @@ model ExternalActor {
   status             String                @default("ACTIVE")   // ACTIVE, INVITED, CONVERTED
   convertedToTalentAt DateTime?
   convertedProfileId String?
+  convertedToUserId  String?               // New field: Reference to the user account after conversion
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
   studio             Studio                @relation(fields: [studioId], references: [id], onDelete: Cascade)
   convertedProfile   Profile?              @relation(fields: [convertedProfileId], references: [id])
+  convertedToUser    User?                 @relation(fields: [convertedToUserId], references: [id]) // New relation to User
   projects           ExternalActorProject[]
   scenes             SceneExternalActor[]
   submissions        CastingSubmission[]
@@ -771,6 +777,7 @@ model CastingSubmission {
   castingCodeId       String
   status              String        @default("PENDING") // PENDING, APPROVED, REJECTED, CONVERTED
   convertedToProfileId String?
+  convertedUserId     String?       // New field: User ID if the submission is converted to a user account
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
   
@@ -778,6 +785,7 @@ model CastingSubmission {
   castingCode         CastingCode   @relation(fields: [castingCodeId], references: [id], onDelete: Cascade)
   externalActor       ExternalActor? @relation(fields: [externalActorId], references: [id], onDelete: SetNull)
   convertedToProfile  Profile?      @relation(fields: [convertedToProfileId], references: [id], onDelete: SetNull)
+  convertedUser       User?         @relation(fields: [convertedUserId], references: [id], onDelete: SetNull) // Relation to the User model
   survey              CastingSubmissionSurvey?
 }
 

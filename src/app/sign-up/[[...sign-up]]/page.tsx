@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 
 export default function SignUpPage() {
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -14,10 +15,39 @@ export default function SignUpPage() {
     password: '',
     userType: 'TALENT', // Default to talent
     terms: false,
+    submissionId: '', // To store the ID of the casting submission if coming from QR code
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  
+  // Check for prefilled data from URL query params (from QR code application)
+  useEffect(() => {
+    const firstName = searchParams.get('firstName');
+    const lastName = searchParams.get('lastName');
+    const email = searchParams.get('email');
+    const phoneNumber = searchParams.get('phoneNumber');
+    const submissionId = searchParams.get('submissionId');
+    
+    // Set data from URL parameters if available
+    if (firstName || lastName || email || phoneNumber || submissionId) {
+      setFormData(prev => ({
+        ...prev,
+        firstName: firstName || prev.firstName,
+        lastName: lastName || prev.lastName,
+        email: email || prev.email,
+        phoneNumber: phoneNumber || prev.phoneNumber,
+        submissionId: submissionId || prev.submissionId,
+        // If coming from QR code application, default to TALENT type
+        userType: submissionId ? 'TALENT' : prev.userType,
+      }));
+    }
+    
+    // If there's a submission ID, display a message about the application
+    if (submissionId) {
+      console.log('Creating account from casting submission:', submissionId);
+    }
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -69,6 +99,7 @@ export default function SignUpPage() {
           phoneNumber: formData.phoneNumber,
           password: formData.password,
           userType: formData.userType,
+          submissionId: formData.submissionId || undefined,
         }),
       });
       
@@ -127,15 +158,23 @@ export default function SignUpPage() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Create your account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link
-              href="/sign-in"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              sign in to your existing account
-            </Link>
-          </p>
+          {formData.submissionId ? (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-center text-sm text-blue-700">
+                Complete your account setup to continue with your application. Your information has been prefilled from your submission.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-center text-sm text-gray-600">
+              Or{' '}
+              <Link
+                href="/sign-in"
+                className="font-medium text-blue-600 hover:text-blue-500"
+              >
+                sign in to your existing account
+              </Link>
+            </p>
+          )}
         </div>
         
         {error && (
