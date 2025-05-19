@@ -63,7 +63,7 @@ export interface TalentRole {
 
 interface TalentRequirementsProps {
   projectId: string;
-  roles?: TalentRole[];
+  roles?: TalentRole[] | null; // Make it nullable
   onSave: (role: TalentRequirementsFormValues & { survey?: any }) => Promise<void>;
   onDelete?: (roleId: string) => Promise<void>;
 }
@@ -74,6 +74,8 @@ export default function TalentRequirements({
   onSave,
   onDelete
 }: TalentRequirementsProps) {
+  // Ensure roles is always an array
+  const safeRoles = Array.isArray(roles) ? roles : [];
   const [activeTab, setActiveTab] = useState<string>("requirements");
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -589,13 +591,13 @@ export default function TalentRequirements({
       {/* Display existing roles */}
       {!showSurveyBuilder && !isCreating && (
         <div className="space-y-4">
-          {roles.length === 0 ? (
+          {!safeRoles || safeRoles.length === 0 ? (
             <Card className="p-8 text-center">
               <p className="text-muted-foreground">No roles defined yet. Add a role to start defining talent requirements.</p>
             </Card>
           ) : (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-              {roles.map((role) => (
+              {safeRoles.map((role) => (
                 <Card key={role.id} className="p-4">
                   <div className="flex justify-between items-start">
                     <div>

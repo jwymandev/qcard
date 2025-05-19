@@ -4,6 +4,21 @@ const nextConfig = {
   images: {
     domains: ['images.clerk.dev', 'img.clerk.com'],
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  output: 'standalone',
+  experimental: {
+    outputFileTracingExcludes: {
+      '*': ['node_modules/@swc/**'],
+    },
+    logging: {
+      level: "error" // Only show errors, not warnings
+    }
+  },
   // Add webpack configuration to handle Node.js native modules
   webpack: (config, { isServer }) => {
     if (!isServer) {

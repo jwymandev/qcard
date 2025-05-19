@@ -4,16 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  Card,
-  Badge,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui';
-import TalentRequirements, { TalentRequirementsFormValues, TalentRole } from '@/components/TalentRequirements';
-import ProjectQRDisplay from '@/components/ProjectQRDisplay';
+import { Badge } from '@/components/ui';
 
 type Project = {
   id: string;
@@ -26,7 +17,6 @@ type Project = {
   updatedAt: string;
   members?: any[];
   castingCalls?: any[];
-  talentRequirements?: TalentRole[];
 };
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
@@ -37,7 +27,6 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [projectTalentRoles, setProjectTalentRoles] = useState<TalentRole[]>([]);
   
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -50,32 +39,18 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const fetchProject = async () => {
     setLoading(true);
     try {
-      // Fetch both project and talent requirements in parallel
-      const [projectResponse, talentRequirementsResponse] = await Promise.all([
-        fetch(`/api/studio/projects/${projectId}`),
-        fetch(`/api/studio/projects/${projectId}/talent-requirements`)
-      ]);
-
-      if (!projectResponse.ok) {
-        const errorData = await projectResponse.json();
-        console.error('Error response:', errorData);
-        throw new Error(errorData.error || 'Failed to fetch project');
+      // Fetch project data
+      const response = await fetch(`/api/studio/projects/${projectId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch project');
       }
-
-      const projectData = await projectResponse.json();
-      setProject(projectData);
-
-      // Handle talent requirements separately to avoid failing if that API isn't ready
-      if (talentRequirementsResponse.ok) {
-        const talentRequirementsData = await talentRequirementsResponse.json();
-        setProjectTalentRoles(talentRequirementsData);
-      } else {
-        console.warn('Could not fetch talent requirements, may not be implemented yet');
-        setProjectTalentRoles([]);
-      }
+      
+      const data = await response.json();
+      setProject(data);
     } catch (error) {
       console.error('Error fetching project:', error);
-      setError('Failed to load project. Please try again later.');
+      setError('Failed to load project data');
     } finally {
       setLoading(false);
     }
@@ -127,67 +102,6 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     );
   }
   
-  // Save talent role requirements
-  const handleSaveTalentRole = async (roleData: TalentRequirementsFormValues & { survey?: any, id?: string }) => {
-    try {
-      // Check if we're updating or creating
-      const isUpdating = roleData.id && projectTalentRoles.some(role => 'id' in role && role.id === roleData.id);
-
-      let url = `/api/studio/projects/${projectId}/talent-requirements`;
-      let method = 'POST';
-
-      if (isUpdating && roleData.id) {
-        url += `/${roleData.id}`;
-        method = 'PATCH';
-      }
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(roleData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save talent requirements');
-      }
-
-      // Refresh talent requirements
-      const refreshResponse = await fetch(`/api/studio/projects/${projectId}/talent-requirements`);
-      if (refreshResponse.ok) {
-        const updatedRoles = await refreshResponse.json();
-        setProjectTalentRoles(updatedRoles);
-      }
-
-      return Promise.resolve();
-    } catch (error) {
-      console.error('Error saving talent role:', error);
-      return Promise.reject(error);
-    }
-  };
-
-  // Delete a talent role
-  const handleDeleteTalentRole = async (roleId: string) => {
-    try {
-      const response = await fetch(`/api/studio/projects/${projectId}/talent-requirements/${roleId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete talent requirement');
-      }
-
-      // Update local state
-      setProjectTalentRoles(prev => prev.filter(role => role.id !== roleId));
-
-      return Promise.resolve();
-    } catch (error) {
-      console.error('Error deleting talent role:', error);
-      return Promise.reject(error);
-    }
-  };
-
   // Format dates for display
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not set';
@@ -237,224 +151,126 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <h2 className="text-lg font-semibold mb-2">Project Details</h2>
+              <h3 className="text-md font-semibold mb-3">Project Timeline</h3>
               <div className="bg-gray-50 p-4 rounded-md">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-gray-600">Start Date</div>
                   <div>{formatDate(project.startDate)}</div>
-
                   <div className="text-gray-600">End Date</div>
                   <div>{formatDate(project.endDate)}</div>
-
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-md font-semibold mb-3">Project Status</h3>
+              <div className="bg-gray-50 p-4 rounded-md">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-gray-600">Status</div>
+                  <div>
+                    <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadgeClass(project.status)}`}>
+                      {project.status.replace('_', ' ')}
+                    </span>
+                  </div>
                   <div className="text-gray-600">Created</div>
                   <div>{formatDate(project.createdAt)}</div>
-
                   <div className="text-gray-600">Last Updated</div>
                   <div>{formatDate(project.updatedAt)}</div>
                 </div>
               </div>
             </div>
-
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Project Actions</h2>
-              <div className="space-y-2">
-                <Link
-                  href={`/studio/projects/${projectId}/edit`}
-                  className="block w-full px-4 py-2 bg-blue-600 text-white rounded text-center hover:bg-blue-700"
-                >
-                  Edit Project
-                </Link>
-                <Link
-                  href={`/studio/projects/${projectId}/casting`}
-                  className="block w-full px-4 py-2 bg-purple-600 text-white rounded text-center hover:bg-purple-700"
-                >
-                  Manage Casting
-                </Link>
-                <Link
-                  href={`/studio/projects/${projectId}/casting/new`}
-                  className="block w-full px-4 py-2 bg-green-600 text-white rounded text-center hover:bg-green-700"
-                >
-                  Create Casting Call
-                </Link>
-                <Link
-                  href={`/studio/projects/${projectId}/submissions`}
-                  className="block w-full px-4 py-2 bg-amber-600 text-white rounded text-center hover:bg-amber-700"
-                >
-                  View Submissions
-                </Link>
-                <Link
-                  href={`/studio/talent-invitation?projectId=${projectId}`}
-                  className="block w-full px-4 py-2 bg-indigo-600 text-white rounded text-center hover:bg-indigo-700"
-                >
-                  Invite Talent Directly
-                </Link>
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Quick Share</h2>
-              <ProjectQRDisplay projectId={projectId} size={200} />
-            </div>
           </div>
           
-          {/* Project Tabs */}
-          <div className="border-t border-gray-200 pt-6">
-            <Tabs defaultValue="overview" value="overview">
-              <TabsList className="border-b border-gray-200 w-full justify-start">
-                <TabsTrigger
-                  value="overview"
-                  className="px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 font-medium"
-                >
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger
-                  value="castingRequirements"
-                  className="px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 font-medium"
-                >
-                  Casting Requirements
-                </TabsTrigger>
-                <TabsTrigger
-                  value="castingCalls"
-                  className="px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 font-medium"
-                >
-                  Casting Calls
-                </TabsTrigger>
-                <TabsTrigger
-                  value="submissions"
-                  className="px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 font-medium"
-                >
-                  Submissions
-                </TabsTrigger>
-                <TabsTrigger
-                  value="team"
-                  className="px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 font-medium"
-                >
-                  Team Members
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="overview" className="py-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Project Overview</h3>
-                    <div className="bg-gray-50 p-4 rounded-md">
-                      <p className="text-gray-700 mb-4">
-                        {project.description || 'No description provided.'}
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 border-t border-gray-200 pt-4 mt-2">
-                        <div className="text-gray-600">Status</div>
-                        <div>
-                          <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadgeClass(project.status)}`}>
-                            {project.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                        <div className="text-gray-600">Timeline</div>
-                        <div>{formatDate(project.startDate)} - {formatDate(project.endDate)}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Application QR Code</h3>
-                    <div className="bg-white border border-gray-200 rounded-md shadow-sm">
-                      <ProjectQRDisplay projectId={projectId} size={200} />
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="castingRequirements" className="py-6">
-                <TalentRequirements
-                  projectId={projectId}
-                  roles={projectTalentRoles}
-                  onSave={handleSaveTalentRole}
-                  onDelete={handleDeleteTalentRole}
-                />
-              </TabsContent>
-
-              <TabsContent value="castingCalls" className="py-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Casting Calls</h3>
-                  <Link
-                    href={`/studio/projects/${projectId}/casting/new`}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    Create Casting Call
-                  </Link>
-                </div>
-                {project.castingCalls && project.castingCalls.length > 0 ? (
-                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                    {project.castingCalls.map((call: any) => (
-                      <Card key={call.id} className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-semibold">{call.title}</h4>
-                          <Badge variant={call.status === 'OPEN' ? 'default' : 'secondary'}>
-                            {call.status}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{call.description}</p>
-                        <Link
-                          href={`/studio/casting-calls/${call.id}`}
-                          className="text-blue-600 hover:underline text-sm"
-                        >
-                          View Details →
-                        </Link>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Card className="p-6 text-center">
-                    <p className="text-gray-500">No casting calls created for this project yet.</p>
-                    <Link
-                      href={`/studio/projects/${projectId}/casting/new`}
-                      className="text-blue-600 hover:underline mt-2 inline-block"
-                    >
-                      Create your first casting call
-                    </Link>
-                  </Card>
-                )}
-              </TabsContent>
-
-              <TabsContent value="submissions" className="py-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Submissions</h3>
-                  <Link
-                    href={`/studio/projects/${projectId}/submissions`}
-                    className="px-4 py-2 border border-blue-600 text-blue-600 rounded hover:bg-blue-50"
-                  >
-                    View All Submissions
-                  </Link>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="p-6">
-                    <h4 className="font-medium mb-3">Application Management</h4>
-                    <p className="text-gray-500 mb-4">View all application and casting code submissions for this project.</p>
-                    <Link
-                      href={`/studio/projects/${projectId}/submissions`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Manage submissions →
-                    </Link>
-                  </Card>
-                  <Card className="p-6">
-                    <h4 className="font-medium mb-3">Share Application Link</h4>
-                    <p className="text-gray-500 mb-4">Use this QR code to quickly share with potential talent.</p>
-                    <div className="flex justify-center">
-                      <ProjectQRDisplay projectId={projectId} size={150} />
-                    </div>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="team" className="py-6">
-                <div className="text-center text-gray-500">
-                  Team management features coming soon.
-                </div>
-              </TabsContent>
-            </Tabs>
+          <h3 className="text-md font-semibold mb-3">Quick Actions</h3>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/studio/projects/${projectId}/edit`}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200"
+            >
+              Edit Project
+            </Link>
+            <Link
+              href={`/studio/projects/${projectId}/casting/new`}
+              className="px-4 py-2 bg-green-100 text-green-700 rounded-md text-sm hover:bg-green-200"
+            >
+              Create Casting Call
+            </Link>
+            <Link
+              href={`/studio/talent-invitation?projectId=${projectId}`}
+              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200"
+            >
+              Invite Talent
+            </Link>
           </div>
+          
+          {project.castingCalls && project.castingCalls.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">Casting Calls</h3>
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {project.castingCalls.map((call: any) => (
+                  <div key={call.id} className="border border-gray-200 rounded-md p-4 hover:shadow-sm">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold">{call.title}</h4>
+                      <Badge variant={call.status === 'OPEN' ? 'default' : 'outline'}>
+                        {call.status}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{call.description}</p>
+                    <div className="flex justify-end">
+                      <Link
+                        href={`/studio/casting-calls/${call.id}`}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        View Details
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {project.members && project.members.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">Team Members</h3>
+              <div className="border border-gray-200 rounded-md overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Joined
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {project.members.map((member: any) => (
+                      <tr key={member.id}>
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {member.User?.firstName} {member.User?.lastName}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">{member.role || 'Member'}</div>
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(member.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

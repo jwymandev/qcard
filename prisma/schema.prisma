@@ -40,24 +40,40 @@ model Application {
 }
 
 model CastingCall {
-  id           String        @id
-  title        String
-  description  String
-  requirements String?
-  compensation String?
-  startDate    DateTime?
-  endDate      DateTime?
-  status       String        @default("OPEN")
-  studioId     String
-  locationId   String?
-  projectId    String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime
-  Application  Application[]
-  Project      Project?      @relation(fields: [projectId], references: [id])
-  Location     Location?     @relation(fields: [locationId], references: [id])
-  Studio       Studio        @relation(fields: [studioId], references: [id])
-  Skill        Skill[]
+  id               String        @id
+  title            String
+  description      String
+  requirements     String?
+  compensation     String?
+  startDate        DateTime?
+  endDate          DateTime?
+  status           String        @default("OPEN")
+  studioId         String
+  locationId       String?
+  projectId        String?
+  regionId         String?       // Primary region for this casting call
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime
+  // New filterable fields
+  compensationType String        @default("UNSPECIFIED")
+  experienceLevel  String        @default("ANY")
+  ageRange         String?
+  gender           String        @default("ANY")
+  roleType         String        @default("UNSPECIFIED")
+  // Relations
+  Application      Application[]
+  Project          Project?      @relation(fields: [projectId], references: [id])
+  Location         Location?     @relation(fields: [locationId], references: [id])
+  Studio           Studio        @relation(fields: [studioId], references: [id])
+  Skill            Skill[]
+  region           Region?       @relation(fields: [regionId], references: [id])
+  
+  // Indexes for faster filtering
+  @@index([compensationType])
+  @@index([roleType])
+  @@index([experienceLevel])
+  @@index([gender])
+  @@index([regionId])
 }
 
 model Location {
@@ -670,6 +686,7 @@ model Region {
   // Relations
   subscriptionPlans RegionSubscriptionPlan[]
   locations      Location[]       // Locations within this region
+  castingCalls   CastingCall[]    // Casting calls for this region
   
   // Stats helpers - profiles and studios associated with this region
   ProfileRegion  ProfileRegion[]

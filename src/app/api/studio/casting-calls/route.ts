@@ -4,7 +4,7 @@ import { auth } from '@/auth';
 import { z } from 'zod';
 import crypto from 'crypto';
 
-// Validation schema for creating a casting call
+// Validation schema for creating a casting call (updated to include regionId)
 const castingCallSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters" }),
   description: z.string().min(10, { message: "Description must be at least 10 characters" }),
@@ -13,6 +13,7 @@ const castingCallSchema = z.object({
   startDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
   endDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
   locationId: z.string().optional(),
+  regionId: z.string().optional(), // New field for region
   projectId: z.string().optional(),
   skillIds: z.array(z.string()).optional(),
 });
@@ -49,7 +50,12 @@ export async function GET() {
     const castingCalls = await prisma.castingCall.findMany({
       where: { studioId: studio.id },
       include: {
-        Location: true,
+        Location: {
+          include: {
+            region: true
+          }
+        },
+        region: true, // Include the region information
         Skill: true,
         Application: {
           include: {
@@ -75,6 +81,7 @@ export async function GET() {
     const formattedCastingCalls = castingCalls.map(call => ({
       ...call,
       location: call.Location,
+      region: call.region,
       skillsRequired: call.Skill,
       applications: call.Application,
       project: call.Project
@@ -131,6 +138,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Studio not found" }, { status: 404 });
     }
     
+    // If location is provided but no region, try to get the region from the location
+    let regionId = validatedData.regionId;
+    if (!regionId && validatedData.locationId) {
+      const location = await prisma.location.findUnique({
+        where: { id: validatedData.locationId },
+        select: { regionId: true }
+      });
+      
+      if (location?.regionId) {
+        regionId = location.regionId;
+      }
+    }
+    
     // Generate a unique ID for the casting call
     const castingCallId = crypto.randomUUID();
     
@@ -146,6 +166,7 @@ export async function POST(request: Request) {
         endDate: validatedData.endDate,
         studioId: studio.id,
         locationId: validatedData.locationId,
+        regionId: regionId, // Add region ID to the data
         projectId: validatedData.projectId,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -159,7 +180,12 @@ export async function POST(request: Request) {
           : {}),
       },
       include: {
-        Location: true,
+        Location: {
+          include: {
+            region: true
+          }
+        },
+        region: true,
         Skill: true,
         Project: true,
       },
@@ -169,6 +195,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ...castingCall,
       location: castingCall.Location,
+      region: castingCall.region,
       skillsRequired: castingCall.Skill,
       project: castingCall.Project
     }, { status: 201 });

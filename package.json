@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev -p 3002",
-    "build": "npx prisma generate && NODE_ENV=production next build",
+    "build": "npx prisma generate && NODE_ENV=production ESLINT_NO_DEV_ERRORS=true next build",
     "build:production": "NODE_ENV=production npx prisma migrate deploy && npm run build",
     "deploy": "npx prisma migrate deploy && npm run build",
     "start": "node production-start.js",

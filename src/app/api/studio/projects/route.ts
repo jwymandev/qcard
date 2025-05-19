@@ -207,7 +207,18 @@ export async function POST(request: Request) {
       },
     });
     
-    return NextResponse.json(project, { status: 201 });
+    // Return a structured response with properly initialized empty arrays for relationships
+    // This ensures consistency with the GET response and prevents errors in the project detail page
+    const structuredResponse = {
+      ...project,
+      castingCalls: [],
+      members: [],
+      talentRequirements: [],
+      ProjectMember: [],
+      CastingCall: [],
+    };
+    
+    return NextResponse.json(structuredResponse, { status: 201 });
   } catch (error) {
     console.error("Error creating project:", error);
     return NextResponse.json({ 

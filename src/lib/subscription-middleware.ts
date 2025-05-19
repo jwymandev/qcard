@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { ensureHttps } from './utils';
 
 // Paths that require a subscription
 const SUBSCRIPTION_PROTECTED_PATHS = [
@@ -68,6 +69,8 @@ export function redirectToSubscription(req: NextRequest) {
   const url = req.nextUrl.clone();
   url.pathname = '/subscription';
   url.searchParams.set('from', req.nextUrl.pathname);
+  
+  console.log(`Redirecting to subscription page: ${url.toString()}`);
   return NextResponse.redirect(url);
 }
 
@@ -113,6 +116,12 @@ export async function handleSubscriptionCheck(req: NextRequest) {
     // Check subscription cookie
     const subscriptionCookie = req.cookies.get('subscription_status');
     if (subscriptionCookie?.value === 'active') {
+      return null;
+    }
+    
+    // Skip subscription check only in explicitly marked development environment
+    if (process.env.NODE_ENV === 'development' && process.env.SKIP_SUBSCRIPTION_CHECK === 'true') {
+      console.log('Development environment: Skipping subscription check');
       return null;
     }
     

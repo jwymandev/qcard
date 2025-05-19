@@ -14,7 +14,17 @@ export async function GET(request: Request) {
     // Find the user and check if they have a talent profile
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { Profile: true },
+      include: { 
+        Profile: {
+          include: {
+            regions: {
+              include: {
+                region: true
+              }
+            }
+          }
+        },
+      },
     });
     
     if (!user?.Profile) {
@@ -23,42 +33,46 @@ export async function GET(request: Request) {
     
     // Get search parameters from the URL
     const { searchParams } = new URL(request.url);
-
+    
     // Build the where clause for filtering
     const where: any = {
       status: "OPEN", // Only show open casting calls
     };
-
+    
     // Optional filters
     const locationId = searchParams.get('locationId');
     if (locationId) {
       where.locationId = locationId;
     }
-
-    // Filter by region IDs if provided
-    const regionIds = searchParams.get('regionIds');
-    if (regionIds) {
-      const regionIdArray = regionIds.split(',');
-      where.Location = {
-        region: {
-          id: {
-            in: regionIdArray
-          }
-        }
-      };
+    
+    const regionId = searchParams.get('regionId');
+    if (regionId) {
+      where.regionId = regionId;
     }
-
+    
     const startDate = searchParams.get('startDate');
     if (startDate) {
       where.startDate = {
         gte: new Date(startDate)
       };
     }
-
+    
     const endDate = searchParams.get('endDate');
     if (endDate) {
       where.endDate = {
         lte: new Date(endDate)
+      };
+    }
+    
+    // Get talent's regions to filter calls by region if no specific region is selected
+    const talentRegionIds = user.Profile.regions.map(r => r.regionId);
+    
+    // If showAllRegions param is not true AND no specific region is requested
+    // filter by the talent's regions
+    const showAllRegions = searchParams.get('showAllRegions') === 'true';
+    if (!showAllRegions && !regionId && talentRegionIds.length > 0) {
+      where.regionId = {
+        in: talentRegionIds
       };
     }
     
@@ -71,6 +85,7 @@ export async function GET(request: Request) {
             region: true
           }
         },
+        region: true,
         Skill: true,
         Studio: {
           select: {
@@ -116,6 +131,10 @@ export async function GET(request: Request) {
           name: call.Location.region.name
         } : null
       } : null,
+      region: call.region ? {
+        id: call.region.id,
+        name: call.region.name,
+      } : null,
       skills: call.Skill.map(skill => ({
         id: skill.id,
         name: skill.name,
@@ -130,7 +149,14 @@ export async function GET(request: Request) {
       createdAt: call.createdAt,
     }));
     
-    return NextResponse.json(formattedCastingCalls);
+    return NextResponse.json({
+      castingCalls: formattedCastingCalls,
+      talentRegions: user.Profile.regions.map(r => ({ 
+        id: r.region.id, 
+        name: r.region.name 
+      })),
+      usingRegionFilter: !showAllRegions && !regionId && talentRegionIds.length > 0
+    });
   } catch (error) {
     console.error("Error fetching casting calls for talent:", error);
     return NextResponse.json({ 

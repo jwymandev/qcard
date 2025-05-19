@@ -44,6 +44,11 @@ export default function NewCastingCallPage({ params }: { params: { id: string } 
     startDate: '',
     endDate: '',
     locationId: '',
+    compensationType: 'UNSPECIFIED',
+    experienceLevel: 'ANY',
+    ageRange: '',
+    gender: 'ANY',
+    roleType: 'UNSPECIFIED',
   });
   
   useEffect(() => {
@@ -158,6 +163,11 @@ export default function NewCastingCallPage({ params }: { params: { id: string } 
         locationId: formData.locationId || undefined,
         projectId: projectId,
         skillIds: selectedSkills.length > 0 ? selectedSkills : undefined,
+        compensationType: formData.compensationType,
+        experienceLevel: formData.experienceLevel,
+        ageRange: formData.ageRange || undefined,
+        gender: formData.gender,
+        roleType: formData.roleType,
       };
       
       const response = await fetch('/api/studio/casting-calls', {
@@ -277,18 +287,38 @@ export default function NewCastingCallPage({ params }: { params: { id: string } 
               ></textarea>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Compensation
-              </label>
-              <input
-                type="text"
-                name="compensation"
-                value={formData.compensation}
-                onChange={handleChange}
-                placeholder="E.g., &apos;$150/day&apos; or &apos;Credit and meal provided&apos;"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Compensation Type
+                </label>
+                <select
+                  name="compensationType"
+                  value={formData.compensationType}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="UNSPECIFIED">Unspecified</option>
+                  <option value="PAID">Paid</option>
+                  <option value="UNPAID">Unpaid</option>
+                  <option value="EXPENSES">Expenses Only</option>
+                  <option value="PAID_WITH_SHARE">Paid with Profit Share</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Compensation Details
+                </label>
+                <input
+                  type="text"
+                  name="compensation"
+                  value={formData.compensation}
+                  onChange={handleChange}
+                  placeholder="E.g., &apos;$150/day&apos; or &apos;Credit and meal provided&apos;"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -319,23 +349,96 @@ export default function NewCastingCallPage({ params }: { params: { id: string } 
               </div>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Location
-              </label>
-              <select
-                name="locationId"
-                value={formData.locationId}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select location (optional)</option>
-                {locations.map(location => (
-                  <option key={location.id} value={location.id}>
-                    {location.name}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Experience Level
+                </label>
+                <select
+                  name="experienceLevel"
+                  value={formData.experienceLevel}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="ANY">Any Level</option>
+                  <option value="BEGINNER">Beginner</option>
+                  <option value="INTERMEDIATE">Intermediate</option>
+                  <option value="EXPERIENCED">Experienced</option>
+                  <option value="PROFESSIONAL">Professional</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gender Preference
+                </label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="ANY">Any</option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="NON_BINARY">Non-binary</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Age Range
+                </label>
+                <input
+                  type="text"
+                  name="ageRange"
+                  value={formData.ageRange}
+                  onChange={handleChange}
+                  placeholder="E.g., '18-25' or '30-40'"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Location
+                </label>
+                <select
+                  name="locationId"
+                  value={formData.locationId}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select location (optional)</option>
+                  {locations.map(location => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Role Type
+                </label>
+                <select
+                  name="roleType"
+                  value={formData.roleType}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="UNSPECIFIED">Unspecified</option>
+                  <option value="LEAD">Lead Role</option>
+                  <option value="SUPPORTING">Supporting Role</option>
+                  <option value="EXTRA">Extra/Background</option>
+                  <option value="VOICE">Voice Over</option>
+                  <option value="STAND_IN">Stand-in</option>
+                  <option value="STUNT">Stunt Performer</option>
+                </select>
+              </div>
             </div>
             
             <div>

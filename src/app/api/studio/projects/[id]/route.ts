@@ -73,17 +73,31 @@ export async function GET(
           }
         },
         CastingCall: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-            _count: {
-              select: {
-                Application: true,
+          include: {
+            Location: {
+              include: {
+                region: true
+              }
+            },
+            region: true,
+            Application: {
+              include: {
+                Profile: {
+                  include: {
+                    User: {
+                      select: {
+                        firstName: true,
+                        lastName: true, 
+                        email: true
+                      }
+                    }
+                  }
+                }
               }
             }
           }
         },
+        talentRequirements: true,
       },
     });
     
@@ -102,12 +116,20 @@ export async function GET(
         }
       })),
       castingCalls: project.CastingCall?.map(call => ({
-        ...call,
-        // Map the count correctly
+        id: call.id,
+        title: call.title,
+        status: call.status,
+        createdAt: call.createdAt,
+        updatedAt: call.updatedAt,
+        location: call.Location,
+        region: call.region,
+        applications: call.Application || [],
+        // Include the application count
         _count: {
-          applications: call._count.Application
+          applications: call.Application?.length || 0
         }
-      }))
+      })),
+      talentRequirements: project.talentRequirements || []
     };
     
     return NextResponse.json(mappedProject);

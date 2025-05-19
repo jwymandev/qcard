@@ -19,6 +19,7 @@ export default function SignUpPage() {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isUserTypeEditable, setIsUserTypeEditable] = useState(true);
   const router = useRouter();
   
   // Check for prefilled data from URL query params (from QR code application)
@@ -44,20 +45,13 @@ export default function SignUpPage() {
         // Always default to TALENT when coming from QR code
         userType: 'TALENT',
       }));
-      
-      // Disable the account type selection if coming from QR code
-      if (submissionId) {
-        const studioOption = document.querySelector('[data-user-type="STUDIO"]');
-        if (studioOption) {
-          (studioOption as HTMLElement).style.opacity = '0.5';
-          (studioOption as HTMLElement).style.pointerEvents = 'none';
-        }
-      }
     }
     
     // If there's a submission ID, display a message about the application
     if (submissionId) {
       console.log('Creating account from casting submission:', submissionId);
+      // Lock user type to talent when coming from QR code
+      setIsUserTypeEditable(false);
     }
   }, [searchParams]);
 
@@ -282,16 +276,21 @@ export default function SignUpPage() {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Account Type
+                Account Type 
+                {!isUserTypeEditable && (
+                  <span className="ml-2 text-xs text-blue-600 font-normal">
+                    (Fixed: Creating a talent account from submission)
+                  </span>
+                )}
               </label>
               <div className="grid grid-cols-2 gap-4 mt-1">
                 <div
-                  className={`border rounded-md p-3 cursor-pointer ${
+                  className={`border rounded-md p-3 ${isUserTypeEditable ? 'cursor-pointer' : ''} ${
                     formData.userType === 'TALENT'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-300 hover:border-gray-400'
                   }`}
-                  onClick={() => handleUserTypeChange('TALENT')}
+                  onClick={() => isUserTypeEditable && handleUserTypeChange('TALENT')}
                   data-user-type="TALENT"
                 >
                   <div className="flex items-center justify-between">
@@ -306,13 +305,14 @@ export default function SignUpPage() {
                 </div>
                 
                 <div
-                  className={`border rounded-md p-3 cursor-pointer ${
+                  className={`border rounded-md p-3 ${
                     formData.userType === 'STUDIO'
                       ? 'border-green-500 bg-green-50'
                       : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                  onClick={() => handleUserTypeChange('STUDIO')}
+                  } ${isUserTypeEditable ? 'cursor-pointer' : 'opacity-50'}`}
+                  onClick={() => isUserTypeEditable && handleUserTypeChange('STUDIO')}
                   data-user-type="STUDIO"
+                  style={{ pointerEvents: isUserTypeEditable ? 'auto' : 'none' }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="font-medium">Studio</div>

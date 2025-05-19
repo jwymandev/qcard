@@ -2,83 +2,97 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function AuthDebugPage() {
   const { data: session, status } = useSession();
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [cookies, setCookies] = useState<string>('');
+  const [testResult, setTestResult] = useState<string>('Not tested');
 
+  // Extract error from URL if present
+  const errorMessage = searchParams.get('error') || 'No error specified';
+  const originalPath = searchParams.get('path') || '/';
+
+  // Get cookies on client side
   useEffect(() => {
-    async function fetchDebugInfo() {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/auth-debug');
-        
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        setDebugInfo(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error fetching debug info:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    fetchDebugInfo();
+    setCookies(document.cookie || 'No cookies found');
   }, []);
 
+  // Test auth API endpoint
+  const testAuthEndpoint = async () => {
+    try {
+      setTestResult('Testing...');
+      const response = await fetch('/api/auth/auth-status');
+      const data = await response.json();
+      setTestResult(JSON.stringify(data, null, 2));
+    } catch (error) {
+      setTestResult(`Error testing auth: ${error.message}`);
+    }
+  };
+
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-4">Authentication Debug</h1>
-      
-      <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded mb-6">
-        <p className="font-medium">Warning: This page is for debugging purposes only</p>
-        <p className="text-sm">It should be disabled in production environments.</p>
-      </div>
-      
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">Client-Side Session</h2>
-        <div className="bg-gray-100 p-4 rounded overflow-auto">
-          <pre className="text-sm">
-            {JSON.stringify({ status, session }, null, 2)}
-          </pre>
+    <div className="container mx-auto p-6 max-w-4xl">
+      <div className="bg-white shadow-md rounded-lg p-8">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">Authentication Debug Page</h1>
+        
+        <div className="p-4 mb-6 bg-yellow-50 border border-yellow-200 rounded-md">
+          <h2 className="font-semibold text-yellow-800 mb-2">⚠️ Authentication Error</h2>
+          <p className="text-yellow-700">
+            You were redirected here because the authentication system encountered an error.
+          </p>
+          <p className="mt-1 font-medium">Error: {errorMessage}</p>
+          <p className="mt-1">Original path: {originalPath}</p>
         </div>
-      </div>
-      
-      {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded">
-          <p>Error loading debug info: {error}</p>
-        </div>
-      ) : (
-        <div>
-          <h2 className="text-xl font-semibold mb-2">Server-Side Auth Debug Info</h2>
-          <div className="bg-gray-100 p-4 rounded overflow-auto max-h-[500px]">
-            <pre className="text-sm">
-              {JSON.stringify(debugInfo, null, 2)}
-            </pre>
+
+        <div className="mb-6">
+          <h2 className="font-bold text-lg mb-3">Session Status</h2>
+          <div className="p-2 bg-white rounded border border-gray-200">
+            <p><strong>Status:</strong> {status}</p>
+            
+            {status === 'authenticated' && session && (
+              <div className="mt-2">
+                <p><strong>User:</strong> {session.user?.name || 'Not provided'}</p>
+                <p><strong>Email:</strong> {session.user?.email || 'Not provided'}</p>
+                <p><strong>Expires:</strong> {session.expires || 'Not provided'}</p>
+              </div>
+            )}
           </div>
         </div>
-      )}
-      
-      <div className="mt-8 space-y-4">
-        <h2 className="text-xl font-semibold">Troubleshooting Steps</h2>
-        <ul className="list-disc list-inside space-y-2">
-          <li>Check if cookies are being properly set and read</li>
-          <li>Verify NEXTAUTH_URL and NEXTAUTH_SECRET environment variables</li>
-          <li>Ensure the session strategy matches between server and client</li>
-          <li>Check for any CORS or cookie domain issues</li>
-          <li>Verify the auth provider configuration</li>
-          <li>Check for client-side hydration mismatches</li>
-        </ul>
+
+        <div className="mb-6">
+          <h2 className="font-bold text-lg mb-3">Browser Cookies</h2>
+          <div className="overflow-auto max-h-40 p-2 bg-white rounded border border-gray-200 text-sm font-mono whitespace-pre-wrap">
+            {cookies || 'No cookies found'}
+          </div>
+        </div>
+        
+        <div className="flex space-x-4">
+          <button
+            onClick={() => router.push('/')}
+            className="px-4 py-2 bg-blue-500 text-white rounded"
+          >
+            Home
+          </button>
+          
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 bg-gray-200 rounded"
+          >
+            Go Back
+          </button>
+          
+          <button
+            onClick={() => {
+              document.cookie = 'next-auth.session-token=; Max-Age=0; path=/;';
+              window.location.reload();
+            }}
+            className="px-4 py-2 bg-red-500 text-white rounded"
+          >
+            Clear Cookies
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -119,7 +119,21 @@ export default function ApplicationsPage({ params }: { params: { id: string } })
       }
       
       const data = await response.json();
-      setApplications(data);
+      
+      // Ensure Profile and Skill property are always defined
+      const processedData = data.map((app: any) => ({
+        ...app,
+        Profile: app.Profile ? {
+          ...app.Profile,
+          User: app.Profile.User || { firstName: '', lastName: '', email: '' },
+          Skill: app.Profile.Skill || []
+        } : {
+          User: { firstName: '', lastName: '', email: '' },
+          Skill: []
+        }
+      }));
+      
+      setApplications(processedData);
     } catch (error) {
       console.error('Error fetching applications:', error);
       setError('Failed to load applications. Please try again later.');
@@ -174,6 +188,11 @@ export default function ApplicationsPage({ params }: { params: { id: string } })
     try {
       setSendingMessage(true);
       
+      // Make sure all required fields are available
+      if (!selectedApplication.Profile?.id) {
+        throw new Error('Missing talent profile information');
+      }
+      
       const response = await fetch('/api/studio/messages', {
         method: 'POST',
         headers: {
@@ -181,7 +200,7 @@ export default function ApplicationsPage({ params }: { params: { id: string } })
         },
         body: JSON.stringify({
           content: message,
-          subject: `About your application for "${castingCall?.title}"`,
+          subject: `About your application for "${castingCall?.title || 'Casting Call'}"`,
           talentReceiverId: selectedApplication.Profile.id,
           relatedToCastingCallId: castingCallId,
         }),
@@ -227,8 +246,8 @@ export default function ApplicationsPage({ params }: { params: { id: string } })
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-        <Link href="/studio/projects" className="text-blue-600 hover:text-blue-800">
-          Back to Projects
+        <Link href="/studio/casting-calls" className="text-blue-600 hover:text-blue-800">
+          Back to Casting Calls
         </Link>
       </div>
     );
@@ -346,7 +365,7 @@ export default function ApplicationsPage({ params }: { params: { id: string } })
                           {application.Profile.headshotUrl ? (
                             <img 
                               src={application.Profile.headshotUrl} 
-                              alt={`${application.Profile.User.firstName} ${application.Profile.User.lastName}`}
+                              alt={`${application.Profile.User.firstName || ''} ${application.Profile.User.lastName || ''}`}
                               className="h-full w-full object-cover"
                             />
                           ) : (
@@ -405,7 +424,7 @@ export default function ApplicationsPage({ params }: { params: { id: string } })
                         <div>
                           <h3 className="font-semibold text-md mb-2">Skills</h3>
                           <div className="flex flex-wrap gap-1">
-                            {application.Profile.Skill.length > 0 ? (
+                            {application.Profile.Skill?.length > 0 ? (
                               application.Profile.Skill.map(skill => (
                                 <Badge key={skill.id} variant="secondary">{skill.name}</Badge>
                               ))
@@ -554,7 +573,7 @@ export default function ApplicationsPage({ params }: { params: { id: string } })
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold">Message to {selectedApplication.Profile.User.firstName} {selectedApplication.Profile.User.lastName}</h3>
+              <h3 className="text-xl font-bold">Message to {selectedApplication.Profile.User.firstName || ''} {selectedApplication.Profile.User.lastName || ''}</h3>
               <button
                 onClick={() => {
                   setMessagingOpen(false);

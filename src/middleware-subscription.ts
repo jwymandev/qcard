@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { ensureHttps } from './lib/utils';
 
 /**
  * List of paths that require an active subscription
@@ -61,8 +62,17 @@ export async function checkSubscriptionAccess(request: NextRequest): Promise<Nex
   }
   
   try {
-    // Make a request to check subscription status
-    const subscriptionCheck = await fetch(new URL('/api/user/subscription', request.url), {
+    // Extract the host from the request headers, not the URL
+    const host = request.headers.get('host') || '';
+    // Determine protocol based on request URL
+    const protocol = request.url.startsWith('https') ? 'https' : 'http';
+    // Build the correct origin using host header
+    const origin = `${protocol}://${host}`;
+    const apiUrl = `${origin}/api/user/subscription`;
+    
+    console.log(`Making subscription request to: ${apiUrl} (host: ${host})`);
+    
+    const subscriptionCheck = await fetch(apiUrl, {
       headers: {
         cookie: request.headers.get('cookie') || '',
       },
@@ -95,15 +105,21 @@ export async function checkSubscriptionAccess(request: NextRequest): Promise<Nex
     if (premiumFeatureKey && !isSubscribed) {
       const featureKey = PREMIUM_FEATURE_PATHS[premiumFeatureKey];
       
-      // Make a request to check feature access
-      const featureCheck = await fetch(
-        new URL(`/api/user/features/${featureKey}`, request.url),
-        {
-          headers: {
-            cookie: request.headers.get('cookie') || '',
-          },
-        }
-      );
+      // Extract host from headers for correct domain
+      const host = request.headers.get('host') || '';
+      // Determine protocol based on request URL
+      const protocol = request.url.startsWith('https') ? 'https' : 'http';
+      // Build the correct origin using host header
+      const origin = `${protocol}://${host}`;
+      const apiUrl = `${origin}/api/user/features/${featureKey}`;
+      
+      console.log(`Making feature check request to: ${apiUrl} (host: ${host})`);
+      
+      const featureCheck = await fetch(apiUrl, {
+        headers: {
+          cookie: request.headers.get('cookie') || '',
+        },
+      });
       
       if (featureCheck.ok) {
         const { hasAccess } = await featureCheck.json();

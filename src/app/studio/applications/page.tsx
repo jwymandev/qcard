@@ -403,7 +403,7 @@ export default function ApplicationsOverviewPage() {
                                     </Badge>
                                   </td>
                                   <td className="px-4 py-2 whitespace-nowrap text-sm text-blue-600">
-                                    <Link href={`/studio/applications/${application.castingCall.id}`}>
+                                    <Link href={`/studio/casting-calls/${application.castingCall.id}/applications`}>
                                       Review
                                     </Link>
                                   </td>

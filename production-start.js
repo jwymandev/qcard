@@ -91,6 +91,36 @@ function startApplication() {
   const port = process.env.PORT || 8080;
   console.log(`Starting Next.js on port ${port}...`);
   
+    // First check if standalone server file exists
+  const fs = require('fs');
+  const standaloneServerPath = path.join(process.cwd(), '.next/standalone/server.js');
+  
+  if (fs.existsSync(standaloneServerPath)) {
+    console.log('Detected standalone output mode, using standalone server.js');
+    startStandaloneServer(port);
+  } else {
+    console.log('Using standard Next.js start mode');
+    startRegularNext(port);
+  }
+}
+
+// Start using the standalone server.js file
+function startStandaloneServer(port) {
+  const standaloneServerPath = path.join(process.cwd(), '.next/standalone/server.js');
+  
+  const nextProcess = spawn('node', [standaloneServerPath], {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      PORT: port.toString()
+    }
+  });
+  
+  handleProcessEvents(nextProcess);
+}
+
+// Start using the regular next start command
+function startRegularNext(port) {
   // Path to next binary
   const nextBin = path.join(process.cwd(), 'node_modules', '.bin', 'next');
   
@@ -100,6 +130,11 @@ function startApplication() {
     env: process.env
   });
   
+  handleProcessEvents(nextProcess);
+}
+
+// Handle process events for all Next.js server processes
+function handleProcessEvents(nextProcess) {
   // Handle Next.js process errors
   nextProcess.on('error', (err) => {
     console.error('Failed to start Next.js:', err);

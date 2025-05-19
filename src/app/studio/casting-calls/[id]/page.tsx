@@ -198,7 +198,7 @@ export default function CastingCallDetailPage({ params }: { params: { id: string
         
         <div className="flex space-x-3">
           <Link
-            href={`/studio/applications/${castingCall.id}`}
+            href={`/studio/casting-calls/${castingCall.id}/applications`}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             View Applications
@@ -364,7 +364,7 @@ export default function CastingCallDetailPage({ params }: { params: { id: string
               </div>
               
               <Link
-                href={`/studio/applications/${castingCall.id}`}
+                href={`/studio/casting-calls/${castingCall.id}/applications`}
                 className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 View All Applications
@@ -471,7 +471,7 @@ export default function CastingCallDetailPage({ params }: { params: { id: string
               </Link>
               
               <Link
-                href={`/studio/applications/${castingCall.id}`}
+                href={`/studio/casting-calls/${castingCall.id}/applications`}
                 className="block w-full px-4 py-2 text-center bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Manage Applications

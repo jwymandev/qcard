@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QCard Static Debug</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+    .card {
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.2rem;
+      color: #555;
+    }
+    button {
+      background-color: #4a8fee;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    pre {
+      background-color: #eee;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    #console {
+      min-height: 150px;
+      font-family: monospace;
+      font-size: 14px;
+      background-color: #2d2d2d;
+      color: #eee;
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>QCard Static Debug Page</h1>
+  <p>This is a completely static HTML page that bypasses Next.js and React entirely.</p>
+  
+  <div class="card">
+    <h2>Browser Information</h2>
+    <div id="browser-info"></div>
+  </div>
+  
+  <div class="card">
+    <h2>Cookie Information</h2>
+    <div id="cookie-info"></div>
+    <button onclick="clearCookies()">Clear All Cookies</button>
+  </div>
+  
+  <div class="card">
+    <h2>Local Storage</h2>
+    <div id="storage-info"></div>
+    <button onclick="clearStorage()">Clear Local Storage</button>
+  </div>
+  
+  <div class="card">
+    <h2>Network Test</h2>
+    <button onclick="testFetch()">Test Fetch API</button>
+    <div id="network-result"></div>
+  </div>
+  
+  <div class="card">
+    <h2>Debug Console</h2>
+    <div id="console"></div>
+    <button onclick="runTests()">Run All Tests</button>
+    <button onclick="document.getElementById('console').innerHTML = ''">Clear</button>
+  </div>
+  
+  <script>
+    // Log to the on-page console
+    function log(message) {
+      const console = document.getElementById('console');
+      console.innerHTML += message + '<br>';
+      console.scrollTop = console.scrollHeight;
+    }
+    
+    // Display browser information
+    function showBrowserInfo() {
+      const info = document.getElementById('browser-info');
+      info.innerHTML = `
+        <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
+        <p><strong>Window Size:</strong> ${window.innerWidth}×${window.innerHeight}</p>
+        <p><strong>URL:</strong> ${window.location.href}</p>
+        <p><strong>Referrer:</strong> ${document.referrer || 'None'}</p>
+      `;
+    }
+    
+    // Display cookie information
+    function showCookieInfo() {
+      const info = document.getElementById('cookie-info');
+      const cookies = document.cookie.split(';').map(cookie => cookie.trim());
+      
+      if (cookies.length === 1 && cookies[0] === '') {
+        info.innerHTML = '<p>No cookies found</p>';
+        return;
+      }
+      
+      let html = '<ul>';
+      cookies.forEach(cookie => {
+        const [name, value] = cookie.split('=');
+        html += `<li><strong>${name}</strong>: ${value}</li>`;
+      });
+      html += '</ul>';
+      
+      info.innerHTML = html;
+    }
+    
+    // Display local storage
+    function showStorageInfo() {
+      const info = document.getElementById('storage-info');
+      
+      if (localStorage.length === 0) {
+        info.innerHTML = '<p>No items in local storage</p>';
+        return;
+      }
+      
+      let html = '<ul>';
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        html += `<li><strong>${key}</strong></li>`;
+      }
+      html += '</ul>';
+      
+      info.innerHTML = html;
+    }
+    
+    // Clear all cookies
+    function clearCookies() {
+      document.cookie.split(';').forEach(function(cookie) {
+        const name = cookie.trim().split('=')[0];
+        document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      });
+      log('Cleared all cookies');
+      showCookieInfo();
+    }
+    
+    // Clear local storage
+    function clearStorage() {
+      localStorage.clear();
+      log('Cleared local storage');
+      showStorageInfo();
+    }
+    
+    // Test fetch API
+    function testFetch() {
+      const result = document.getElementById('network-result');
+      result.innerHTML = 'Testing...';
+      
+      fetch('/api/health')
+        .then(response => {
+          if (!response.ok) throw new Error('API response was not ok');
+          return response.json();
+        })
+        .then(data => {
+          result.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+          log('Fetch test succeeded');
+        })
+        .catch(error => {
+          result.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+          log('Fetch test failed: ' + error.message);
+        });
+    }
+    
+    // Run all tests
+    function runTests() {
+      log('--- Starting Tests ---');
+      
+      // Test localStorage
+      try {
+        localStorage.setItem('test', 'test');
+        localStorage.removeItem('test');
+        log('✅ localStorage: Available and working');
+      } catch (e) {
+        log('❌ localStorage: Error - ' + e.message);
+      }
+      
+      // Test cookies
+      try {
+        document.cookie = 'test=test; path=/';
+        log('✅ Cookies: Available and working');
+      } catch (e) {
+        log('❌ Cookies: Error - ' + e.message);
+      }
+      
+      // Test JSON parsing
+      try {
+        JSON.parse('{"test": "test"}');
+        log('✅ JSON parsing: Working');
+      } catch (e) {
+        log('❌ JSON parsing: Error - ' + e.message);
+      }
+      
+      // Check React/Next.js-related globals
+      log('__NEXT_DATA__ present: ' + (typeof window.__NEXT_DATA__ !== 'undefined'));
+      log('React present: ' + (typeof window.React !== 'undefined'));
+      
+      log('--- Tests Completed ---');
+    }
+    
+    // Initialize
+    showBrowserInfo();
+    showCookieInfo();
+    showStorageInfo();
+    log('Debug page loaded at ' + new Date().toISOString());
+  </script>
+</body>
+</html>

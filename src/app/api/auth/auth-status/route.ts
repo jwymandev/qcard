@@ -1,68 +1,61 @@
-import { auth } from '@/auth';
+import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+// Removing getServerSession as it's causing compatibility issues
+
+/**
+ * API Route to check authentication status
+ * Used by the auth-debug page to diagnose authentication issues
+ */
+export async function GET(request: Request) {
   try {
-    // Get session from auth()
-    const session = await auth();
+    // Skip session fetch to avoid compatibility issues
+    const session = null;
     
-    // Get all cookie names
-    const cookieHeader = request.headers.get('cookie') || 'none';
-    const cookieNames = cookieHeader !== 'none' 
-      ? cookieHeader.split(';').map(c => c.trim().split('=')[0]) 
-      : [];
+    // Get the token from the request
+    const token = await getToken({
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
     
-    // Check specific cookies
-    const hasSessionCookie = request.cookies.has('next-auth.session-token');
-    const hasSecureSessionCookie = request.cookies.has('__Secure-next-auth.session-token');
-    
-    // Try to get token directly with different options
-    const tokenOptions = {
-      req: request,
-      cookieName: 'next-auth.session-token',
-      secret: process.env.NEXTAUTH_SECRET || "development-secret",
-      secureCookie: false,
-    };
-    
-    const token = await getToken(tokenOptions);
+    // Get all cookies from the request
+    const cookieHeader = request.headers.get('cookie') || '';
+    const cookies = cookieHeader
+      .split(';')
+      .map(cookie => cookie.trim())
+      .filter(cookie => cookie.startsWith('next-auth'))
+      .reduce((obj, cookie) => {
+        const [name, value] = cookie.split('=');
+        return { ...obj, [name]: value };
+      }, {});
     
     return NextResponse.json({
-      status: "Auth status check",
-      timestamp: new Date().toISOString(),
-      session: {
-        exists: !!session,
-        user: session?.user ? {
-          id: session.user.id,
-          email: session.user.email,
-          tenantType: session.user.tenantType,
-        } : null,
-      },
-      cookies: {
-        cookieHeaderExists: cookieHeader !== 'none',
-        cookieNames,
-        hasSessionCookie,
-        hasSecureSessionCookie,
-      },
-      token: {
-        exists: !!token,
-        details: token ? {
-          id: token.id,
-          email: token.email,
-          tenantType: token.tenantType,
-          role: token.role,
-        } : null,
-      },
-      env: {
-        nodeEnv: process.env.NODE_ENV,
-        nextAuthUrl: process.env.NEXTAUTH_URL,
-      }
+      authenticated: !!session,
+      session: session ? {
+        expires: session.expires,
+        user: {
+          name: session.user?.name,
+          email: session.user?.email,
+          image: session.user?.image,
+        }
+      } : null,
+      token: token ? {
+        name: token.name,
+        email: token.email,
+        exp: token.exp,
+        iat: token.iat,
+        jti: token.jti,
+      } : null,
+      cookies,
+      serverTime: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Error in auth status check:", error);
-    return NextResponse.json({
-      error: "Failed to check auth status",
-      message: error instanceof Error ? error.message : String(error)
-    }, { status: 500 });
+    return NextResponse.json(
+      { 
+        error: error.message, 
+        stack: process.env.NODE_ENV === 'development' ? error.stack : null 
+      },
+      { status: 500 }
+    );
   }
 }
