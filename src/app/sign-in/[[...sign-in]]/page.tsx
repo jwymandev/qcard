@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { signIn } from '@/lib/client-auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import BypassSignIn from './bypass-signin';
 
 export default function SignInPage() {
   const [email, setEmail] = useState('');
@@ -11,6 +12,9 @@ export default function SignInPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isBypass = searchParams?.get('emergency_bypass') === 'true';
+  const showDebugMode = searchParams?.get('debug') === 'true';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +63,6 @@ export default function SignInPage() {
         setError('An error occurred during sign-in. Please try again.');
         setIsLoading(false);
       }
-      // Removed router.refresh() to prevent continuous reloads
     } catch (error) {
       console.error("Sign-in error:", error);
       setError('An error occurred during sign in. Please try again.');
@@ -67,6 +70,39 @@ export default function SignInPage() {
     }
   };
 
+  // Debug info section for troubleshooting
+  const DebugSection = () => {
+    if (!showDebugMode) return null;
+    
+    return (
+      <div className="mt-6 p-4 bg-gray-100 rounded-md text-xs font-mono">
+        <h3 className="font-bold mb-2">Auth Debug Info</h3>
+        <p>URL: {window.location.href}</p>
+        <p>Search params: {searchParams?.toString()}</p>
+        <p>Bypass mode: {isBypass ? 'Enabled' : 'Disabled'}</p>
+        <div className="mt-2">
+          <button 
+            className="bg-gray-200 px-2 py-1 rounded"
+            onClick={() => localStorage.clear()}
+          >
+            Clear LocalStorage
+          </button>
+          <Link 
+            href="/emergency-logout"
+            className="ml-2 bg-gray-200 px-2 py-1 rounded inline-block"
+          >
+            Clear All Cookies
+          </Link>
+          <a 
+            href={`${window.location.pathname}?emergency_bypass=true&debug=true`}
+            className="ml-2 bg-red-200 px-2 py-1 rounded inline-block"
+          >
+            Enable Emergency Bypass
+          </a>
+        </div>
+      </div>
+    );
+  };
   
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] py-12 px-4 sm:px-6 lg:px-8">
@@ -92,6 +128,9 @@ export default function SignInPage() {
             {error}
           </div>
         )}
+        
+        {/* Display emergency bypass component if in emergency mode */}
+        <BypassSignIn />
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <input type="hidden" name="remember" defaultValue="true" />
@@ -160,6 +199,20 @@ export default function SignInPage() {
             </button>
           </div>
         </form>
+        
+        {/* Debug section for troubleshooting */}
+        <DebugSection />
+        
+        {/* Emergency bypass link at bottom */}
+        <div className="text-center text-xs text-gray-500 mt-8">
+          Having trouble? Try{' '}
+          <a 
+            href="?emergency_bypass=true" 
+            className="text-red-500 hover:text-red-600"
+          >
+            emergency mode
+          </a>
+        </div>
       </div>
     </div>
   );

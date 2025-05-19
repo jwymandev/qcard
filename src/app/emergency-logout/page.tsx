@@ -8,44 +8,45 @@ export default function EmergencyLogout() {
   const router = useRouter();
 
   useEffect(() => {
-    async function clearSession() {
+    const clearSession = async () => {
       try {
         // First, try the API route
-        const response = await fetch("/api/auth/signout", {
+        await fetch("/api/auth/signout", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ callbackUrl: "/sign-in" }),
-        });
+        }).catch(() => console.log("Failed to call signout API"));
 
-        // Also try our emergency logout
-        await fetch("/sign-in/emergency-logout");
-
-        // Clear local storage
-        localStorage.clear();
-        
-        // Clear all cookies
+        // Try to clear cookies
         document.cookie.split(";").forEach((c) => {
           document.cookie = c
             .replace(/^ +/, "")
             .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
         });
 
+        // Clear localStorage
+        try {
+          localStorage.clear();
+        } catch (e) {
+          console.log("Could not clear localStorage");
+        }
+
         setMessage("Session cleared! Redirecting to login page...");
         
         // Redirect after a short delay
         setTimeout(() => {
-          router.push("/sign-in");
+          window.location.href = "/sign-in";
         }, 2000);
       } catch (error) {
         setMessage("Error clearing session. Please try clearing browser cookies manually.");
         console.error("Logout error:", error);
       }
-    }
+    };
 
     clearSession();
-  }, [router]);
+  }, []);
 
   return (
     <div style={{ 
@@ -67,8 +68,8 @@ export default function EmergencyLogout() {
           <li>Close all browser tabs and reopen the application</li>
         </ol>
       </div>
-      <button 
-        onClick={() => router.push("/sign-in")}
+      <a 
+        href="/sign-in?emergency_bypass=true"
         style={{
           marginTop: "20px",
           padding: "10px 20px",
@@ -76,11 +77,13 @@ export default function EmergencyLogout() {
           color: "white",
           border: "none",
           borderRadius: "4px",
-          cursor: "pointer"
+          cursor: "pointer",
+          textDecoration: "none",
+          display: "inline-block"
         }}
       >
         Go to Sign In
-      </button>
+      </a>
     </div>
   );
 }

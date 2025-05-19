@@ -131,13 +131,17 @@ export default function AuthLoading({ children }: { children: React.ReactNode })
             <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm font-medium text-red-700">Authentication is taking longer than expected</p>
               <p className="text-xs text-red-600 mb-3">This may be due to database schema mismatch</p>
-              <a 
-                href={window.location.pathname + "?emergency_bypass=true"}
-                className="px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 mr-2 inline-block"
-                style={{ textDecoration: 'none' }}
+              <button 
+                onClick={() => {
+                  // Add bypass parameter to URL
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('emergency_bypass', 'true');
+                  window.location.href = url.toString();
+                }}
+                className="px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 mr-2"
               >
                 Emergency Bypass
-              </a>
+              </button>
               <button 
                 onClick={() => setIsLoading(false)}
                 className="px-4 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
