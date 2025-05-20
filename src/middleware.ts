@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-// ULTRA SIMPLIFIED MIDDLEWARE FOR DATABASE MISMATCH DEBUGGING
+// ENHANCED MIDDLEWARE WITH DATABASE ERROR HANDLING
 export async function middleware(request: NextRequest) {
   // Get the pathname of the request
   const path = request.nextUrl.pathname;
@@ -10,8 +10,7 @@ export async function middleware(request: NextRequest) {
   // Log all requests in development
   console.log(`Middleware request for path: ${path}`);
   
-  // TEMPORARY: Skip all middleware checks to bypass database issues
-  // This allows access to the app even with database schema mismatches
+  // EMERGENCY BYPASS: Skip all middleware checks to bypass database issues
   const bypassAuth = request.nextUrl.searchParams.has('bypass_auth') || 
                      request.cookies.has('bypass_auth');
                      
@@ -28,10 +27,15 @@ export async function middleware(request: NextRequest) {
     path.includes('_next') || 
     path.includes('favicon.ico') ||
     path.includes('.') ||
+    path === '/db-error' ||        // Add db-error page
+    path === '/emergency' ||       // Add emergency page
+    path === '/emergency-logout' || // Add emergency logout
     path === '/debug-auth' ||
     path === '/debug' ||
     path === '/basic-debug' ||
-    path === '/debug.html'
+    path === '/debug.html' ||
+    path === '/auth-debug' ||
+    path === '/debug-session'
   ) {
     return NextResponse.next();
   }
@@ -55,38 +59,68 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // For non-public paths, attempt authentication but with error fallback
+  // For non-public paths, attempt authentication with timeout protection
   try {
-    // Get token with simplified options
-    const tokenOptions = {
+    // Create a timeout promise to prevent hanging on database connections
+    const timeoutPromise = new Promise<null>((_, reject) => {
+      setTimeout(() => reject(new Error('Auth token check timed out')), 2000);
+    });
+    
+    // Create the token promise 
+    const tokenPromise = getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET || "development-secret",
-    };
+    });
     
-    // Try to get token but don't block on failure
+    // Race the token check against the timeout
+    let token;
     try {
-      const token = await getToken(tokenOptions);
-      const isAuthenticated = !!token;
-      
-      // If authenticated, allow access to all routes
-      if (isAuthenticated) {
-        return NextResponse.next();
-      }
+      token = await Promise.race([tokenPromise, timeoutPromise]);
     } catch (tokenError) {
-      console.error('Token verification error, continuing without auth:', tokenError);
-      // Continue without auth check
+      console.error('Token verification error or timeout:', tokenError);
+      
+      // If token check timed out, redirect to the database error page
+      if (tokenError instanceof Error && tokenError.message.includes('timed out')) {
+        console.log('Authentication timed out, redirecting to database error page');
+        return NextResponse.redirect(new URL('/db-error', request.url));
+      }
+      
+      // For other token errors, continue without auth
+      token = null;
     }
     
-    // For development/testing, allow access anyway with a flag
-    // This keeps the middleware chain working but skips actual auth checks
-    const response = NextResponse.next();
-    response.cookies.set('auth_bypassed', 'true', { maxAge: 60 }); // 1 minute
-    return response;
+    // If authenticated, allow access to all routes
+    if (token) {
+      return NextResponse.next();
+    }
+    
+    // Not authenticated and not timed out, redirect to sign-in
+    const signInUrl = new URL('/sign-in', request.url);
+    signInUrl.searchParams.set('callbackUrl', path);
+    return NextResponse.redirect(signInUrl);
     
   } catch (error) {
     console.error('Middleware auth error:', error);
-    // Allow access despite errors during database mismatch debugging
-    return NextResponse.next();
+    
+    // If error suggests database issues, redirect to the database error page
+    if (
+      error instanceof Error && (
+        error.message.includes('database') ||
+        error.message.includes('connection') ||
+        error.message.includes('timed out') ||
+        error.message.includes('prisma')
+      )
+    ) {
+      console.log('Database-related error detected, redirecting to error page');
+      return NextResponse.redirect(new URL('/db-error', request.url));
+    }
+    
+    // For other errors, set a debug cookie and allow access
+    const response = NextResponse.next();
+    response.cookies.set('auth_error', error instanceof Error ? error.message : 'Unknown error', { 
+      maxAge: 300 // 5 minutes
+    });
+    return response;
   }
 }
 
@@ -106,6 +140,7 @@ export const config = {
     '/role-redirect',
     '/unauthorized',
     '/auth-debug',
-    '/debug-session'
+    '/debug-session',
+    '/emergency-logout'
   ],
 };
