@@ -5,8 +5,6 @@ import Navigation from '@/components/navigation';
 import { Providers } from './providers';
 import dynamic from 'next/dynamic';
 
-// This comment is to add debugging to help diagnose white screen issues
-
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
@@ -20,7 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   // Load AuthLoading component dynamically to ensure it only runs on client
-  const AuthLoading = dynamic(() => import('@/components/AuthLoading'), {
+  // Using the improved version with fallback for database connection issues
+  const AuthLoading = dynamic(() => import('@/components/AuthLoadingWithFallback'), {
     ssr: false,
     loading: () => (
       <div className="flex items-center justify-center min-h-screen">
@@ -65,13 +64,28 @@ export default function RootLayout({
           </AuthLoading>
         </Providers>
 
-        {/* Emergency debug button */}
-        <div id="debug-button" style={{ display: 'none', position: 'fixed', bottom: '10px', right: '10px', zIndex: 9999 }}>
+        {/* Emergency access button */}
+        <div id="emergency-button" style={{ display: 'none', position: 'fixed', bottom: '10px', right: '10px', zIndex: 9999 }}>
+          <a 
+            href="/?bypass_auth=true"
+            style={{
+              display: 'inline-block',
+              background: '#ff5555',
+              color: 'white',
+              textDecoration: 'none',
+              borderRadius: '4px',
+              padding: '8px 16px',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+              marginRight: '8px'
+            }}
+          >
+            Emergency Access
+          </a>
           <a 
             href="/auth-debug?source=emergency_button"
             style={{
               display: 'inline-block',
-              background: '#ff5555',
+              background: '#5555ff',
               color: 'white',
               textDecoration: 'none',
               borderRadius: '4px',
@@ -83,17 +97,34 @@ export default function RootLayout({
           </a>
         </div>
         
-        {/* Script to show debug button */}
+        {/* Detect loading time and show emergency button */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                // Show debug button based on params or localStorage
                 const hasDebugParam = window.location.search.includes('show_debug');
                 const isDebugEnabled = localStorage.getItem('qcard_debug') === 'true';
+                const hasEmergencyParam = window.location.search.includes('bypass_auth');
                 
-                if (hasDebugParam || isDebugEnabled) {
-                  document.getElementById('debug-button').style.display = 'block';
+                if (hasDebugParam || isDebugEnabled || hasEmergencyParam) {
+                  document.getElementById('emergency-button').style.display = 'block';
                 }
+                
+                // Track loading time and show emergency button after 8 seconds
+                let loadStartTime = Date.now();
+                let loadingInterval = setInterval(() => {
+                  const loadingTime = Math.floor((Date.now() - loadStartTime) / 1000);
+                  if (loadingTime > 8) {
+                    document.getElementById('emergency-button').style.display = 'block';
+                    clearInterval(loadingInterval);
+                  }
+                }, 1000);
+                
+                // Clear interval when page is fully loaded
+                window.addEventListener('load', () => {
+                  clearInterval(loadingInterval);
+                });
               })();
             `,
           }}
