@@ -13,10 +13,12 @@ export default function BypassSignIn() {
   const [name, setName] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const isBypass = searchParams?.get('emergency_bypass') === 'true'
+  const isBypass = searchParams?.get('emergency_bypass') === 'true' || 
+                  searchParams?.get('bypass_auth') === 'true' ||
+                  searchParams?.get('auth_timeout') === 'true'
   
   if (!isBypass) {
-    // Only show this component when ?emergency_bypass=true is present
+    // Only show this component when one of the bypass parameters is present
     return null
   }
   
@@ -26,9 +28,15 @@ export default function BypassSignIn() {
     document.cookie = `bypass_user=${encodeURIComponent(email)}; path=/; max-age=3600`
     document.cookie = `bypass_name=${encodeURIComponent(name)}; path=/; max-age=3600`
     
-    // Redirect to dashboard
-    const tenantType = email.includes('studio') ? 'studio' : 'talent'
-    router.push(`/${tenantType}/dashboard?emergency_bypass=true`)
+    // Determine tenant type from email or provide selection options
+    let tenantType = 'talent'; // Default
+    
+    if (email.includes('studio') || email.includes('admin')) {
+      tenantType = 'studio';
+    }
+    
+    // Redirect to dashboard with bypass parameter
+    router.push(`/${tenantType}/dashboard?bypass_auth=true`);
   }
   
   return (

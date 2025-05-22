@@ -31,16 +31,20 @@ export default function AuthLoadingWithFallback({ children }: { children: React.
       const timer = setInterval(() => {
         setLoadingTime(prev => {
           const newTime = prev + 1;
-          // Show error after 10 seconds of loading
-          if (newTime === 10) {
+          // Show error after 3 seconds of loading (matching middleware timeout)
+          if (newTime === 3) {
             setShowError(true);
+            // Redirect to sign-in for unauthenticated users after timeout
+            if (status === 'unauthenticated' || status === 'loading') {
+              window.location.href = '/sign-in?auth_timeout=true';
+            }
           }
           return newTime;
         });
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [isLoading, status]);
+  }, [isLoading, status, router]);
 
   // If still loading but we've reached the timeout, show a helpful error screen
   if ((isLoading || status === 'loading') && showError) {

@@ -79,10 +79,13 @@ export async function middleware(request: NextRequest) {
     } catch (tokenError) {
       console.error('Token verification error or timeout:', tokenError);
       
-      // If token check timed out, redirect to the database error page
+      // If token check timed out, redirect directly to sign-in for most paths
       if (tokenError instanceof Error && tokenError.message.includes('timed out')) {
-        console.log('Authentication timed out, redirecting to database error page');
-        return NextResponse.redirect(new URL('/db-error', request.url));
+        console.log('Authentication timed out, redirecting to sign-in page');
+        const signInUrl = new URL('/sign-in', request.url);
+        signInUrl.searchParams.set('auth_timeout', 'true');
+        signInUrl.searchParams.set('callbackUrl', path);
+        return NextResponse.redirect(signInUrl);
       }
       
       // For other token errors, continue without auth
