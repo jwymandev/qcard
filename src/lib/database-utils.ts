@@ -89,7 +89,17 @@ export function ensureProperDatabaseUrl(): boolean {
     
     // Set the environment variable
     if (typeof process !== 'undefined' && process.env) {
-      process.env.DATABASE_URL = url;
+      // During build time, we need to avoid setting process.env directly
+      try {
+        // For client components, we'll skip this assignment
+        if (process.env.NEXT_BUILD_SKIP_DB === 'true') {
+          console.log('Skipping DATABASE_URL assignment during build');
+        } else {
+          Object.defineProperty(process.env, 'DATABASE_URL', { value: url });
+        }
+      } catch (e) {
+        console.error('Error setting DATABASE_URL:', e);
+      }
     }
     
     // Log success (without credentials)

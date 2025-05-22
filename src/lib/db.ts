@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { ensureProperDatabaseUrl } from './database-utils';
+import { getSafeDatabaseUrl } from './database-utils-build-safe';
 
 // Production-grade PrismaClient singleton with error handling and 
 // proper database URL configuration for any environment
@@ -18,12 +18,26 @@ const prismaClientSingleton = () => {
     });
   }
   
-  // Critical step: ensure DATABASE_URL is properly set before Prisma initializes
-  // This handles PostgreSQL URL construction in production environments
-  const databaseConfigured = ensureProperDatabaseUrl();
+  // Get database URL without modifying environment variables
+  const databaseUrl = getSafeDatabaseUrl();
   
-  if (!databaseConfigured) {
+  // Log database connection status
+  if (!databaseUrl) {
     console.error('⚠️ Database configuration issue detected - app may fail to connect');
+  } else {
+    console.log('✅ Database URL configured successfully');
+  }
+  
+  // Set environment variable if needed and possible
+  if (databaseUrl && typeof process !== 'undefined' && process.env) {
+    try {
+      // Only set this in a server context, not during build
+      if (process.env.NEXT_PHASE !== 'phase-production-build') {
+        process.env.DATABASE_URL = databaseUrl;
+      }
+    } catch (e) {
+      // Ignore errors when setting environment variables
+    }
   }
   
   // Initialize PrismaClient with production settings
