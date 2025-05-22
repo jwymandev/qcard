@@ -97,11 +97,11 @@ export default function RootLayout({
                   document.getElementById('emergency-button').style.display = 'block';
                 }
                 
-                // Track loading time and show emergency button after 8 seconds
+                // Track loading time and show emergency button after 4 seconds
                 let loadStartTime = Date.now();
                 let loadingInterval = setInterval(() => {
                   const loadingTime = Math.floor((Date.now() - loadStartTime) / 1000);
-                  if (loadingTime > 8) {
+                  if (loadingTime > 4) {
                     document.getElementById('emergency-button').style.display = 'block';
                     clearInterval(loadingInterval);
                   }
