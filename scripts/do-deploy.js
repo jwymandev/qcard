@@ -35,14 +35,14 @@ async function main() {
     console.log('Set fallback placeholder DATABASE_URL');
   }
   
-  // Step 1.8: Fix any db.ts assignment errors
-  console.log('Checking for and fixing any db.ts assignment errors...');
+  // Step 1.8: Completely replace the db.ts file with a known-good version
+  console.log('Replacing db.ts file with known-good version...');
   try {
-    // Run the fix-db-assignment script to prevent build errors
-    require('./fix-db-assignment');
-    console.log('✅ Database file check completed');
+    // Run the replacement script to prevent build errors
+    require('./replace-db-file');
+    console.log('✅ Database file replacement completed');
   } catch (error) {
-    console.error('⚠️ Error checking database file:', error.message);
+    console.error('⚠️ Error replacing database file:', error.message);
     console.log('Continuing with deployment anyway...');
   }
 

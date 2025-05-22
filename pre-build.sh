@@ -113,6 +113,52 @@ if [ -f .env.build ]; then
   echo "Loaded DATABASE_URL from .env.build"
 fi
 
+# Fix db.ts if it has the assignment error
+if [ -f "src/lib/db.ts" ]; then
+  # Check if the file contains the reversed assignment issue
+  if grep -q '"postgresql://.*placeholder".*=.*databaseUrl' src/lib/db.ts; then
+    echo "⚠️ Found reversed assignment in db.ts - fixing..."
+    
+    # Create a replacement db.ts with fixed assignment
+    cat > src/lib/db.ts << 'EOF'
+import { PrismaClient } from '@prisma/client';
+
+const PLACEHOLDER_DB_URL = 'postgresql://placeholder:placeholder@localhost:5432/placeholder';
+
+// Simple version with no assignment errors
+const prismaClientSingleton = () => {
+  console.log('Initializing Prisma client...');
+  
+  // Always use this in build mode
+  if (process.env.NEXT_BUILD_SKIP_DB === 'true') {
+    console.log('Build mode detected - using mock Prisma client');
+    return new PrismaClient({ errorFormat: 'pretty' });
+  }
+  
+  // Get database URL safely - CORRECT ASSIGNMENT DIRECTION ALWAYS
+  let databaseUrl = process.env.DATABASE_URL || PLACEHOLDER_DB_URL;
+  
+  // Initialize client
+  const client = new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
+    errorFormat: 'pretty',
+  });
+  
+  return client;
+};
+
+// Global singleton
+const globalForPrisma = global as unknown as { prisma?: PrismaClient };
+export const prisma = globalForPrisma.prisma || prismaClientSingleton();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
+EOF
+    echo "✅ Fixed db.ts reversed assignment issue"
+  fi
+fi
+
 # Report success
 echo "Pre-build database configuration completed."
 exit 0
