@@ -1,0 +1,30 @@
+import { PrismaClient } from '@prisma/client';
+
+// Global type to store PrismaClient instance between hot reloads
+declare global {
+  var prisma: PrismaClient | undefined;
+}
+
+// This ensures we have a single instance of PrismaClient
+function createPrismaClient(): PrismaClient {
+  // In build mode, use a minimal client without connection
+  if (process.env.NEXT_BUILD_SKIP_DB === 'true') {
+    return new PrismaClient({
+      errorFormat: 'pretty',
+    });
+  }
+  
+  // In normal mode, create a standard client
+  return new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
+    errorFormat: 'pretty',
+  });
+}
+
+// Use global prisma to prevent multiple instances during development
+export const prisma = global.prisma || createPrismaClient();
+
+// In development, preserve client between hot reloads
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = prisma;
+}
