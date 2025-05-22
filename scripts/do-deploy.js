@@ -20,6 +20,17 @@ async function main() {
   // Step 1: Setup for Digital Ocean deployment
   console.log('Setting up for Digital Ocean deployment...');
   
+  // Step 1.5: Setup database URL properly
+  console.log('Setting up database URL for Digital Ocean...');
+  try {
+    // Run the database setup script to configure DATABASE_URL properly
+    const { databaseUrl } = require('./setup-do-database.js');
+    console.log(`✅ DATABASE_URL configured: ${databaseUrl ? 'Valid URL set' : 'No URL available'}`);
+  } catch (error) {
+    console.error('⚠️ Error setting up database URL:', error.message);
+    console.log('Continuing with deployment anyway...');
+  }
+  
   // Step 2: Generate Prisma client without database connection
   console.log('Generating Prisma client (without database validation)...');
   try {

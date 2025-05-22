@@ -17,9 +17,6 @@ const nextConfig = {
   experimental: {
     outputFileTracingExcludes: {
       '*': ['node_modules/@swc/**'],
-    },
-    logging: {
-      level: "error" // Only show errors, not warnings
     }
   },
   // Add webpack configuration to handle Node.js native modules

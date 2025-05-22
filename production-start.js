@@ -8,79 +8,33 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-// Configure database connection if needed
+// Configure database connection using our dedicated setup script
 function setupDatabaseConnection() {
-  // First try to use Digital Ocean style individual environment variables
-  // This is the RECOMMENDED approach for DigitalOcean deployments
-  if (process.env.DATABASE_HOST) {
-    console.log('Constructing DATABASE_URL from Digital Ocean environment variables...');
+  try {
+    // Use the pre-start script to set up the database connection
+    const setupResult = require('./scripts/pre-start');
     
-    // Extract raw values from environment
-    const hostRaw = process.env.DATABASE_HOST || '';
-    const portRaw = process.env.DATABASE_PORT || '25060';
-    const usernameRaw = process.env.DATABASE_USERNAME || 'doadmin';
-    const passwordRaw = process.env.DATABASE_PASSWORD || '';
-    const dbNameRaw = process.env.DATABASE_NAME || 'defaultdb';
-    
-    // Check for Digital Ocean placeholders that haven't been resolved yet
-    if (hostRaw.includes('${') || portRaw.includes('${') || 
-        usernameRaw.includes('${') || passwordRaw.includes('${') || 
-        dbNameRaw.includes('${')) {
-      console.error('❌ DATABASE environment variables contain unresolved placeholders');
-      console.error('This usually means the Digital Ocean App Platform is misconfigured.');
-      console.error('Please check your environment variables in Digital Ocean App Platform.');
-      
-      // Log the raw values for debugging
-      console.log('Raw Environment Variables:');
-      console.log(`- DATABASE_HOST: ${hostRaw}`);
-      console.log(`- DATABASE_PORT: ${portRaw}`);
-      console.log(`- DATABASE_USERNAME: ${usernameRaw}`);
-      console.log(`- DATABASE_NAME: ${dbNameRaw}`);
-      
+    if (setupResult.databaseUrl) {
+      console.log('✅ Database connection string configured successfully');
+      return true;
+    } else {
+      console.error('❌ Failed to configure database connection string');
       return false;
     }
+  } catch (error) {
+    console.error('❌ Error in database setup:', error.message);
     
-    // Use actual values from environment
-    const host = hostRaw;
-    const port = portRaw;
-    const username = usernameRaw;
-    const password = passwordRaw;
-    const dbName = dbNameRaw;
+    // Fallback to original method if pre-start script fails
+    console.log('Falling back to direct environment variable check...');
     
-    // Log the host and database for debugging
-    console.log(`Database connection info:`);
-    console.log(`- Host: ${host}`);
-    console.log(`- Port: ${port}`);
-    console.log(`- Database: ${dbName}`);
-    
-    // Encode password for URL
-    const encodedPassword = encodeURIComponent(password);
-    
-    // Construct PostgreSQL URL with SSL required for DigitalOcean
-    const url = `postgresql://${username}:${encodedPassword}@${host}:${port}/${dbName}?sslmode=require`;
-    
-    // Set environment variable for Prisma and other tools
-    process.env.DATABASE_URL = url;
-    console.log(`✅ Set DATABASE_URL to PostgreSQL connection (host: ${host})`);
-    return true;
-  } 
-  // Fallback to direct DATABASE_URL if provided
-  else if (process.env.DATABASE_URL) {
-    if (!process.env.DATABASE_URL.startsWith('postgresql://') && 
-        !process.env.DATABASE_URL.startsWith('postgres://')) {
-      console.log('⚠️ DATABASE_URL does not appear to be a valid PostgreSQL URL');
-      console.log('Format should be: postgresql://username:password@host:port/database?sslmode=require');
-      return false;
-    } else {
-      console.log('✅ Using provided DATABASE_URL');
+    if (process.env.DATABASE_URL &&
+        (process.env.DATABASE_URL.startsWith('postgresql://') || 
+         process.env.DATABASE_URL.startsWith('postgres://'))) {
+      console.log('✅ Using existing DATABASE_URL');
       return true;
     }
-  } 
-  // No database connection parameters found
-  else {
-    console.log('⚠️ No database connection parameters found!');
-    console.log('Missing both DATABASE_URL and DATABASE_HOST environment variables.');
-    console.log('Application will fail to connect to database.');
+    
+    console.error('❌ No valid database connection string available');
     return false;
   }
 }

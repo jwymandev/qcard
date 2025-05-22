@@ -47,7 +47,7 @@
     "do:push": "npx prisma db push && npm run build",
     "do:first-deploy": "node scripts/first-deploy.js",
     "do:deploy-with-schema": "node scripts/first-deploy.js && npm run build",
-    "do:deploy-full": "npx prisma generate && NODE_ENV=production next build",
+    "do:deploy-full": "NEXT_BUILD_SKIP_DB=true node scripts/do-deploy.js",
     "do:prepare-deploy": "node scripts/do-full-deployment.js",
     "healthcheck": "node scripts/production-healthcheck.js",
     "healthcheck:remote": "node scripts/production-healthcheck.js --remote",

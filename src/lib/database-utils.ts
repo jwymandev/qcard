@@ -88,7 +88,9 @@ export function ensureProperDatabaseUrl(): boolean {
     }
     
     // Set the environment variable
-    process.env.DATABASE_URL = url;
+    if (typeof process !== 'undefined' && process.env) {
+      process.env.DATABASE_URL = url;
+    }
     
     // Log success (without credentials)
     try {
