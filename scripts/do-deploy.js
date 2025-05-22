@@ -23,14 +23,29 @@ async function main() {
   // Step 1.5: Setup database URL properly
   console.log('Setting up database URL for Digital Ocean...');
   try {
-    // Run the database setup script to configure DATABASE_URL properly
-    const { databaseUrl } = require('./setup-do-database.js');
+    // Use the simplified database setup script that handles placeholder values better
+    const { databaseUrl } = require('./setup-do-database-simple.js');
     console.log(`✅ DATABASE_URL configured: ${databaseUrl ? 'Valid URL set' : 'No URL available'}`);
   } catch (error) {
     console.error('⚠️ Error setting up database URL:', error.message);
     console.log('Continuing with deployment anyway...');
+    
+    // Fallback to a placeholder URL to ensure build works
+    process.env.DATABASE_URL = 'postgresql://placeholder:placeholder@localhost:5432/placeholder';
+    console.log('Set fallback placeholder DATABASE_URL');
   }
   
+  // Step 1.8: Fix any db.ts assignment errors
+  console.log('Checking for and fixing any db.ts assignment errors...');
+  try {
+    // Run the fix-db-assignment script to prevent build errors
+    require('./fix-db-assignment');
+    console.log('✅ Database file check completed');
+  } catch (error) {
+    console.error('⚠️ Error checking database file:', error.message);
+    console.log('Continuing with deployment anyway...');
+  }
+
   // Step 2: Generate Prisma client without database connection
   console.log('Generating Prisma client (without database validation)...');
   try {

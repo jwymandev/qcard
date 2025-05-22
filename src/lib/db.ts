@@ -33,6 +33,8 @@ const prismaClientSingleton = () => {
     try {
       // Only set this in a server context, not during build
       if (process.env.NEXT_PHASE !== 'phase-production-build') {
+        // CRITICAL: Always ensure correct assignment direction!
+        // This must be process.env.DATABASE_URL = databaseUrl (not the reverse)
         process.env.DATABASE_URL = databaseUrl;
       }
     } catch (e) {
