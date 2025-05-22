@@ -51,8 +51,12 @@ async function main() {
   
   // Create note about runtime initialization
   console.log('\nBuild completed successfully!');
-  console.log('NOTE: Actual database migrations will run when the application starts.');
-  console.log('      This is handled by the production-start.js script that runs on startup.');
+  console.log('NOTE: Actual database migrations and initialization will run when the application starts.');
+  console.log('      This is handled automatically by:');
+  console.log('      1. production-start.js startup script');
+  console.log('      2. db-initialize-auto.js automatic database initialization');
+  console.log('\nFor manual initialization, you can also run:');
+  console.log('      npm run db:initialize-deployment [admin-email@example.com]');
   
   console.log('=== DIGITAL OCEAN DEPLOYMENT COMPLETED ===');
 }

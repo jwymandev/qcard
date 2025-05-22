@@ -32,6 +32,8 @@
     "db:fix-studio": "node scripts/check-and-fix-studio.js",
     "db:init-all-studios": "node scripts/studio-auto-initializer.js",
     "db:startup-fix": "node scripts/startup-fix.js",
+    "db:auto-init": "node scripts/db-initialize-auto.js",
+    "db:initialize-deployment": "node scripts/initialize-deployment.js",
     "stripe:setup-plans": "node scripts/setup-stripe-plans.js",
     "stripe:test-subscription": "node scripts/test-subscription-flow.js",
     "admin:check": "node scripts/check-admin-user.js",

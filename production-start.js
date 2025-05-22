@@ -218,40 +218,54 @@ async function setupDatabaseSchema() {
 // Function to run startup fixes
 async function runStartupFixes() {
   try {
-    console.log('Running startup fixes...');
+    console.log('Running database initialization and startup fixes...');
     
-    // Run the studio initialization fix script
+    // Run the comprehensive database initialization script
     const { spawnSync } = require('child_process');
-    const fixResult = spawnSync('node', ['scripts/startup-fix.js'], {
+    const initResult = spawnSync('node', ['scripts/db-initialize-auto.js'], {
       stdio: 'inherit',
       env: process.env
     });
     
-    if (fixResult.status === 0) {
-      console.log('✅ Studio initialization fixes completed successfully');
-    } else {
-      console.error('⚠️ Studio initialization fixes encountered issues');
-    }
-    
-    // Check for project table issues
-    console.log('Checking database for project table issues...');
-    try {
-      // Use Prisma to check project table
-      const { PrismaClient } = require('@prisma/client');
-      const prisma = new PrismaClient();
-      
-      // Verify project table exists by counting projects
-      const projectCount = await prisma.project.count();
-      console.log(`✅ Project table verified. Found ${projectCount} projects.`);
-      
-      // Close Prisma client
-      await prisma.$disconnect();
+    if (initResult.status === 0) {
+      console.log('✅ Database initialization completed successfully');
       return true;
-    } catch (error) {
-      console.error('⚠️ Error checking project table:', error.message);
-      console.log('This might indicate database schema issues.');
-      console.log('Try running: npx prisma db push');
-      return false;
+    } else {
+      console.error('⚠️ Database initialization encountered issues');
+      
+      // Try running the legacy startup fix as a fallback
+      console.log('Attempting legacy studio initialization as fallback...');
+      const legacyFixResult = spawnSync('node', ['scripts/startup-fix.js'], {
+        stdio: 'inherit',
+        env: process.env
+      });
+      
+      if (legacyFixResult.status === 0) {
+        console.log('✅ Legacy studio initialization completed successfully');
+        return true;
+      } else {
+        console.error('⚠️ Legacy studio initialization also failed');
+        
+        // As a last resort, try to verify the project table directly
+        console.log('Attempting direct project table verification as last resort...');
+        try {
+          const { PrismaClient } = require('@prisma/client');
+          const prisma = new PrismaClient();
+          
+          // Verify project table exists by counting projects
+          const projectCount = await prisma.project.count();
+          console.log(`✅ Project table verified. Found ${projectCount} projects.`);
+          
+          // Close Prisma client
+          await prisma.$disconnect();
+          return true;
+        } catch (error) {
+          console.error('⚠️ Error checking project table:', error.message);
+          console.log('This might indicate database schema issues.');
+          console.log('Try running: npx prisma db push');
+          return false;
+        }
+      }
     }
   } catch (error) {
     console.error('❌ Error running startup fixes:', error.message);
