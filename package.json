@@ -26,6 +26,7 @@
     "db:check-tables": "node scripts/check-db-tables.js",
     "db:reset": "node scripts/ssl-fix-reset-db.js",
     "db:verify": "node scripts/verify-db-connection.js",
+    "db:verify-deployment": "node scripts/verify-deployment-db.js",
     "db:migrate-schema": "node scripts/migrate-profile-schema.js",
     "db:setup-local": "node scripts/setup-local-postgres.js",
     "db:ssl-fix": "node scripts/fix-ssl-certificate.js",

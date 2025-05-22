@@ -239,6 +239,16 @@ async function main() {
     console.log('Attempting to continue with build despite errors...');
   }
   
+  // Run database verification after deployment
+  console.log('\nRunning database connectivity verification...');
+  try {
+    require('./verify-deployment-db');
+    console.log('Database verification initiated.');
+  } catch (error) {
+    console.error('Error running database verification:', error);
+    console.log('Deployment will continue, but database verification failed.');
+  }
+  
   console.log('=== DIGITAL OCEAN PRODUCTION DEPLOYMENT COMPLETED ===');
 }
 

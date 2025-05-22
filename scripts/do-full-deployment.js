@@ -99,4 +99,14 @@ console.log(`   - NEXTAUTH_SECRET\n`);
 console.log(`${colors.cyan}For detailed deployment instructions, refer to:${colors.reset}`);
 console.log(`DO_DEPLOY_GUIDE.md`);
 
+// Run database verification after deployment
+console.log(`\n${colors.blue}Step 5: Verifying database connectivity...${colors.reset}`);
+try {
+  require('./verify-deployment-db');
+  console.log(`${colors.green}✓ Database verification initiated.${colors.reset}`);
+} catch (error) {
+  console.log(`${colors.red}Error running database verification: ${error.message}${colors.reset}`);
+  console.log(`${colors.yellow}Deployment will continue, but database verification failed.${colors.reset}`);
+}
+
 console.log(`\n${colors.green}=== Deployment preparation complete! ===${colors.reset}`);

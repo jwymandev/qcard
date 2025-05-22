@@ -84,6 +84,16 @@ async function main() {
   console.log('\nFor manual initialization, you can also run:');
   console.log('      npm run db:initialize-deployment [admin-email@example.com]');
   
+  // Run database verification after deployment
+  console.log('\nRunning database connectivity verification...');
+  try {
+    require('./verify-deployment-db');
+    console.log('Database verification initiated.');
+  } catch (error) {
+    console.error('Error running database verification:', error);
+    console.log('Deployment will continue, but database verification failed.');
+  }
+  
   console.log('=== DIGITAL OCEAN DEPLOYMENT COMPLETED ===');
 }
 
