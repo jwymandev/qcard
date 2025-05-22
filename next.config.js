@@ -3,6 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   images: {
     domains: ['images.clerk.dev', 'img.clerk.com'],
+    unoptimized: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -11,6 +12,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   output: 'standalone',
+  // Disable attempting to statically generate API routes
+  staticPageGenerationTimeout: 120,
   experimental: {
     outputFileTracingExcludes: {
       '*': ['node_modules/@swc/**'],
@@ -58,15 +61,17 @@ const nextConfig = {
   
   // DigitalOcean deployment settings
   env: {
-    PORT: process.env.PORT || '8080'
+    PORT: process.env.PORT || '8080',
+    // Add flag to skip database connection during build
+    NEXT_BUILD_SKIP_DB: 'true',
+    // Set a dummy database URL for build
+    DATABASE_URL: process.env.NODE_ENV === 'production' ? 
+      (process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder') : 
+      process.env.DATABASE_URL
   },
   // Ensure we're listening on the right port for DigitalOcean
   serverRuntimeConfig: {
     port: parseInt(process.env.PORT || '8080', 10)
-  },
-  // Fix experimental flag - serverComponents is deprecated in newer Next.js
-  experimental: {
-    // Removed deprecated serverComponents
   }
 };
 

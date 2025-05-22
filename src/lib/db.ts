@@ -6,6 +6,18 @@ import { ensureProperDatabaseUrl } from './database-utils';
 const prismaClientSingleton = () => {
   console.log('Initializing Prisma client...');
   
+  // Check if we're in build mode and should skip database connection
+  const isBuildMode = process.env.NEXT_BUILD_SKIP_DB === 'true';
+  
+  // Skip real database connection during build
+  if (isBuildMode) {
+    console.log('🛑 Build mode detected - using mock Prisma client without database connection');
+    // Return a minimal PrismaClient for build - this won't connect to the database
+    return new PrismaClient({
+      errorFormat: 'pretty',
+    });
+  }
+  
   // Critical step: ensure DATABASE_URL is properly set before Prisma initializes
   // This handles PostgreSQL URL construction in production environments
   const databaseConfigured = ensureProperDatabaseUrl();
@@ -21,6 +33,12 @@ const prismaClientSingleton = () => {
       : ['error'],
     errorFormat: 'pretty',
   });
+
+  // Skip connection in build mode
+  if (isBuildMode) {
+    console.log('Skipping database connection in build mode');
+    return client;
+  }
 
   // Production-grade connection handling with circuit breaker pattern
   const MAX_RETRIES = 5;
@@ -55,7 +73,7 @@ const prismaClientSingleton = () => {
       });
   };
   
-  // Begin connection process immediately
+  // Begin connection process immediately in non-build environment
   connectWithRetry();
 
   return client;

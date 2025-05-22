@@ -36,16 +36,31 @@ async function main() {
   // Step 3: Build Next.js application
   console.log('Building Next.js application...');
   try {
+    // Set environment variables for build
     process.env.NODE_ENV = 'production';
+    process.env.NEXT_BUILD_SKIP_DB = 'true';
     
+    // Use a placeholder database URL for build
+    if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('${')) {
+      console.log('Setting placeholder DATABASE_URL for build...');
+      process.env.DATABASE_URL = 'postgresql://placeholder:placeholder@localhost:5432/placeholder';
+    }
+    
+    // Build with extended timeout and skip database connection
     execSync('next build', {
       stdio: 'inherit',
-      env: process.env
+      env: process.env,
+      timeout: 300000 // 5 minute timeout for build
     });
     
     console.log('✅ Next.js build completed successfully');
   } catch (error) {
     console.error('❌ Error building Next.js application:', error.message);
+    // Continue to provide useful error diagnostics
+    console.log('\n🔍 Build Error Diagnostics:');
+    console.log('- Check if DATABASE_URL is properly formatted');
+    console.log('- Ensure all required environment variables are set');
+    console.log('- Consider using NEXT_BUILD_SKIP_DB=true flag');
     process.exit(1);
   }
   
