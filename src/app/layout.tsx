@@ -18,13 +18,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   // Load AuthLoading component dynamically to ensure it only runs on client
-  // Using the improved version with fallback for database connection issues
-  const AuthLoading = dynamic(() => import('@/components/AuthLoadingWithFallback'), {
+  // Using the fixed version that won't block on public paths
+  const AuthLoading = dynamic(() => import('@/components/AuthLoadingFixedForPublicPaths'), {
     ssr: false,
     loading: () => (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="ml-4 text-gray-600">Loading authentication...</p>
+        <p className="ml-4 text-gray-600">Loading page...</p>
       </div>
     )
   });
