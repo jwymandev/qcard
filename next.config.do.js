@@ -11,16 +11,20 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  output: 'standalone',
-  // Completely disable static generation for API routes
-  // This fixes the "Dynamic server usage" errors during build
-  staticPageGenerationTimeout: 120,
-  experimental: {
-    // Don't try to statically generate API routes
-    outputFileTracingExcludes: {
-      '*': ['node_modules/@swc/**'],
-    }
+  // Use export output to avoid SSG failures
+  output: 'export',
+  // Disable static page generation completely
+  distDir: '.next-do',
+  // Configure environment variables
+  env: {
+    NODE_ENV: 'production',
+    NEXT_BUILD_SKIP_DB: 'true',
+    // Set a dummy database URL for build
+    DATABASE_URL: 'postgresql://placeholder:placeholder@localhost:5432/placeholder',
   },
+  // Optimize build speed
+  swcMinify: true,
+  poweredByHeader: false,
   // Configure API routes to be fully dynamic
   serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'],
   // Add webpack configuration to handle Node.js native modules
@@ -59,21 +63,6 @@ const nextConfig = {
     
     return config;
   },
-  
-  // DigitalOcean deployment settings
-  env: {
-    PORT: process.env.PORT || '8080',
-    // Add flag to skip database connection during build
-    NEXT_BUILD_SKIP_DB: 'true',
-    // Set a dummy database URL for build
-    DATABASE_URL: process.env.NODE_ENV === 'production' ? 
-      (process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder') : 
-      process.env.DATABASE_URL
-  },
-  // Ensure we're listening on the right port for DigitalOcean
-  serverRuntimeConfig: {
-    port: parseInt(process.env.PORT || '8080', 10)
-  }
 };
 
 module.exports = nextConfig;

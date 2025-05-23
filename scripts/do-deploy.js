@@ -42,10 +42,30 @@ async function main() {
     // Set environment variables for build
     process.env.NODE_ENV = 'production';
     
-    // Build with extended timeout
-    execSync('next build', {
+    // Use the Digital Ocean specific Next.js config
+    console.log('Using Digital Ocean specific Next.js config...');
+    
+    // Check if next.config.do.js exists and copy it to next.config.js.bak
+    if (fs.existsSync('next.config.js')) {
+      fs.copyFileSync('next.config.js', 'next.config.js.bak');
+    }
+    
+    if (fs.existsSync('next.config.do.js')) {
+      fs.copyFileSync('next.config.do.js', 'next.config.js');
+      console.log('✅ Using Digital Ocean specific Next.js config');
+    }
+    
+    // Build with extended timeout and special flags to avoid SSG issues
+    execSync('npm run build:do', {
       stdio: 'inherit',
-      env: process.env,
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        NEXT_PRIVATE_STANDALONE: '1',
+        NEXT_PUBLIC_SKIP_API_ROUTES: '1',
+        NEXT_BUILD_SKIP_DB: 'true',
+        DATABASE_URL: 'postgresql://placeholder:placeholder@localhost:5432/placeholder'
+      },
       timeout: 300000 // 5 minute timeout for build
     });
     
@@ -57,6 +77,14 @@ async function main() {
     console.log('- Check if DATABASE_URL is properly formatted');
     console.log('- Ensure all required environment variables are set');
     process.exit(1);
+  }
+  
+  // Restore original next.config.js if it was backed up
+  if (fs.existsSync('next.config.js.bak')) {
+    console.log('Restoring original Next.js config...');
+    fs.copyFileSync('next.config.js.bak', 'next.config.js');
+    fs.unlinkSync('next.config.js.bak');
+    console.log('✅ Original Next.js config restored');
   }
   
   console.log('=== DIGITAL OCEAN DEPLOYMENT COMPLETED ===');
