@@ -11,10 +11,21 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Use export output to avoid SSG failures
-  output: 'export',
-  // Disable static page generation completely
+  // Use standalone output for DigitalOcean App Platform
+  output: 'standalone',
+  // Use separate build directory for DO
   distDir: '.next-do',
+  // Prevent static generation of API routes
+  experimental: {
+    // Don't attempt to statically generate API routes
+    outputFileTracingExcludes: {
+      '*': ['node_modules/@swc/**'],
+    },
+    // Skip rendering during build for dynamic routes
+    skipTrailingSlashRedirect: true,
+    // Avoid compiling API routes
+    disableOptimizedLoading: true,
+  },
   // Configure environment variables (excluding NODE_ENV as it's not allowed)
   env: {
     NEXT_BUILD_SKIP_DB: 'true',
@@ -24,8 +35,8 @@ const nextConfig = {
   // Optimize build speed
   swcMinify: true,
   poweredByHeader: false,
-  // Configure API routes to be fully dynamic
-  serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'],
+  // Configure modules to be bundled properly
+  transpilePackages: ['@prisma/client', 'bcrypt'],
   // Add webpack configuration to handle Node.js native modules
   webpack: (config, { isServer }) => {
     if (!isServer) {

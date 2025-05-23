@@ -64,9 +64,11 @@ async function main() {
         NEXT_PRIVATE_STANDALONE: '1',
         NEXT_PUBLIC_SKIP_API_ROUTES: '1',
         NEXT_BUILD_SKIP_DB: 'true',
+        NEXT_TELEMETRY_DISABLED: '1',
+        NEXT_SKIP_API_ROUTES: '1',
         DATABASE_URL: 'postgresql://placeholder:placeholder@localhost:5432/placeholder'
       },
-      timeout: 300000 // 5 minute timeout for build
+      timeout: 600000 // 10 minute timeout for build
     });
     
     console.log('✅ Next.js build completed successfully');

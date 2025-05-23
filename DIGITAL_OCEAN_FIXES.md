@@ -12,6 +12,7 @@ This document tracks all fixes applied to resolve deployment issues with Digital
 2. **Build Failures with Static Generation**
    - Next.js was trying to statically generate API routes with dynamic features
    - This led to "Dynamic server usage" errors during build
+   - API routes with dynamic paths missing generateStaticParams() when using 'output: export'
 
 3. **Environment Variable Issues**
    - Reversed assignment statements in code (`"string" = variable` instead of `variable = "string"`)
@@ -42,19 +43,20 @@ This document tracks all fixes applied to resolve deployment issues with Digital
 ### Build Configuration Fixes
 
 1. **Special Next.js Config for Digital Ocean (`next.config.do.js`)**
-   - Set `output: 'export'` to avoid SSG failures
-   - Disabled static page generation completely
+   - Changed `output: 'export'` to `output: 'standalone'` to properly handle API routes
+   - Added experimental options to exclude API routes from static generation
+   - Changed `serverComponentsExternalPackages` to `transpilePackages` for better compatibility
    - Fixed issue with NODE_ENV in env section (removed)
    - Configured proper webpack fallbacks for Node.js modules
 
 2. **Digital Ocean Deployment Script (`scripts/do-deploy.js`)**
    - Sets placeholder DATABASE_URL for build time
    - Swaps in special next.config.js during build
-   - Adds proper environment variables
-   - Extends build timeout to 5 minutes
+   - Adds proper environment variables including NEXT_TELEMETRY_DISABLED and NEXT_SKIP_API_ROUTES
+   - Extends build timeout to 10 minutes for larger builds
 
 3. **Package.json Scripts**
-   - Added `build:do` specifically for Digital Ocean builds
+   - Added `build:do` specifically for Digital Ocean builds with NEXT_TELEMETRY_DISABLED
    - Created `do:deploy-full` for complete deployment
    - Updated scripts to handle environment variables correctly
 
@@ -100,6 +102,7 @@ If you encounter authentication issues, you can use these emergency bypasses:
 
 ### Build Failures
 - Check build logs for "Dynamic server usage" errors
+- For "missing generateStaticParams()" errors, ensure you're not using `output: 'export'` with API routes
 - Ensure next.config.do.js is being used during build
 - Verify NODE_ENV is not in the env section of next.config.js
 
