@@ -13,6 +13,7 @@ This document tracks all fixes applied to resolve deployment issues with Digital
    - Next.js was trying to statically generate API routes with dynamic features
    - This led to "Dynamic server usage" errors during build
    - API routes with dynamic paths missing generateStaticParams() when using 'output: export'
+   - Pages failing to render during static generation due to API requests
 
 3. **Native Module Bundling Issues**
    - Problems with bcrypt and other native modules during build
@@ -23,6 +24,11 @@ This document tracks all fixes applied to resolve deployment issues with Digital
    - Reversed assignment statements in code (`"string" = variable` instead of `variable = "string"`)
    - `NODE_ENV` in env section of next.config.js (not allowed)
    - Database URL placeholders during build time
+
+5. **Missing Pages in Deployment**
+   - Pages like /auth-error, /auth-debug, and /subscription missing in production
+   - Pages that use useSearchParams() failing to prerender
+   - Pages that depend on API routes failing due to static generation
 
 ## Solutions Applied
 
@@ -53,28 +59,34 @@ This document tracks all fixes applied to resolve deployment issues with Digital
 
 ### Build Configuration Fixes
 
-1. **Special Next.js Config for Digital Ocean (`next.config.do.js`)**
-   - Changed `output: 'export'` to `output: 'standalone'` to properly handle API routes
+1. **Minimal Next.js Config for Digital Ocean (`next.config.minimal.js`)**
+   - Created simplified configuration with only essential settings
+   - Completely disabled static generation with `disableStaticGeneration: true`
+   - Set extremely short `staticPageGenerationTimeout: 1` to skip static generation
+   - Excluded problematic modules like bcrypt, fs, and crypto from webpack
+   - Used standalone output for proper server-side rendering
+
+2. **Enhanced Next.js Config (`next.config.simple.js`)**
+   - Set `output: 'standalone'` to properly handle API routes
    - Added experimental options to exclude API routes from static generation
-   - Changed `serverComponentsExternalPackages` to `transpilePackages` for better compatibility
-   - Fixed issue with NODE_ENV in env section (removed)
+   - Added `disableStaticGeneration: true` to prevent static generation failures
    - Enhanced webpack configuration to ignore problematic modules
    - Added special handling for HTML files and native modules
 
-2. **Digital Ocean Deployment Script (`scripts/do-deploy.js`)**
+3. **Digital Ocean Deployment Script (`scripts/do-deploy.js`)**
    - Sets placeholder DATABASE_URL for build time
-   - Swaps in special next.config.js during build
+   - Tries multiple config files in order of preference (minimal → simple → do)
    - Adds proper environment variables including NEXT_TELEMETRY_DISABLED and NEXT_SKIP_API_ROUTES
    - Extends build timeout to 10 minutes for larger builds
    - Installs ignore-loader for handling HTML files
 
-3. **Package.json Scripts**
-   - Added `build:do` specifically for Digital Ocean builds with NEXT_TELEMETRY_DISABLED
+4. **Package.json Scripts**
+   - Added `build:do` with NEXT_DISABLE_STATIC_GENERATION=true to skip static generation
    - Created `do:deploy-full` for complete deployment
    - Added `do:prepare` script to set up build environment
    - Updated scripts to handle environment variables correctly
 
-4. **Native Module Handling**
+5. **Native Module Handling**
    - Created bcrypt stub implementation for build time
    - Added webpack resolver configuration for problematic modules
    - Created empty module for native dependencies

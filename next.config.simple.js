@@ -15,6 +15,8 @@ const nextConfig = {
   output: 'standalone',
   // Disable static page generation completely
   distDir: '.next-do',
+  // Skip static generation entirely
+  staticPageGenerationTimeout: 1,
   // Configure environment variables
   env: {
     NEXT_BUILD_SKIP_DB: 'true',
@@ -24,6 +26,11 @@ const nextConfig = {
   // Optimize build speed
   swcMinify: true,
   poweredByHeader: false,
+  // Completely disable static generation
+  experimental: {
+    // Don't attempt to statically generate any pages
+    disableStaticGeneration: true,
+  },
   // Webpack configuration
   webpack: (config) => {
     if (!config.resolve) {

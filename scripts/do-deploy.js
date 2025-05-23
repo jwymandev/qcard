@@ -75,7 +75,7 @@ async function main() {
     }
     
     // Try different config files in order of preference
-    const configOptions = ['next.config.simple.js', 'next.config.do.js'];
+    const configOptions = ['next.config.minimal.js', 'next.config.simple.js', 'next.config.do.js'];
     let configFound = false;
     
     for (const configFile of configOptions) {
