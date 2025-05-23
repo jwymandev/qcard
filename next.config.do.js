@@ -15,9 +15,8 @@ const nextConfig = {
   output: 'export',
   // Disable static page generation completely
   distDir: '.next-do',
-  // Configure environment variables
+  // Configure environment variables (excluding NODE_ENV as it's not allowed)
   env: {
-    NODE_ENV: 'production',
     NEXT_BUILD_SKIP_DB: 'true',
     // Set a dummy database URL for build
     DATABASE_URL: 'postgresql://placeholder:placeholder@localhost:5432/placeholder',

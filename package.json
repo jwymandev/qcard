@@ -48,8 +48,10 @@
     "do:push": "npx prisma db push && npm run build",
     "do:first-deploy": "node scripts/first-deploy.js",
     "do:deploy-with-schema": "node scripts/first-deploy.js && npm run build",
-    "do:deploy-full": "NEXT_BUILD_SKIP_DB=true NEXT_PRIVATE_STANDALONE=1 NEXT_PUBLIC_SKIP_API_ROUTES=1 node scripts/do-deploy.js",
+    "do:deploy-full": "NEXT_BUILD_SKIP_DB=true NEXT_PRIVATE_STANDALONE=1 NEXT_PUBLIC_SKIP_API_ROUTES=1 NODE_OPTIONS=\"--max_old_space_size=4096\" node scripts/do-deploy.js",
+    "do:build-only": "NEXT_BUILD_SKIP_DB=true NEXT_PRIVATE_STANDALONE=1 NEXT_PUBLIC_SKIP_API_ROUTES=1 node scripts/do-deploy.js --skip-migration",
     "do:prepare-deploy": "node scripts/do-full-deployment.js",
+    "do:healthcheck": "node scripts/production-healthcheck.js --remote",
     "healthcheck": "node scripts/production-healthcheck.js",
     "healthcheck:remote": "node scripts/production-healthcheck.js --remote",
     "deploy:prod": "npm run typecheck && npm run lint && npm run build && npm run healthcheck"

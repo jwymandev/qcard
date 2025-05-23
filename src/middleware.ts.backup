@@ -3,9 +3,8 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 /**
- * RESILIENT MIDDLEWARE FOR DIGITAL OCEAN DEPLOYMENT
- * This middleware prioritizes availability over strict security checks
- * to prevent the "Loading Authentication..." screen on DigitalOcean.
+ * PROPERLY CONFIGURED MIDDLEWARE
+ * This middleware only runs on protected paths, not on public paths like the homepage or sign-in
  */
 export async function middleware(request: NextRequest) {
   // Get the pathname of the request
@@ -16,8 +15,8 @@ export async function middleware(request: NextRequest) {
   
   // EMERGENCY BYPASS: Skip auth checks when bypass_auth is present
   const bypassAuth = request.nextUrl.searchParams.has('bypass_auth') || 
-                   request.cookies.has('bypass_auth');
-                   
+                    request.cookies.has('bypass_auth');
+                    
   if (bypassAuth) {
     console.log(`Bypassing auth checks for ${path} (bypass_auth parameter present)`);
     const response = NextResponse.next();
@@ -25,12 +24,11 @@ export async function middleware(request: NextRequest) {
     return response;
   }
   
-  // For all protected paths, attempt authentication with generous timeout
+  // For all protected paths, attempt authentication with timeout
   try {
     // Create a timeout promise to avoid hanging on database connections
-    // Use a much longer timeout to accommodate slower database connections
     const timeoutPromise = new Promise<null>((_, reject) => {
-      setTimeout(() => reject(new Error('Auth token check timed out')), 5000); // 5 seconds (was 2 seconds)
+      setTimeout(() => reject(new Error('Auth token check timed out')), 2000);
     });
     
     // Create the token promise
@@ -46,12 +44,13 @@ export async function middleware(request: NextRequest) {
     } catch (tokenError) {
       console.error('Token verification error or timeout:', tokenError);
       
-      // IMPORTANT CHANGE: For timeout errors, continue without redirecting
-      // This prioritizes availability over security
+      // If token check timed out, redirect to sign-in with timeout parameter
       if (tokenError instanceof Error && tokenError.message.includes('timed out')) {
-        console.log('Authentication timed out, allowing access anyway');
-        // Allow access instead of redirecting
-        return NextResponse.next();
+        console.log('Authentication timed out, redirecting to sign-in page with auth_timeout');
+        const signInUrl = new URL('/sign-in', request.url);
+        signInUrl.searchParams.set('auth_timeout', 'true');
+        signInUrl.searchParams.set('callbackUrl', path);
+        return NextResponse.redirect(signInUrl);
       }
       
       // For other token errors, continue without auth
@@ -70,10 +69,26 @@ export async function middleware(request: NextRequest) {
   } catch (error) {
     console.error('Middleware auth error:', error);
     
-    // IMPORTANT CHANGE: For all errors, allow access rather than redirecting
-    // This prioritizes availability over security
-    console.log('Middleware encountered an error, allowing access anyway');
-    return NextResponse.next();
+    // If error is likely due to database issues, redirect to sign-in with timeout parameter
+    if (
+      error instanceof Error && (
+        error.message.includes('timed out') ||
+        error.message.includes('database') ||
+        error.message.includes('prisma') ||
+        error.message.includes('connection')
+      )
+    ) {
+      console.error('Database connection error detected, redirecting to sign-in');
+      const signInUrl = new URL('/sign-in', request.url);
+      signInUrl.searchParams.set('auth_timeout', 'true');
+      signInUrl.searchParams.set('callbackUrl', path);
+      return NextResponse.redirect(signInUrl);
+    }
+    
+    // For other errors, set a debug cookie and continue
+    const response = NextResponse.next();
+    response.cookies.set('auth_error', 'true', { maxAge: 60 }); // 1 minute
+    return response;
   }
 }
 
