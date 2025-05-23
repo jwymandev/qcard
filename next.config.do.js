@@ -72,24 +72,16 @@ const nextConfig = {
         nock: false
       };
       
-      // Handle HTML and other non-JS files
+      // Handle HTML and other non-JS files with ignore-loader
       config.module.rules.push({
         test: /\.html$/,
-        use: [
-          {
-            loader: require.resolve('../scripts/ignore-loader.js')
-          }
-        ]
+        use: 'ignore-loader'
       });
       
       // Specifically handle the problematic node-pre-gyp HTML file
       config.module.rules.push({
         test: /node_modules\/@mapbox\/node-pre-gyp\/lib\/util\/nw-pre-gyp\/index\.html$/,
-        use: [
-          {
-            loader: require.resolve('../scripts/ignore-loader.js')
-          }
-        ]
+        use: 'ignore-loader'
       });
       
       // Add a fallback path to our loaders directory
@@ -97,8 +89,15 @@ const nextConfig = {
       config.resolveLoader.modules = [
         ...(config.resolveLoader.modules || []),
         'node_modules',
+        path.resolve(__dirname),
         path.resolve(__dirname, 'scripts')
       ];
+      
+      // Add direct alias for ignore-loader
+      config.resolveLoader.alias = {
+        ...config.resolveLoader.alias,
+        'ignore-loader': path.resolve(__dirname, 'ignore-loader.js')
+      };
       
       // Explicitly ignore all native modules and their dependencies
       config.module.rules.push({

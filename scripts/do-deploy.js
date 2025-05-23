@@ -69,14 +69,26 @@ async function main() {
     // Use the Digital Ocean specific Next.js config
     console.log('Using Digital Ocean specific Next.js config...');
     
-    // Check if next.config.do.js exists and copy it to next.config.js.bak
+    // Check if next.config.js exists and copy it to next.config.js.bak
     if (fs.existsSync('next.config.js')) {
       fs.copyFileSync('next.config.js', 'next.config.js.bak');
     }
     
-    if (fs.existsSync('next.config.do.js')) {
-      fs.copyFileSync('next.config.do.js', 'next.config.js');
-      console.log('✅ Using Digital Ocean specific Next.js config');
+    // Try different config files in order of preference
+    const configOptions = ['next.config.simple.js', 'next.config.do.js'];
+    let configFound = false;
+    
+    for (const configFile of configOptions) {
+      if (fs.existsSync(configFile)) {
+        fs.copyFileSync(configFile, 'next.config.js');
+        console.log(`✅ Using ${configFile} for Digital Ocean build`);
+        configFound = true;
+        break;
+      }
+    }
+    
+    if (!configFound) {
+      console.log('⚠️ No specialized config found, using original config');
     }
     
     // Build with extended timeout and special flags to avoid SSG issues

@@ -79,6 +79,24 @@ function createEmptyMockModules() {
     }, null, 2));
   }
   
+  // Ensure ignore-loader exists and is accessible
+  const ignoreLoaderDir = path.join(modulesDir, 'ignore-loader');
+  if (!fs.existsSync(ignoreLoaderDir)) {
+    fs.mkdirSync(ignoreLoaderDir, { recursive: true });
+    fs.writeFileSync(path.join(ignoreLoaderDir, 'index.js'), 
+      'module.exports = function() { this.cacheable && this.cacheable(); return "module.exports = {};"; };');
+    fs.writeFileSync(path.join(ignoreLoaderDir, 'package.json'), JSON.stringify({
+      name: 'ignore-loader',
+      version: '0.0.1',
+      main: 'index.js'
+    }, null, 2));
+  }
+  
+  // Also create ignore-loader directly in the project root
+  const rootIgnoreLoader = path.join(__dirname, '../ignore-loader.js');
+  fs.writeFileSync(rootIgnoreLoader, 
+    'module.exports = function() { this.cacheable && this.cacheable(); return "module.exports = {};"; };');
+  
   console.log('✅ Empty mock modules created successfully');
 }
 

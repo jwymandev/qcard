@@ -23,30 +23,48 @@ async function main() {
       stdio: 'inherit'
     });
     console.log('✅ Build dependencies installed successfully');
-    
-    // Create a local symlink to ignore-loader to ensure it's found
-    const nodeModulesPath = path.join(__dirname, '..', 'node_modules');
-    if (!fs.existsSync(path.join(nodeModulesPath, 'ignore-loader'))) {
-      console.log('Creating local ignore-loader module...');
-      fs.writeFileSync(
-        path.join(nodeModulesPath, 'ignore-loader.js'),
-        'module.exports = function() { return ""; };'
-      );
-      console.log('✅ Local ignore-loader fallback created');
-    }
   } catch (error) {
     console.error('⚠️ Warning: Error installing build dependencies:', error.message);
-    // Create a simple local implementation anyway
-    try {
-      const nodeModulesPath = path.join(__dirname, '..', 'node_modules');
+    // Continue anyway and create our own loaders
+  }
+  
+  // Step 1.5: Always create our own ignore-loader in root directory
+  try {
+    console.log('Creating local ignore-loader module...');
+    const ignoreLoaderPath = path.join(__dirname, '..', 'ignore-loader.js');
+    const content = `/**
+ * Simple ignore-loader implementation for webpack
+ * This loader simply returns an empty module for any content it processes
+ */
+
+module.exports = function() {
+  this.cacheable && this.cacheable();
+  return 'module.exports = {}';
+};`;
+    
+    fs.writeFileSync(ignoreLoaderPath, content);
+    console.log('✅ Local ignore-loader created at project root');
+    
+    // Also create it in node_modules as a backup
+    const nodeModulesPath = path.join(__dirname, '..', 'node_modules');
+    if (!fs.existsSync(path.join(nodeModulesPath, 'ignore-loader'))) {
+      fs.mkdirSync(path.join(nodeModulesPath, 'ignore-loader'), { recursive: true });
       fs.writeFileSync(
-        path.join(nodeModulesPath, 'ignore-loader.js'),
-        'module.exports = function() { return ""; };'
+        path.join(nodeModulesPath, 'ignore-loader', 'index.js'),
+        content
       );
-      console.log('✅ Local ignore-loader fallback created');
-    } catch (fallbackError) {
-      console.error('❌ Failed to create local ignore-loader:', fallbackError.message);
+      fs.writeFileSync(
+        path.join(nodeModulesPath, 'ignore-loader', 'package.json'),
+        JSON.stringify({
+          name: 'ignore-loader',
+          version: '0.1.0',
+          main: 'index.js'
+        }, null, 2)
+      );
+      console.log('✅ ignore-loader module created in node_modules');
     }
+  } catch (error) {
+    console.error('❌ Failed to create local ignore-loader:', error.message);
   }
   
   // Step 2: Create empty file for problematic imports
