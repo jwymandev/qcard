@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -20,7 +20,16 @@ interface Region {
   description?: string;
 }
 
-export default function SubscriptionPage() {
+// Loading fallback for Suspense
+function LoadingFallback() {
+  return (
+    <div className="flex justify-center items-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+  );
+}
+
+function SubscriptionContent() {
   const { data: session, status } = useSession();
   const { subscription, isLoading: subscriptionLoading } = useSubscription();
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -426,5 +435,13 @@ export default function SubscriptionPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SubscriptionPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <SubscriptionContent />
+    </Suspense>
   );
 }

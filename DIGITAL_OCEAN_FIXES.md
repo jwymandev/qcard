@@ -30,6 +30,11 @@ This document tracks all fixes applied to resolve deployment issues with Digital
    - Pages that use useSearchParams() failing to prerender
    - Pages that depend on API routes failing due to static generation
 
+6. **Next.js 14.2.4 Compatibility Issues**
+   - `disableStaticGeneration` is no longer a recognized option in Next.js 14.2.4
+   - Client components using `useSearchParams()` must be wrapped in Suspense boundaries
+   - Database connections attempted during build time causing failures
+
 ## Solutions Applied
 
 ### Authentication Fixes
@@ -48,49 +53,74 @@ This document tracks all fixes applied to resolve deployment issues with Digital
    - Uses a bcrypt wrapper to avoid build issues
 
 3. **Minimal Database Client (`src/lib/db.ts`)**
-   - Simplified PrismaClient instantiation
-   - Avoided environment variable manipulation
-   - Added better error handling
+   - Implemented a mock PrismaClient for build time
+   - Added conditional logic to detect build vs. runtime environments
+   - Created a proxy to handle all database operations during build
+   - Used environment variables to control database connection behavior
+   - Connected to real database only at runtime, not build time
 
 4. **Bcrypt Build Compatibility (`src/lib/bcrypt-wrapper.js`)**
    - Created a wrapper around bcrypt that uses a stub during build
    - Prevents native module errors during build
    - Uses real bcrypt in production for security
 
+### Next.js 14 Compatibility Fixes
+
+1. **Client-Side Rendering Fixes**
+   - Wrapped all components using `useSearchParams()` in Suspense boundaries:
+     - /auth-error/page.tsx
+     - /auth-debug/page.tsx
+     - /subscription/page.tsx
+   - Added loading fallbacks for Suspense components
+   - Extracted client components with dynamic data into separate components
+   - Ensured proper error handling for API routes
+
+2. **Updated Next.js Config for Next.js 14.2.4 (`next.config.minimal.js`)**
+   - Removed unsupported `disableStaticGeneration` option
+   - Added proper Next.js 14 alternatives:
+     - `skipMiddlewareUrlNormalize: true`
+     - `skipTrailingSlashRedirect: true`
+     - `serverActions: { allowedOrigins: ['*'] }`
+   - Used `optimizePackageImports` for better Prisma client handling
+   - Set extremely short `staticPageGenerationTimeout: 1` to skip static generation
+   - Enhanced webpack configuration with proper module rules for HTML and native modules
+
+3. **Enhanced Build Process**
+   - Updated package.json build scripts with additional flags:
+     - `NEXT_SKIP_API_ROUTES=1`
+     - `SKIP_API_ROUTES=1`
+     - Added `--no-mangling` option for better debugging
+   - Increased build timeout to 15 minutes for larger builds
+   - Added fallback build configuration for emergency situations
+   - Implemented output verification to confirm standalone build was created
+
 ### Build Configuration Fixes
 
 1. **Minimal Next.js Config for Digital Ocean (`next.config.minimal.js`)**
-   - Created simplified configuration with only essential settings
-   - Completely disabled static generation with `disableStaticGeneration: true`
-   - Set extremely short `staticPageGenerationTimeout: 1` to skip static generation
+   - Updated for Next.js 14.2.4 compatibility
+   - Used proper options instead of deprecated `disableStaticGeneration`
+   - Enhanced webpack configuration for better module handling
+   - Used `serverComponentsExternalPackages` for proper Prisma client packaging
    - Excluded problematic modules like bcrypt, fs, and crypto from webpack
-   - Used standalone output for proper server-side rendering
 
-2. **Enhanced Next.js Config (`next.config.simple.js`)**
-   - Set `output: 'standalone'` to properly handle API routes
-   - Added experimental options to exclude API routes from static generation
-   - Added `disableStaticGeneration: true` to prevent static generation failures
-   - Enhanced webpack configuration to ignore problematic modules
-   - Added special handling for HTML files and native modules
+2. **Digital Ocean Deployment Script (`scripts/do-deploy.js`)**
+   - Enhanced with better error handling and fallbacks
+   - Added verification of build output
+   - Implemented fallback build process as a last resort
+   - Extended build timeout from 10 to 15 minutes for larger builds
+   - Added more helpful error diagnostics and troubleshooting steps
 
-3. **Digital Ocean Deployment Script (`scripts/do-deploy.js`)**
-   - Sets placeholder DATABASE_URL for build time
-   - Tries multiple config files in order of preference (minimal → simple → do)
-   - Adds proper environment variables including NEXT_TELEMETRY_DISABLED and NEXT_SKIP_API_ROUTES
-   - Extends build timeout to 10 minutes for larger builds
-   - Installs ignore-loader for handling HTML files
+3. **Package.json Scripts**
+   - Updated `build:do` with all necessary flags for Next.js 14.2.4
+   - Added additional environment variables for skipping API routes
+   - Included `--no-mangling` option for better debugging
+   - Made build scripts more resilient to failures
 
-4. **Package.json Scripts**
-   - Added `build:do` with NEXT_DISABLE_STATIC_GENERATION=true to skip static generation
-   - Created `do:deploy-full` for complete deployment
-   - Added `do:prepare` script to set up build environment
-   - Updated scripts to handle environment variables correctly
-
-5. **Native Module Handling**
-   - Created bcrypt stub implementation for build time
-   - Added webpack resolver configuration for problematic modules
-   - Created empty module for native dependencies
-   - Added ignore-loader for HTML files
+4. **Database Handling**
+   - Implemented mock database client for build time
+   - Created proxy objects for PrismaClient operations
+   - Ensured database connection only happens at runtime
+   - Added better error handling for database operations
 
 ## How to Deploy
 
@@ -101,8 +131,12 @@ This document tracks all fixes applied to resolve deployment issues with Digital
 
 2. Digital Ocean will automatically run the `do:deploy-full` script, which:
    - Sets up proper environment variables
-   - Uses the special next.config.do.js during build
+   - Uses the special next.config.minimal.js during build
+   - Handles bcrypt and other native modules
+   - Skips API routes during static generation
+   - Wraps client components in Suspense boundaries
    - Runs the build with extended timeout
+   - Verifies the build output
    - Restores the original next.config.js after build
 
 3. Environment Variables Required in Digital Ocean:
@@ -131,14 +165,17 @@ If you encounter authentication issues, you can use these emergency bypasses:
 - Check that environment variables are correctly set in Digital Ocean
 - Verify database allows connections from App Platform
 - Run `/api/health` endpoint to check database connectivity
+- Ensure the mock database client is working during build time
 
 ### Build Failures
 - Check build logs for "Dynamic server usage" errors
 - For "missing generateStaticParams()" errors, ensure you're not using `output: 'export'` with API routes
 - For native module errors (like bcrypt), ensure the bcrypt-wrapper is being used
 - For HTML file errors, ensure ignore-loader is installed
-- Ensure next.config.do.js is being used during build
+- Ensure next.config.minimal.js is being used during build
 - Verify NODE_ENV is not in the env section of next.config.js
+- Check for any `useSearchParams()` errors in client components
+- Make sure all client components using `useSearchParams()` are wrapped in Suspense boundaries
 
 ### Missing Authentication
 - Check NEXTAUTH_URL and NEXTAUTH_SECRET are set correctly
@@ -159,6 +196,12 @@ If you encounter authentication issues, you can use these emergency bypasses:
   - The next.config.do.js now uses this loader directly
   - The prepare-do-build.js script creates fallback loaders if needed
   - Added a resolveLoader config to help webpack find our custom loaders
+
+### useSearchParams Errors
+- If you see errors about useSearchParams() needing to be wrapped in a Suspense boundary:
+  - Check that all components using useSearchParams() are wrapped in Suspense
+  - Split the component into a client component that uses useSearchParams() and a parent component that wraps it in Suspense
+  - Ensure a proper loading fallback is provided for the Suspense boundary
   
 ### Build Scripts
 To resolve all build issues, run the following commands in order:

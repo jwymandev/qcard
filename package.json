@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev -p 3002",
     "build": "NEXT_BUILD_SKIP_DB=true npx prisma generate && NODE_ENV=production ESLINT_NO_DEV_ERRORS=true next build",
-    "build:do": "NEXT_BUILD_SKIP_DB=true NEXT_PRIVATE_STANDALONE=1 NEXT_TELEMETRY_DISABLED=1 npx prisma generate && NODE_ENV=production NEXT_BUNDLE_ANALYZER=false ESLINT_NO_DEV_ERRORS=true NEXT_DISABLE_STATIC_GENERATION=true next build",
+    "build:do": "NEXT_BUILD_SKIP_DB=true NEXT_PRIVATE_STANDALONE=1 NEXT_TELEMETRY_DISABLED=1 NEXT_SKIP_API_ROUTES=1 npx prisma generate && NODE_ENV=production NEXT_BUNDLE_ANALYZER=false ESLINT_NO_DEV_ERRORS=true NEXT_DISABLE_STATIC_GENERATION=true SKIP_API_ROUTES=1 next build --no-mangling",
     "build:production": "NODE_ENV=production npx prisma migrate deploy && npm run build",
     "deploy": "npx prisma migrate deploy && npm run build",
     "start": "node production-start.js",
