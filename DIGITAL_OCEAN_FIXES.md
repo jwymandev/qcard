@@ -138,8 +138,15 @@ If you encounter authentication issues, you can use these emergency bypasses:
   - Make sure you're using the bcrypt-wrapper (all API routes have been updated)
   - Run the `do:prepare` and `do:fix-bcrypt` scripts before building
   - Add the module to the ignore list in webpack config
-  - If you see HTML file errors, we've added a special webpack loader to handle them
+  - For HTML file errors, we've included a custom ignore-loader directly in the repo
   - For missing dependencies like 'mock-aws-s3', 'nock', etc., run `do:install-deps`
+
+### HTML File Loader Errors
+- If you see errors about missing HTML loaders or webpack-html-handler.js:
+  - We've created a custom ignore-loader at scripts/ignore-loader.js
+  - The next.config.do.js now uses this loader directly
+  - The prepare-do-build.js script creates fallback loaders if needed
+  - Added a resolveLoader config to help webpack find our custom loaders
   
 ### Build Scripts
 To resolve all build issues, run the following commands in order:
@@ -148,7 +155,7 @@ To resolve all build issues, run the following commands in order:
 # Install build dependencies
 npm run do:install-deps
 
-# Prepare the build environment
+# Prepare the build environment (includes creating custom loaders)
 npm run do:prepare
 
 # Fix bcrypt imports in all API routes
@@ -157,5 +164,13 @@ npm run do:fix-bcrypt
 # Run the full deployment script
 npm run do:deploy-full
 ```
+
+### Custom Loaders
+To avoid dependency issues with loaders, we've created custom loaders directly in the repository:
+
+- `scripts/ignore-loader.js`: A simple loader that returns an empty module for any content
+- `scripts/webpack-html-handler.js`: Specifically handles HTML files in webpack
+
+These loaders are used directly in the webpack configuration in next.config.do.js without requiring external dependencies.
 
 Alternatively, just run `npm run do:deploy-full` which includes all the steps above.

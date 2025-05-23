@@ -15,16 +15,38 @@ const path = require('path');
 async function main() {
   console.log('=== PREPARING FOR DIGITAL OCEAN BUILD ===');
   
-  // Step 1: Install ignore-loader for HTML files
-  console.log('Installing ignore-loader...');
+  // Step 1: Install loaders for HTML files and other dependencies
+  console.log('Installing build dependencies...');
   try {
-    execSync('npm install --save-dev ignore-loader', {
+    // Install all required loaders as a single command
+    execSync('npm install --no-save ignore-loader null-loader html-loader', {
       stdio: 'inherit'
     });
-    console.log('✅ ignore-loader installed successfully');
+    console.log('✅ Build dependencies installed successfully');
+    
+    // Create a local symlink to ignore-loader to ensure it's found
+    const nodeModulesPath = path.join(__dirname, '..', 'node_modules');
+    if (!fs.existsSync(path.join(nodeModulesPath, 'ignore-loader'))) {
+      console.log('Creating local ignore-loader module...');
+      fs.writeFileSync(
+        path.join(nodeModulesPath, 'ignore-loader.js'),
+        'module.exports = function() { return ""; };'
+      );
+      console.log('✅ Local ignore-loader fallback created');
+    }
   } catch (error) {
-    console.error('❌ Error installing ignore-loader:', error.message);
-    // Continue anyway since it might already be installed
+    console.error('⚠️ Warning: Error installing build dependencies:', error.message);
+    // Create a simple local implementation anyway
+    try {
+      const nodeModulesPath = path.join(__dirname, '..', 'node_modules');
+      fs.writeFileSync(
+        path.join(nodeModulesPath, 'ignore-loader.js'),
+        'module.exports = function() { return ""; };'
+      );
+      console.log('✅ Local ignore-loader fallback created');
+    } catch (fallbackError) {
+      console.error('❌ Failed to create local ignore-loader:', fallbackError.message);
+    }
   }
   
   // Step 2: Create empty file for problematic imports

@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   reactStrictMode: true,
   images: {
@@ -75,7 +77,7 @@ const nextConfig = {
         test: /\.html$/,
         use: [
           {
-            loader: require.resolve('../scripts/webpack-html-handler.js')
+            loader: require.resolve('../scripts/ignore-loader.js')
           }
         ]
       });
@@ -85,10 +87,18 @@ const nextConfig = {
         test: /node_modules\/@mapbox\/node-pre-gyp\/lib\/util\/nw-pre-gyp\/index\.html$/,
         use: [
           {
-            loader: require.resolve('../scripts/webpack-html-handler.js')
+            loader: require.resolve('../scripts/ignore-loader.js')
           }
         ]
       });
+      
+      // Add a fallback path to our loaders directory
+      config.resolveLoader = config.resolveLoader || {};
+      config.resolveLoader.modules = [
+        ...(config.resolveLoader.modules || []),
+        'node_modules',
+        path.resolve(__dirname, 'scripts')
+      ];
       
       // Explicitly ignore all native modules and their dependencies
       config.module.rules.push({
