@@ -2,7 +2,8 @@ import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcrypt";
+// Use our bcrypt wrapper to avoid build issues
+import bcrypt from "@/lib/bcrypt-wrapper";
 
 /**
  * SIMPLIFIED AUTHENTICATION FOR DIGITAL OCEAN DEPLOYMENT

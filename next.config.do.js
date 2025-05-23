@@ -19,10 +19,14 @@ const nextConfig = {
   experimental: {
     // Don't attempt to statically generate API routes
     outputFileTracingExcludes: {
-      '*': ['node_modules/@swc/**'],
+      '*': [
+        'node_modules/@swc/**',
+        'node_modules/@mapbox/**', 
+        'node_modules/aws-sdk/**',
+        'node_modules/nock/**',
+        'node_modules/mock-aws-s3/**'
+      ],
     },
-    // Skip rendering during build for dynamic routes
-    skipTrailingSlashRedirect: true,
     // Avoid compiling API routes
     disableOptimizedLoading: true,
   },
@@ -35,8 +39,12 @@ const nextConfig = {
   // Optimize build speed
   swcMinify: true,
   poweredByHeader: false,
+  // Allow skipping trailing slash redirects to improve build compatibility
+  skipTrailingSlashRedirect: true,
+  // Don't include server instrumentation for better build compatibility
+  productionBrowserSourceMaps: false,
   // Configure modules to be bundled properly
-  transpilePackages: ['@prisma/client', 'bcrypt'],
+  transpilePackages: ['@prisma/client'],
   // Add webpack configuration to handle Node.js native modules
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -61,13 +69,31 @@ const nextConfig = {
         'aws-sdk': false,
         nock: false
       };
-    }
-    
-    // Exclude server-only packages from client-side bundles
-    if (!isServer) {
+      
+      // Handle HTML and other non-JS files
+      config.module.rules.push({
+        test: /\.html$/,
+        use: [
+          {
+            loader: require.resolve('../scripts/webpack-html-handler.js')
+          }
+        ]
+      });
+      
+      // Specifically handle the problematic node-pre-gyp HTML file
+      config.module.rules.push({
+        test: /node_modules\/@mapbox\/node-pre-gyp\/lib\/util\/nw-pre-gyp\/index\.html$/,
+        use: [
+          {
+            loader: require.resolve('../scripts/webpack-html-handler.js')
+          }
+        ]
+      });
+      
+      // Explicitly ignore all native modules and their dependencies
       config.module.rules.push({
         test: /node_modules\/(@mapbox\/node-pre-gyp|bcrypt|aws-sdk|nock|mock-aws-s3)/,
-        use: 'null-loader',
+        loader: 'ignore-loader',
       });
     }
     

@@ -36,6 +36,30 @@ async function main() {
     process.exit(1);
   }
   
+  // Step 2.5: Install needed dependencies for build
+  console.log('Installing build dependencies...');
+  try {
+    execSync('node scripts/install-build-deps.js', {
+      stdio: 'inherit'
+    });
+    console.log('✅ Build dependencies installed successfully');
+  } catch (error) {
+    console.error('❌ Error installing build dependencies:', error.message);
+    process.exit(1);
+  }
+  
+  // Step 2.6: Fix bcrypt imports
+  console.log('Fixing bcrypt imports...');
+  try {
+    execSync('node scripts/bcrypt-fixer.js', {
+      stdio: 'inherit'
+    });
+    console.log('✅ bcrypt imports fixed successfully');
+  } catch (error) {
+    console.error('❌ Error fixing bcrypt imports:', error.message);
+    process.exit(1);
+  }
+  
   // Step 3: Build Next.js application
   console.log('Building Next.js application...');
   try {

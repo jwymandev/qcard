@@ -14,7 +14,12 @@ This document tracks all fixes applied to resolve deployment issues with Digital
    - This led to "Dynamic server usage" errors during build
    - API routes with dynamic paths missing generateStaticParams() when using 'output: export'
 
-3. **Environment Variable Issues**
+3. **Native Module Bundling Issues**
+   - Problems with bcrypt and other native modules during build
+   - Webpack attempting to bundle HTML files from node-pre-gyp
+   - Missing optional dependencies like aws-sdk, mock-aws-s3, and nock
+
+4. **Environment Variable Issues**
    - Reversed assignment statements in code (`"string" = variable` instead of `variable = "string"`)
    - `NODE_ENV` in env section of next.config.js (not allowed)
    - Database URL placeholders during build time
@@ -34,11 +39,17 @@ This document tracks all fixes applied to resolve deployment issues with Digital
    - Simplified JWT and session callbacks
    - Set default values for tenant types instead of database lookups
    - Reduced error logging verbosity
+   - Uses a bcrypt wrapper to avoid build issues
 
 3. **Minimal Database Client (`src/lib/db.ts`)**
    - Simplified PrismaClient instantiation
    - Avoided environment variable manipulation
    - Added better error handling
+
+4. **Bcrypt Build Compatibility (`src/lib/bcrypt-wrapper.js`)**
+   - Created a wrapper around bcrypt that uses a stub during build
+   - Prevents native module errors during build
+   - Uses real bcrypt in production for security
 
 ### Build Configuration Fixes
 
@@ -47,18 +58,27 @@ This document tracks all fixes applied to resolve deployment issues with Digital
    - Added experimental options to exclude API routes from static generation
    - Changed `serverComponentsExternalPackages` to `transpilePackages` for better compatibility
    - Fixed issue with NODE_ENV in env section (removed)
-   - Configured proper webpack fallbacks for Node.js modules
+   - Enhanced webpack configuration to ignore problematic modules
+   - Added special handling for HTML files and native modules
 
 2. **Digital Ocean Deployment Script (`scripts/do-deploy.js`)**
    - Sets placeholder DATABASE_URL for build time
    - Swaps in special next.config.js during build
    - Adds proper environment variables including NEXT_TELEMETRY_DISABLED and NEXT_SKIP_API_ROUTES
    - Extends build timeout to 10 minutes for larger builds
+   - Installs ignore-loader for handling HTML files
 
 3. **Package.json Scripts**
    - Added `build:do` specifically for Digital Ocean builds with NEXT_TELEMETRY_DISABLED
    - Created `do:deploy-full` for complete deployment
+   - Added `do:prepare` script to set up build environment
    - Updated scripts to handle environment variables correctly
+
+4. **Native Module Handling**
+   - Created bcrypt stub implementation for build time
+   - Added webpack resolver configuration for problematic modules
+   - Created empty module for native dependencies
+   - Added ignore-loader for HTML files
 
 ## How to Deploy
 
@@ -103,6 +123,8 @@ If you encounter authentication issues, you can use these emergency bypasses:
 ### Build Failures
 - Check build logs for "Dynamic server usage" errors
 - For "missing generateStaticParams()" errors, ensure you're not using `output: 'export'` with API routes
+- For native module errors (like bcrypt), ensure the bcrypt-wrapper is being used
+- For HTML file errors, ensure ignore-loader is installed
 - Ensure next.config.do.js is being used during build
 - Verify NODE_ENV is not in the env section of next.config.js
 
@@ -110,3 +132,30 @@ If you encounter authentication issues, you can use these emergency bypasses:
 - Check NEXTAUTH_URL and NEXTAUTH_SECRET are set correctly
 - Verify database connection string is valid
 - Confirm middleware is configured to protect the right paths
+
+### Native Module Errors
+- If you see errors about bcrypt, @mapbox/node-pre-gyp, or similar modules:
+  - Make sure you're using the bcrypt-wrapper (all API routes have been updated)
+  - Run the `do:prepare` and `do:fix-bcrypt` scripts before building
+  - Add the module to the ignore list in webpack config
+  - If you see HTML file errors, we've added a special webpack loader to handle them
+  - For missing dependencies like 'mock-aws-s3', 'nock', etc., run `do:install-deps`
+  
+### Build Scripts
+To resolve all build issues, run the following commands in order:
+
+```bash
+# Install build dependencies
+npm run do:install-deps
+
+# Prepare the build environment
+npm run do:prepare
+
+# Fix bcrypt imports in all API routes
+npm run do:fix-bcrypt
+
+# Run the full deployment script
+npm run do:deploy-full
+```
+
+Alternatively, just run `npm run do:deploy-full` which includes all the steps above.
