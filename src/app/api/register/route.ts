@@ -88,11 +88,13 @@ export async function POST(req: Request) {
     
     // Create tenant first
     console.log(`📝 REGISTRATION: Creating tenant for ${firstName} ${lastName}, type: ${userType}`);
-    const tenantId = crypto.randomUUID();
+    let tenant;
+    let user;
+    
     try {
-      const tenant = await prisma.tenant.create({
+      tenant = await prisma.tenant.create({
         data: {
-          id: tenantId,
+          id: crypto.randomUUID(),
           name: `${firstName} ${lastName}`,
           type: userType,
           updatedAt: new Date()
@@ -102,10 +104,9 @@ export async function POST(req: Request) {
     
       // Create user with reference to tenant
       console.log(`📝 REGISTRATION: Creating user with email: ${email}`);
-      const userId = crypto.randomUUID();
-      const user = await prisma.user.create({
+      user = await prisma.user.create({
         data: {
-          id: userId,
+          id: crypto.randomUUID(),
           email,
           password: hashedPassword,
           firstName,
@@ -119,6 +120,10 @@ export async function POST(req: Request) {
     } catch (dbError) {
       console.error(`📝 REGISTRATION ERROR: Database error creating user/tenant:`, dbError);
       throw dbError; // Re-throw to be caught by outer try/catch
+    }
+    
+    if (!tenant || !user) {
+      throw new Error("Failed to create tenant or user records");
     }
     
     // If there's a submission ID, mark the casting submission as converted
@@ -210,7 +215,7 @@ export async function POST(req: Request) {
     
     // Create profile based on user type
     try {
-      if (userType === "TALENT") {
+      if (userType === "TALENT" && user) {
         console.log(`📝 REGISTRATION: Creating talent profile for user ${user.id}`);
         const profile = await prisma.profile.create({
           data: {
@@ -221,7 +226,7 @@ export async function POST(req: Request) {
           },
         });
         console.log(`📝 REGISTRATION: Talent profile created with ID: ${profile.id}`);
-      } else if (userType === "STUDIO") {
+      } else if (userType === "STUDIO" && tenant) {
         // Create a studio record automatically
         const studioName = `${firstName} ${lastName}`.trim() || 'New Studio';
         console.log(`📝 REGISTRATION: Creating studio record for tenant ${tenant.id}`);
@@ -243,6 +248,15 @@ export async function POST(req: Request) {
     }
     
     // Return user data (exclude password)
+    if (!user) {
+      return NextResponse.json(
+        { error: "Failed to create user account" },
+        { status: 500 }
+      );
+    }
+    
+    console.log(`📝 REGISTRATION: Successfully completed registration for ${email}`);
+    
     return NextResponse.json({
       id: user.id,
       email: user.email,
