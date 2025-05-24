@@ -98,26 +98,42 @@ export default function SignUpPage() {
       
       console.log("Registering new user...");
       
-      // Register user with a simplified approach
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phoneNumber: formData.phoneNumber,
-          password: formData.password,
-          userType: formData.userType,
-          submissionId: formData.submissionId || undefined,
-        }),
-      });
+      const requestData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phoneNumber: formData.phoneNumber,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword, // Make sure to send this field
+        userType: formData.userType,
+        submissionId: formData.submissionId || undefined,
+      };
       
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Registration failed');
+      console.log("Registration request data:", JSON.stringify(requestData, null, 2));
+      
+      // Register user with a simplified approach
+      try {
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+        });
+        
+        console.log("Registration response status:", response.status);
+        
+        const responseData = await response.json();
+        console.log("Registration response data:", responseData);
+        
+        if (!response.ok) {
+          throw new Error(responseData.error || 'Registration failed');
+        }
+        
+        console.log("Registration API call successful:", responseData);
+      } catch (fetchError) {
+        console.error("Fetch error during registration:", fetchError);
+        throw fetchError;
       }
       
       console.log("Registration successful! Redirecting to sign-in page...");
