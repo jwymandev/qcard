@@ -13,6 +13,7 @@ export default function SignUpPage() {
     email: '',
     phoneNumber: '',
     password: '',
+    confirmPassword: '',
     userType: 'TALENT', // Default to talent
     terms: false,
     submissionId: '', // To store the ID of the casting submission if coming from QR code
@@ -71,13 +72,18 @@ export default function SignUpPage() {
     e.preventDefault();
     
     // Validate form
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setError('First name, last name, email, and password are required');
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword) {
+      setError('First name, last name, email, password, and password confirmation are required');
       return;
     }
     
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
     
@@ -270,6 +276,23 @@ export default function SignUpPage() {
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Password (min. 8 characters)"
                 value={formData.password}
+                onChange={handleChange}
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                required
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Confirm password"
+                value={formData.confirmPassword}
                 onChange={handleChange}
               />
             </div>
