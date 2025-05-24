@@ -121,6 +121,18 @@ async function main() {
     
     console.log('✅ Next.js build completed successfully');
     
+    // Step 3.5: Fix assets for client-side JavaScript
+    console.log('Fixing client-side assets...');
+    try {
+      execSync('node scripts/fix-assets.js', {
+        stdio: 'inherit',
+      });
+      console.log('✅ Client-side assets fixed successfully');
+    } catch (error) {
+      console.warn('⚠️ Warning: Error fixing client-side assets:', error.message);
+      console.log('Client-side JavaScript may not load properly');
+    }
+    
     // Step 4: Verify the build output
     console.log('Verifying build output...');
     
@@ -136,6 +148,22 @@ async function main() {
       console.log('The build may not be properly configured for deployment');
     } else {
       console.log('✅ Standalone output verified at ' + standalonePath);
+      
+      // Verify client-side assets
+      const staticDir = path.join(standalonePath, '.next', 'static');
+      if (fs.existsSync(staticDir)) {
+        const jsFiles = fs.readdirSync(path.join(staticDir, 'chunks')).filter(f => f.endsWith('.js'));
+        console.log(`Found ${jsFiles.length} JavaScript chunks in ${staticDir}/chunks`);
+        
+        if (jsFiles.length === 0) {
+          console.warn('⚠️ Warning: No JavaScript chunks found! Client-side rendering may not work.');
+        } else {
+          console.log('✅ JavaScript assets verified');
+        }
+      } else {
+        console.warn('⚠️ Warning: Static assets directory not found at ' + staticDir);
+        console.log('Client-side JavaScript may not be properly bundled');
+      }
     }
     
   } catch (error) {
@@ -158,16 +186,65 @@ async function main() {
         output: 'standalone',
         eslint: { ignoreDuringBuilds: true },
         typescript: { ignoreBuildErrors: true },
+        // Better handling of static assets
+        poweredByHeader: false,
+        generateEtags: true,
+        compress: true,
+        productionBrowserSourceMaps: true,
+        assetPrefix: process.env.NEXT_PUBLIC_APP_URL || '',
         experimental: {
           serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'],
+          optimizePackageImports: ['@prisma/client'],
         },
-        webpack: (config) => {
+        webpack: (config, { isServer, dev }) => {
+          // Handle fallbacks for node modules
           if (!config.resolve) config.resolve = {};
           if (!config.resolve.fallback) config.resolve.fallback = {};
           config.resolve.fallback = {
             ...config.resolve.fallback,
             fs: false, bcrypt: false, crypto: false, path: false,
+            net: false, tls: false, dns: false, child_process: false,
           };
+          
+          // Client-side specific optimizations
+          if (!isServer && !dev) {
+            // Optimize chunk loading
+            config.optimization = {
+              ...config.optimization,
+              minimize: true,
+              nodeEnv: 'production',
+              chunkIds: 'named',
+              mangleExports: false,
+              splitChunks: {
+                chunks: 'all',
+                cacheGroups: {
+                  default: false,
+                  vendors: false,
+                  vendor: {
+                    name: 'vendor',
+                    chunks: 'all',
+                    test: /node_modules/,
+                    priority: 20,
+                  },
+                  common: {
+                    name: 'common',
+                    minChunks: 2,
+                    chunks: 'all',
+                    priority: 10,
+                    reuseExistingChunk: true,
+                    enforce: true,
+                  },
+                },
+              },
+            };
+            
+            // Ensure publicPath is set correctly
+            config.output = {
+              ...config.output,
+              publicPath: \`\${process.env.NEXT_PUBLIC_APP_URL || ''}/_next/\`,
+            };
+          }
+          
           return config;
         },
       };

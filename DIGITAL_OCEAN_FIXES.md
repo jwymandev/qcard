@@ -34,6 +34,7 @@ This document tracks all fixes applied to resolve deployment issues with Digital
    - `disableStaticGeneration` is no longer a recognized option in Next.js 14.2.4
    - Client components using `useSearchParams()` must be wrapped in Suspense boundaries
    - Database connections attempted during build time causing failures
+   - Client-side JavaScript not loading properly in deployed application
 
 ## Solutions Applied
 
@@ -84,6 +85,11 @@ This document tracks all fixes applied to resolve deployment issues with Digital
    - Used `optimizePackageImports` for better Prisma client handling
    - Set extremely short `staticPageGenerationTimeout: 1` to skip static generation
    - Enhanced webpack configuration with proper module rules for HTML and native modules
+   - Added client-side JavaScript handling:
+     - Configured `assetPrefix` for correct URL paths
+     - Enabled `productionBrowserSourceMaps` for debugging
+     - Optimized chunk splitting with vendor and common bundles
+     - Set proper `publicPath` for static assets
 
 3. **Enhanced Build Process**
    - Updated package.json build scripts with additional flags:
@@ -109,12 +115,18 @@ This document tracks all fixes applied to resolve deployment issues with Digital
    - Implemented fallback build process as a last resort
    - Extended build timeout from 10 to 15 minutes for larger builds
    - Added more helpful error diagnostics and troubleshooting steps
+   - Added asset fixing script to ensure client-side JavaScript works:
+     - Creates fix-assets.js to properly copy static assets
+     - Verifies JavaScript chunks are available in standalone output
+     - Ensures proper asset paths for client-side JavaScript
+     - Copies public assets to the correct location
 
 3. **Package.json Scripts**
    - Updated `build:do` with all necessary flags for Next.js 14.2.4
    - Added additional environment variables for skipping API routes
-   - Included `--no-mangling` option for better debugging
+   - Removed `--no-mangling` option to ensure proper minification for production
    - Made build scripts more resilient to failures
+   - Added `do:fix-assets` script for client-side JavaScript fixes
 
 4. **Database Handling**
    - Implemented mock database client for build time
@@ -202,6 +214,15 @@ If you encounter authentication issues, you can use these emergency bypasses:
   - Check that all components using useSearchParams() are wrapped in Suspense
   - Split the component into a client component that uses useSearchParams() and a parent component that wraps it in Suspense
   - Ensure a proper loading fallback is provided for the Suspense boundary
+
+### Client-Side JavaScript Not Loading
+- If you see only the HTML version of pages without interactivity:
+  - Run `npm run do:fix-assets` to ensure assets are properly copied
+  - Check that `assetPrefix` is set correctly in next.config.js
+  - Verify webpack configuration has proper `publicPath` setting
+  - Ensure chunk splitting is optimized for proper loading
+  - Check browser console for 404 errors on JavaScript files
+  - Use browser dev tools to verify which JavaScript files are missing
   
 ### Build Scripts
 To resolve all build issues, run the following commands in order:
@@ -218,6 +239,9 @@ npm run do:fix-bcrypt
 
 # Run the full deployment script
 npm run do:deploy-full
+
+# Fix client-side assets if JavaScript isn't loading
+npm run do:fix-assets
 ```
 
 ### Custom Loaders
