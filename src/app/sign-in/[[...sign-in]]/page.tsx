@@ -48,8 +48,26 @@ export default function SignInPage() {
         console.log("Sign-in result:", result);
         
         if (result?.error) {
-          // Handle specific errors
-          setError(result.error === 'CredentialsSignin' ? 'Invalid email or password' : result.error);
+          // Handle specific errors with more user-friendly messages
+          if (result.error === 'CredentialsSignin') {
+            // Check if the email exists first to provide a more specific error
+            try {
+              const checkEmail = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
+              const emailData = await checkEmail.json();
+              
+              if (emailData.exists) {
+                setError('Incorrect password. Please try again.');
+              } else {
+                setError('User not found. Please check your email or create an account.');
+              }
+            } catch (e) {
+              // Fallback to generic message if email check fails
+              setError('Invalid email or password. Please try again.');
+            }
+          } else {
+            // For other errors, show a friendly message
+            setError(result.error);
+          }
           setIsLoading(false);
         } else if (result?.ok) {
           // Success! Now redirect
@@ -120,8 +138,23 @@ export default function SignInPage() {
         </div>
         
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded flex items-start">
+            <div className="flex-shrink-0 mt-0.5">
+              <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">{error}</p>
+              {error.includes('User not found') && (
+                <p className="mt-1 text-xs">
+                  Don't have an account?{' '}
+                  <Link href="/sign-up" className="font-medium text-red-700 hover:text-red-600">
+                    Sign up now
+                  </Link>
+                </p>
+              )}
+            </div>
           </div>
         )}
         

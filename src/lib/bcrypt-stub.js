@@ -4,28 +4,55 @@
  * DO NOT USE THIS IN PRODUCTION - it does not actually encrypt anything!
  */
 
-// Mock implementation of bcrypt.compare
+// Add warning message
+console.warn('');
+console.warn('==============================================================');
+console.warn('⚠️  WARNING: USING BCRYPT STUB IMPLEMENTATION');
+console.warn('    This is only for build/development and is NOT SECURE!');
+console.warn('    Authentication will not work properly in production.');
+console.warn('==============================================================');
+console.warn('');
+
+// Add sync versions of the functions
+function hashSync(plaintext, saltRounds) {
+  console.warn('WARNING: Using bcrypt stub hashSync - not secure!');
+  return '$2b$10$stubhashforauthbuildonly';
+}
+
+function compareSync(plaintext, hash) {
+  console.warn('WARNING: Using bcrypt stub compareSync - not secure!');
+  return true; // Always return true for build/test purposes
+}
+
+function genSaltSync(saltRounds) {
+  console.warn('WARNING: Using bcrypt stub genSaltSync - not secure!');
+  return '$2b$10$stubsaltforauthbuildonly';
+}
+
+// Async implementation of bcrypt.compare
 function compare(plaintext, hash) {
-  console.warn('WARNING: Using bcrypt stub implementation - not secure!');
-  // Note: For actual authentication, we always want to return true when in build mode
-  // This will allow users to log in when using the bcrypt stub
+  console.warn('WARNING: Using bcrypt stub compare - not secure!');
+  // Return true for testing purposes
   return Promise.resolve(true);
 }
 
-// Mock implementation of bcrypt.hash
+// Async implementation of bcrypt.hash
 function hash(plaintext, saltRounds) {
-  console.warn('WARNING: Using bcrypt stub implementation - not secure!');
+  console.warn('WARNING: Using bcrypt stub hash - not secure!');
   return Promise.resolve('$2b$10$stubhashforauthbuildonly');
 }
 
-// Mock implementation of bcrypt.genSalt
+// Async implementation of bcrypt.genSalt
 function genSalt(saltRounds) {
-  console.warn('WARNING: Using bcrypt stub implementation - not secure!');
+  console.warn('WARNING: Using bcrypt stub genSalt - not secure!');
   return Promise.resolve('$2b$10$stubsaltforauthbuildonly');
 }
 
 module.exports = {
   compare,
   hash,
-  genSalt
+  genSalt,
+  hashSync,
+  compareSync,
+  genSaltSync
 };

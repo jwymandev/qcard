@@ -8,6 +8,7 @@ import crypto from "crypto";
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  confirmPassword: z.string().min(8).optional(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   phoneNumber: z.string().optional(),
@@ -28,7 +29,15 @@ export async function POST(req: Request) {
       );
     }
     
-    const { email, password, firstName, lastName, phoneNumber, userType, submissionId } = result.data;
+    const { email, password, confirmPassword, firstName, lastName, phoneNumber, userType, submissionId } = result.data;
+    
+    // Verify passwords match if confirmPassword was provided
+    if (confirmPassword && password !== confirmPassword) {
+      return NextResponse.json(
+        { error: "Passwords do not match" },
+        { status: 400 }
+      );
+    }
     
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -42,8 +51,31 @@ export async function POST(req: Request) {
       );
     }
     
+    let hashedPassword;
+    
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    try {
+      console.log(`Hashing password for new user: ${email}`);
+      hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Verify the hash works properly
+      const verifyHash = await bcrypt.compare(password, hashedPassword);
+      if (!verifyHash) {
+        console.error('Password hash verification failed - bcrypt may not be working correctly');
+        return NextResponse.json(
+          { error: "Server error during account creation. Please try again." },
+          { status: 500 }
+        );
+      }
+      
+      console.log('Password hashed successfully');
+    } catch (hashError) {
+      console.error('Error hashing password:', hashError);
+      return NextResponse.json(
+        { error: "Server error during account creation. Please try again." },
+        { status: 500 }
+      );
+    }
     
     // Create tenant first
     const tenant = await prisma.tenant.create({
