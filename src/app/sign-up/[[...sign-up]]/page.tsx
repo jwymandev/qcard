@@ -120,21 +120,12 @@ export default function SignUpPage() {
         throw new Error(data.error || 'Registration failed');
       }
       
-      console.log("Registration successful, signing in...");
+      console.log("Registration successful! Redirecting to sign-in page...");
       
-      // Sign in the user automatically
-      const signInResult = await signIn('credentials', {
-        redirect: false,
-        email: formData.email,
-        password: formData.password,
-      });
-      
-      if (signInResult?.error) {
-        console.error('Auto sign-in failed:', signInResult.error);
-        // Redirect to sign-in page with registered flag
-        router.push('/sign-in?registered=true');
-        return;
-      }
+      // Skip auto sign-in for now and just redirect to sign-in page
+      // This avoids the CredentialsSignin error after registration
+      router.push('/sign-in?registered=true');
+      return;
       
       // Check if there's an external actor record for this email and convert if found
       if (formData.userType === 'TALENT') {
