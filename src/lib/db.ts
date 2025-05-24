@@ -47,18 +47,89 @@ function createPrismaClient() {
   const databaseUrl = getDatabaseUrl();
   console.log(`Connecting to database at ${databaseUrl.split('@')[1]}`); // Log just the host part for security
   
-  // Create the real client for runtime
+  // Create the real client for runtime with enhanced connection handling
   const client = new PrismaClient({
     datasources: {
       db: {
         url: databaseUrl,
       },
     },
-    log: ['error'],
+    log: ['error', 'warn'],
     errorFormat: 'pretty',
   });
+
+  // Add connection management
+  client.$on('beforeExit', async () => {
+    console.log('Prisma Client shutting down');
+  });
+
+  // Add error listeners
+  client.$on('query', (e) => {
+    // Log slow queries for debugging (over 1 second)
+    if (e.duration > 1000) {
+      console.warn(`Slow query (${e.duration}ms): ${e.query}`);
+    }
+  });
+
+  client.$on('error', (e) => {
+    console.error('Prisma Client error:', e.message);
+  });
+  
+  // Setup reconnection on failure
+  setupConnectionRecovery(client);
   
   return client;
+}
+
+// Add reconnection capabilities
+function setupConnectionRecovery(client: PrismaClient) {
+  let isConnected = false;
+  let reconnectAttempts = 0;
+  const maxReconnectAttempts = 5;
+  
+  // Check connection and reconnect if needed
+  const checkConnection = async () => {
+    try {
+      // Simple query to test connection
+      await client.$queryRaw`SELECT 1`;
+      
+      if (!isConnected) {
+        console.log('Database connection restored');
+        isConnected = true;
+        reconnectAttempts = 0;
+      }
+    } catch (error) {
+      console.error('Database connection check failed:', error);
+      isConnected = false;
+      
+      if (reconnectAttempts < maxReconnectAttempts) {
+        reconnectAttempts++;
+        console.log(`Attempting to reconnect to database (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
+        
+        try {
+          await client.$disconnect();
+          await client.$connect();
+          console.log('Reconnection successful');
+          isConnected = true;
+        } catch (reconnectError) {
+          console.error('Reconnection failed:', reconnectError);
+        }
+      } else {
+        console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached`);
+      }
+    }
+  };
+  
+  // Initial connection check
+  checkConnection();
+  
+  // Check connection every 5 minutes
+  const intervalId = setInterval(checkConnection, 5 * 60 * 1000);
+  
+  // Clean up interval on process exit
+  process.on('beforeExit', () => {
+    clearInterval(intervalId);
+  });
 }
 
 // Create or reuse the PrismaClient instance
