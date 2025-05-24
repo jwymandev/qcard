@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev -p 3002",
-    "build": "NEXT_BUILD_SKIP_DB=true npx prisma generate && NODE_ENV=production ESLINT_NO_DEV_ERRORS=true next build",
+    "build": "NEXT_BUILD_SKIP_DB=true NEXT_PUBLIC_SKIP_API_ROUTES=1 npx prisma generate && NODE_ENV=production ESLINT_NO_DEV_ERRORS=true next build",
     "build:do": "NEXT_BUILD_SKIP_DB=true NEXT_PRIVATE_STANDALONE=1 NEXT_TELEMETRY_DISABLED=1 NEXT_SKIP_API_ROUTES=1 npx prisma generate && NODE_ENV=production NEXT_BUNDLE_ANALYZER=false ESLINT_NO_DEV_ERRORS=true NEXT_DISABLE_STATIC_GENERATION=true SKIP_API_ROUTES=1 next build",
     "build:production": "NODE_ENV=production npx prisma migrate deploy && npm run build",
     "deploy": "npx prisma migrate deploy && npm run build",
@@ -53,7 +53,7 @@
     "do:install-deps": "node scripts/install-build-deps.js",
     "do:deploy-full": "npm run do:prepare && NEXT_BUILD_SKIP_DB=true NEXT_PRIVATE_STANDALONE=1 NEXT_PUBLIC_SKIP_API_ROUTES=1 NODE_OPTIONS=\"--max_old_space_size=4096\" node scripts/do-deploy.js",
     "do:build-only": "NEXT_BUILD_SKIP_DB=true NEXT_PRIVATE_STANDALONE=1 NEXT_PUBLIC_SKIP_API_ROUTES=1 node scripts/do-deploy.js --skip-migration",
-    "do:fix-assets": "node scripts/fix-assets.js",
+    "fix-assets": "node scripts/fix-assets-simple.js",
     "do:prepare-deploy": "node scripts/do-full-deployment.js",
     "do:healthcheck": "node scripts/production-healthcheck.js --remote",
     "healthcheck": "node scripts/production-healthcheck.js",

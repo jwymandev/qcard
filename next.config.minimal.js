@@ -2,18 +2,15 @@
 const nextConfig = {
   // Essentials only - minimal configuration that should work
   output: 'standalone',
-  distDir: '.next-do',
   
   // Important: correctly configure asset prefix if needed
   // In production, we want to ensure assets load correctly
-  assetPrefix: process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_APP_URL || '' : '',
-  basePath: '',
+  assetPrefix: process.env.NEXT_PUBLIC_APP_URL || '',
   
   // Enable proper script loading for client-side JavaScript
   poweredByHeader: false, // Disable X-Powered-By header
   generateEtags: true, // Enable ETags for better caching
   compress: true, // Enable compression
-  productionBrowserSourceMaps: true, // Help with debugging
   
   // Disable static generation
   // For Next.js 14.2.4, we use the proper options
@@ -94,43 +91,8 @@ const nextConfig = {
       });
 
       // Ensure Next.js properly bundles client-side JavaScript
-      // by optimizing the configuration for production
-      if (!dev) {
-        // Add optimization settings for production
-        config.optimization = {
-          ...config.optimization,
-          minimize: true,
-          nodeEnv: 'production',
-          // Ensure chunks are properly named and can be loaded
-          chunkIds: 'named',
-          // Avoid mangling to help with debugging
-          mangleExports: false,
-          splitChunks: {
-            chunks: 'all',
-            cacheGroups: {
-              default: false,
-              vendors: false,
-              // Vendor chunk for third-party libraries
-              vendor: {
-                name: 'vendor',
-                chunks: 'all',
-                test: /node_modules/,
-                priority: 20,
-              },
-              // Common chunk for shared code
-              common: {
-                name: 'common',
-                minChunks: 2,
-                chunks: 'all',
-                priority: 10,
-                reuseExistingChunk: true,
-                enforce: true,
-              },
-            },
-          },
-        };
-        
-        // Ensure publicPath is set correctly for assets
+      if (!isServer && !dev) {
+        // Set publicPath for client assets
         config.output = {
           ...config.output,
           publicPath: `${process.env.NEXT_PUBLIC_APP_URL || ''}/_next/`,

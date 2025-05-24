@@ -14,17 +14,25 @@ const nextConfig = {
   output: 'standalone',
   // Completely disable static generation for API routes
   // This fixes the "Dynamic server usage" errors during build
-  staticPageGenerationTimeout: 120,
+  staticPageGenerationTimeout: 1,
+  skipMiddlewareUrlNormalize: true,
+  skipTrailingSlashRedirect: true,
+  // Configure asset paths for production
+  assetPrefix: process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_APP_URL || '' : '',
+  // Configure API routes to be fully dynamic
   experimental: {
+    serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'],
+    optimizePackageImports: ['@prisma/client'],
+    serverActions: {
+      allowedOrigins: ['*'],
+    },
     // Don't try to statically generate API routes
     outputFileTracingExcludes: {
       '*': ['node_modules/@swc/**'],
     }
   },
-  // Configure API routes to be fully dynamic
-  serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'],
   // Add webpack configuration to handle Node.js native modules
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       // Don't resolve Node.js modules on the client to prevent errors
       config.resolve.fallback = {
@@ -55,20 +63,32 @@ const nextConfig = {
         test: /node_modules\/(@mapbox\/node-pre-gyp|bcrypt|aws-sdk|nock|mock-aws-s3)/,
         use: 'null-loader',
       });
+      
+      // Set public path for assets in production
+      if (!dev) {
+        config.output = {
+          ...config.output,
+          publicPath: `${process.env.NEXT_PUBLIC_APP_URL || ''}/_next/`,
+        };
+      }
     }
     
     return config;
   },
   
-  // DigitalOcean deployment settings
+  // Production deployment settings
   env: {
     PORT: process.env.PORT || '8080',
     // Add flag to skip database connection during build
     NEXT_BUILD_SKIP_DB: 'true',
+    SKIP_API_ROUTES: 'true',
+    NEXT_PUBLIC_SKIP_API_ROUTES: 'true',
     // Set a dummy database URL for build
     DATABASE_URL: process.env.NODE_ENV === 'production' ? 
       (process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder') : 
-      process.env.DATABASE_URL
+      process.env.DATABASE_URL,
+    // Ensure app URL is available
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || ''
   },
   // Ensure we're listening on the right port for DigitalOcean
   serverRuntimeConfig: {
