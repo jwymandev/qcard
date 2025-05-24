@@ -32,6 +32,18 @@ function genSaltSync(saltRounds) {
 // Async implementation of bcrypt.compare
 function compare(plaintext, hash) {
   console.warn('WARNING: Using bcrypt stub compare - not secure!');
+  
+  // For testing with consistent login behavior:
+  // Extract the email from plaintext if it's a JSON string
+  try {
+    const data = JSON.parse(plaintext);
+    if (data && data.email) {
+      console.log(`STUB: Would authenticate ${data.email}`);
+    }
+  } catch (e) {
+    // Not JSON, ignore
+  }
+  
   // Return true for testing purposes
   return Promise.resolve(true);
 }

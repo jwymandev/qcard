@@ -1,29 +1,73 @@
 /**
- * Bcrypt wrapper that uses the real bcrypt in production but a stub during build
- * This avoids build failures in environments like Digital Ocean App Platform
+ * Production-ready Bcrypt wrapper
+ * 
+ * This module provides a secure implementation of bcrypt for password hashing,
+ * with the following features:
+ * - Uses real bcrypt in production and development environments
+ * - Falls back to a stub implementation only during build time
+ * - Configurable salt rounds via environment variable
+ * - Comprehensive error handling and logging
+ * - Verification of bcrypt functionality before use
  */
 
-// In production, we must always use real bcrypt
-// In build/development, we can use the stub
+// Environment detection
 const isProduction = process.env.NODE_ENV === 'production';
-const isBuildTime = !isProduction && process.env.NEXT_BUILD_SKIP_DB === 'true';
+const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Log the environment and bcrypt mode
+// Only use stub during server-side rendering/building, NOT during API routes
+// We want to ensure API routes (especially auth) always use real bcrypt
+const isServerComponent = typeof window === 'undefined';
+const isApiRoute = isServerComponent && (
+  process.env.NEXT_RUNTIME === 'edge' || 
+  (typeof process.env.NEXT_RUNTIME === 'string' && process.env.NEXT_RUNTIME.includes('nodejs'))
+);
+
+// Only use stub during build time, not during regular server operation
+const isBuildTime = process.env.NEXT_BUILD_SKIP_DB === 'true' && !isApiRoute;
+
+// Get salt rounds from environment or use secure default
+const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10);
+
+// Validate salt rounds are within secure range
+if (SALT_ROUNDS < 10 || SALT_ROUNDS > 14) {
+  console.warn(`WARNING: Bcrypt salt rounds (${SALT_ROUNDS}) outside recommended range (10-14)`);
+  console.warn('Using default of 12 rounds instead');
+}
+
+// Initialize logging with appropriate detail level for environment
+const logPrefix = '[BCRYPT]';
+const logLevel = isProduction ? 'warn' : 'info';
+
+// Enhanced logging function with level filtering
+function log(level, ...messages) {
+  const levels = { error: 0, warn: 1, info: 2, debug: 3 };
+  
+  if (levels[level] <= levels[logLevel]) {
+    const method = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
+    console[method](`${logPrefix} ${messages.join(' ')}`);
+  }
+}
+
+// Log environment detection
 if (isProduction) {
-  console.log('Production environment detected - forcing real bcrypt use');
+  log('info', 'Production environment detected - using real bcrypt');
 } else if (isBuildTime) {
-  console.log('Build environment detected - using bcrypt stub');
+  log('info', 'Build time detected - using bcrypt stub');
 } else {
-  console.log('Development environment - using real bcrypt');
+  log('info', 'Development environment - using real bcrypt');
 }
 
 // Choose the appropriate implementation
 let bcrypt;
 try {
-  if (isProduction) {
-    // In production, ALWAYS use real bcrypt - if this fails, it should crash
-    // so we know there's a problem rather than silently using the insecure stub
-    console.log('Loading real bcrypt for production use');
+  // Only use stub during actual build time, otherwise use real bcrypt
+  if (isBuildTime) {
+    console.log('Build time detected - using bcrypt stub');
+    bcrypt = require('./bcrypt-stub');
+    console.log('Using bcrypt stub for build');
+  } else {
+    // For both production and development, use real bcrypt
+    console.log(`Loading real bcrypt for ${isProduction ? 'production' : 'development'} use`);
     bcrypt = require('bcrypt');
     
     // Verify bcrypt is working by generating a test hash
@@ -35,14 +79,6 @@ try {
     }
     
     console.log('✅ Real bcrypt loaded and verified successfully');
-  } else if (isBuildTime) {
-    // During build, use our stub
-    bcrypt = require('./bcrypt-stub');
-    console.log('Using bcrypt stub for build');
-  } else {
-    // In development (not build time), try to use real bcrypt
-    console.log('Loading real bcrypt for development');
-    bcrypt = require('bcrypt');
   }
 } catch (error) {
   // For production, we should never fall back to the stub

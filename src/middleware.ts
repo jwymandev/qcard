@@ -14,16 +14,7 @@ export async function middleware(request: NextRequest) {
   // Log all requests
   console.log(`Middleware processing protected path: ${path}`);
   
-  // EMERGENCY BYPASS: Skip auth checks when bypass_auth is present
-  const bypassAuth = request.nextUrl.searchParams.has('bypass_auth') || 
-                   request.cookies.has('bypass_auth');
-                   
-  if (bypassAuth) {
-    console.log(`Bypassing auth checks for ${path} (bypass_auth parameter present)`);
-    const response = NextResponse.next();
-    response.cookies.set('bypass_auth', 'true', { maxAge: 3600 }); // 1 hour
-    return response;
-  }
+  // No bypass functionality - all routes require proper authentication
   
   // For all protected paths, attempt authentication with generous timeout
   try {
@@ -46,12 +37,13 @@ export async function middleware(request: NextRequest) {
     } catch (tokenError) {
       console.error('Token verification error or timeout:', tokenError);
       
-      // IMPORTANT CHANGE: For timeout errors, continue without redirecting
-      // This prioritizes availability over security
+      // For timeout errors, redirect to sign-in
+      // This prioritizes security over availability
       if (tokenError instanceof Error && tokenError.message.includes('timed out')) {
-        console.log('Authentication timed out, allowing access anyway');
-        // Allow access instead of redirecting
-        return NextResponse.next();
+        console.log('Authentication timed out, redirecting to sign-in');
+        const signInUrl = new URL('/sign-in', request.url);
+        signInUrl.searchParams.set('callbackUrl', path);
+        return NextResponse.redirect(signInUrl);
       }
       
       // For other token errors, continue without auth
@@ -70,10 +62,12 @@ export async function middleware(request: NextRequest) {
   } catch (error) {
     console.error('Middleware auth error:', error);
     
-    // IMPORTANT CHANGE: For all errors, allow access rather than redirecting
-    // This prioritizes availability over security
-    console.log('Middleware encountered an error, allowing access anyway');
-    return NextResponse.next();
+    // For all errors, redirect to sign-in
+    // This prioritizes security over availability
+    console.log('Middleware encountered an error, redirecting to sign-in');
+    const signInUrl = new URL('/sign-in', request.url);
+    signInUrl.searchParams.set('callbackUrl', path);
+    return NextResponse.redirect(signInUrl);
   }
 }
 

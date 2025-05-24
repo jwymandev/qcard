@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { signIn } from '@/lib/client-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
-import BypassSignIn from './bypass-signin';
 
 export default function SignInPage() {
   const [email, setEmail] = useState('');
@@ -13,11 +12,10 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isBypass = searchParams?.get('emergency_bypass') === 'true' || 
-                  searchParams?.get('bypass_auth') === 'true';
   const showDebugMode = searchParams?.get('debug') === 'true';
   const hasAuthTimeout = searchParams?.get('auth_timeout') === 'true';
   const isNewlyRegistered = searchParams?.get('registered') === 'true';
+  const callbackUrl = searchParams?.get('callbackUrl') || '/role-redirect';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +41,7 @@ export default function SignInPage() {
           email,
           password,
           redirect: false,
-          callbackUrl: '/role-redirect'
+          callbackUrl
         });
         
         console.log("Sign-in result:", result);
@@ -73,7 +71,7 @@ export default function SignInPage() {
         } else if (result?.ok) {
           // Success! Now redirect
           console.log("Sign-in successful, redirecting...");
-          window.location.href = '/role-redirect';
+          window.location.href = callbackUrl;
         } else {
           // Unexpected result
           setError('An unexpected error occurred. Please try again.');
@@ -91,16 +89,37 @@ export default function SignInPage() {
     }
   };
 
-  // Debug info section for troubleshooting
+  // Enhanced debug section for troubleshooting
   const DebugSection = () => {
     if (!showDebugMode) return null;
+    
+    const [dbStatus, setDbStatus] = useState<any>(null);
+    const [isCheckingDb, setIsCheckingDb] = useState(false);
+    
+    // Function to check database status
+    const checkDbStatus = async () => {
+      setIsCheckingDb(true);
+      try {
+        const response = await fetch('/api/auth/db-status');
+        if (response.ok) {
+          const data = await response.json();
+          setDbStatus(data);
+        } else {
+          setDbStatus({ error: `API error: ${response.status}` });
+        }
+      } catch (error) {
+        setDbStatus({ error: String(error) });
+      } finally {
+        setIsCheckingDb(false);
+      }
+    };
     
     return (
       <div className="mt-6 p-4 bg-gray-100 rounded-md text-xs font-mono">
         <h3 className="font-bold mb-2">Auth Debug Info</h3>
         <p>URL: {window.location.href}</p>
         <p>Search params: {searchParams?.toString()}</p>
-        <p>Bypass mode: {isBypass ? 'Enabled' : 'Disabled'}</p>
+        <p>Callback URL: {callbackUrl}</p>
         <div className="mt-2">
           <button 
             className="bg-gray-200 px-2 py-1 rounded"
@@ -109,11 +128,38 @@ export default function SignInPage() {
             Clear LocalStorage
           </button>
           <Link 
-            href="/emergency-logout"
-            className="ml-2 bg-gray-200 px-2 py-1 rounded inline-block"
+            href="/auth-debug"
+            className="ml-2 bg-blue-500 text-white px-2 py-1 rounded inline-block"
           >
-            Clear All Cookies
+            Auth Debug Page
           </Link>
+        </div>
+        
+        {/* Database status check */}
+        <div className="mt-3 pt-2 border-t border-gray-300">
+          <button 
+            onClick={checkDbStatus}
+            disabled={isCheckingDb}
+            className="bg-green-500 text-white px-2 py-1 rounded text-xs"
+          >
+            {isCheckingDb ? 'Checking...' : 'Check Database'}
+          </button>
+          
+          {dbStatus && (
+            <div className="mt-2 p-2 bg-gray-200 rounded text-xs">
+              {dbStatus.error ? (
+                <p className="text-red-600">Error: {dbStatus.error}</p>
+              ) : (
+                <>
+                  <p>Status: <span className={dbStatus.status === 'connected' ? 'text-green-600' : 'text-red-600'}>
+                    {dbStatus.status}
+                  </span></p>
+                  <p>Users: {dbStatus.userCount || 0}</p>
+                  {dbStatus.database?.status && <p>DB: {dbStatus.database.status}</p>}
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -197,8 +243,21 @@ export default function SignInPage() {
           </div>
         )}
         
-        {/* Display emergency bypass component if in emergency mode */}
-        <BypassSignIn />
+        {/* Additional info about database connectivity */}
+        {hasAuthTimeout && !error && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded flex items-start">
+            <div className="flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm">
+                <span className="font-medium">Database Status Check:</span> Our system detected a recent database issue that has been resolved. If you encounter any sign-in problems, please try again or contact support.
+              </p>
+            </div>
+          </div>
+        )}
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <input type="hidden" name="remember" defaultValue="true" />

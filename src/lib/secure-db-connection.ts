@@ -1,92 +1,69 @@
+import { PrismaClient } from '@prisma/client';
+import { getDatabaseUrl } from './db-connection';
+
 /**
- * Secure database connection utility
- * This module properly handles database credentials from environment variables
- * with fallbacks and proper error handling
+ * This module provides a secure, dedicated database connection for authentication
+ * that always uses the real database, regardless of environment settings.
+ * 
+ * It's used for critical operations like user registration and authentication
+ * where we absolutely need real database access, not mocks.
  */
 
-import { PrismaClient } from '@prisma/client';
-
-// Determine database configuration from environment variables
-function getDatabaseConfig() {
-  // If full DATABASE_URL is provided, use it
-  if (process.env.DATABASE_URL) {
-    return { url: process.env.DATABASE_URL };
-  }
-  
-  // Otherwise, construct from individual parameters
-  if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_NAME) {
-    const port = process.env.DB_PORT || '5432';
-    const sslMode = process.env.DB_SSL?.toLowerCase() === 'true' ? '?sslmode=require' : '';
-    
-    return {
-      url: `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${port}/${process.env.DB_NAME}${sslMode}`
-    };
-  }
-  
-  // For development, use SQLite as fallback
-  if (process.env.NODE_ENV === 'development') {
-    return { url: 'file:./prisma/dev.db' };
-  }
-  
-  // If no configuration, throw an error
-  throw new Error('Database configuration missing. Please set DATABASE_URL or individual DB_* environment variables.');
+// Global type for the auth database client
+declare global {
+  var authPrisma: PrismaClient | undefined;
 }
 
-// Create and configure Prisma client
-function createPrismaClient() {
+/**
+ * Creates a dedicated Prisma client for authentication that always
+ * connects to the real database, ignoring NEXT_BUILD_SKIP_DB
+ */
+function createAuthPrismaClient(): PrismaClient {
+  console.log('Creating dedicated authentication database client');
+  
   try {
-    // Get database configuration
-    const dbConfig = getDatabaseConfig();
+    // Get database URL with better error handling
+    const databaseUrl = getDatabaseUrl();
     
-    // Initialize client with configuration
-    const prisma = new PrismaClient({
+    // Create the real client for authentication
+    const client = new PrismaClient({
       datasources: {
-        db: dbConfig,
+        db: {
+          url: databaseUrl,
+        },
       },
-      log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+      log: ['error', 'warn'],
+      errorFormat: 'pretty',
+    });
+
+    // Add error listener
+    client.$on('error', (e) => {
+      console.error('⚠️ Auth database client error:', e.message);
     });
     
-    // Log connection type
-    console.log(`Database configured: ${dbConfig.url.startsWith('file:') ? 'file' : 'connection string'}`);
+    // Verify connection
+    client.$connect().then(() => {
+      console.log('✅ Auth database connection established');
+      
+      // Test query
+      return client.user.count();
+    }).then((count) => {
+      console.log(`Auth database connected, found ${count} users`);
+    }).catch((error) => {
+      console.error('❌ Auth database connection failed:', error);
+    });
     
-    return prisma;
+    return client;
   } catch (error) {
-    console.error('Failed to initialize database client:', error);
-    throw error;
+    console.error('⚠️ Failed to create auth database client:', error);
+    throw error; // Rethrow to indicate failure
   }
 }
 
-// Initialize client
-let prisma: PrismaClient;
+// Create or reuse the Auth PrismaClient instance
+export const authPrisma = global.authPrisma || createAuthPrismaClient();
 
-// Handle connection in a way that works with Next.js hot reloading
-if (process.env.NODE_ENV === 'production') {
-  prisma = createPrismaClient();
-} else {
-  // For development, prevent multiple client instances during hot reloading
-  if (!global.prisma) {
-    global.prisma = createPrismaClient();
-  }
-  prisma = global.prisma;
-}
-
-// Function to test database connection
-export async function testDatabaseConnection() {
-  try {
-    console.log('Establishing database connection (attempt 1/5)...');
-    await prisma.$connect();
-    console.log('✅ Database connection successful');
-    return true;
-  } catch (error) {
-    console.error('❌ Database connection failed:', error);
-    return false;
-  }
-}
-
-// Export as default and named export
-export { prisma as default, prisma };
-
-// Add TypeScript definition for global prisma instance
-declare global {
-  var prisma: PrismaClient | undefined;
+// In development, preserve client between hot reloads
+if (process.env.NODE_ENV !== 'production') {
+  global.authPrisma = authPrisma;
 }

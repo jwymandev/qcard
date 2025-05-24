@@ -58,18 +58,123 @@ export interface SignOutOptions {
 }
 
 /**
- * Sign out the current user
+ * Enhanced sign out function with fallback mechanisms
  * This is a client-side wrapper for NextAuth's signOut function
+ * that includes fallbacks for when NextAuth signOut fails
  */
 export async function signOut(options?: SignOutOptions) {
+  const callbackUrl = options?.callbackUrl || '/';
+  
   try {
-    // Always use redirect: false to match NextAuth typing
-    return await nextAuthSignOut({
+    console.log('Attempting to sign out using NextAuth...');
+    
+    // Try the standard NextAuth signOut first
+    const result = await nextAuthSignOut({
       redirect: false,
-      callbackUrl: options?.callbackUrl
+      callbackUrl
     });
+    
+    console.log('NextAuth signOut result:', result);
+    
+    // If successful, return the result
+    if (result?.url) {
+      console.log('NextAuth signOut successful, returning result');
+      return result;
+    }
+    
+    // If we get here, the signOut might not have fully succeeded
+    // Try our fallback endpoint
+    console.log('NextAuth signOut may not have fully succeeded, trying fallback...');
+    await tryFallbackSignOut();
+    
+    // Return a synthetic result
+    return {
+      url: callbackUrl,
+      ok: true
+    };
   } catch (error) {
-    console.error('Error during sign out:', error);
-    throw error;
+    console.error('Error during primary sign out:', error);
+    
+    // Try our fallback endpoint
+    console.log('Error during primary sign out, trying fallback...');
+    await tryFallbackSignOut();
+    
+    // Return a synthetic result rather than throwing
+    return {
+      url: callbackUrl,
+      ok: true
+    };
+  }
+}
+
+/**
+ * Fallback sign out mechanism that uses our custom endpoint
+ * This is used when NextAuth's signOut fails
+ */
+async function tryFallbackSignOut() {
+  try {
+    console.log('Attempting fallback sign out...');
+    
+    // Call our custom signout endpoint
+    const response = await fetch('/api/auth/signout-fix', {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    const result = await response.json();
+    console.log('Fallback sign out result:', result);
+    
+    // Also try to clear cookies directly from client side as a last resort
+    clearAuthCookies();
+    
+    return result;
+  } catch (error) {
+    console.error('Error during fallback sign out:', error);
+    
+    // Try to clear cookies directly as a last resort
+    clearAuthCookies();
+    
+    return {
+      success: false,
+      error: 'Failed to sign out using fallback'
+    };
+  }
+}
+
+/**
+ * Last resort method to clear auth cookies directly from client side
+ * This is used when both NextAuth signOut and our custom endpoint fail
+ */
+function clearAuthCookies() {
+  try {
+    console.log('Attempting to clear auth cookies directly...');
+    
+    // Try to clear all cookies that might be related to authentication
+    const cookies = document.cookie.split(';');
+    
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i];
+      const [name] = cookie.trim().split('=');
+      
+      if (name.includes('next-auth') || 
+          name.includes('session') || 
+          name.includes('token') || 
+          name.includes('csrf') ||
+          name.includes('callback')) {
+        
+        console.log(`Clearing cookie: ${name}`);
+        
+        // Clear the cookie by setting its expiration to the past
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+        
+        // Also try with different paths
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname};`;
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname};`;
+      }
+    }
+    
+    console.log('Finished clearing auth cookies directly');
+  } catch (error) {
+    console.error('Error clearing auth cookies directly:', error);
   }
 }

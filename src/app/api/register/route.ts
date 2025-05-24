@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { authPrisma } from "@/lib/secure-db-connection"; // Import the secure client
 import { NextResponse } from "next/server";
 import bcrypt from "@/lib/bcrypt-wrapper";
 import { z } from "zod";
@@ -44,9 +45,9 @@ export async function POST(req: Request) {
       );
     }
     
-    // Check if user already exists
+    // Check if user already exists - use the secure auth client
     console.log(`📝 REGISTRATION: Checking if user ${email} already exists`);
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await authPrisma.user.findUnique({
       where: { email },
     });
     
@@ -86,165 +87,373 @@ export async function POST(req: Request) {
       );
     }
     
-    // Create tenant first
-    console.log(`📝 REGISTRATION: Creating tenant for ${firstName} ${lastName}, type: ${userType}`);
+    // Create tenant and user (with transaction if available, or sequentially if not)
+    console.log(`📝 REGISTRATION: Creating tenant and user for ${firstName} ${lastName}, type: ${userType}`);
     let tenant;
     let user;
     
     try {
-      tenant = await prisma.tenant.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: `${firstName} ${lastName}`,
-          type: userType,
-          updatedAt: new Date()
-        },
-      });
-      console.log(`📝 REGISTRATION: Tenant created successfully with ID: ${tenant.id}`);
-    
-      // Create user with reference to tenant
-      console.log(`📝 REGISTRATION: Creating user with email: ${email}`);
-      user = await prisma.user.create({
-        data: {
-          id: crypto.randomUUID(),
-          email,
-          password: hashedPassword,
-          firstName,
-          lastName,
-          phoneNumber,
-          tenantId: tenant.id,
-          updatedAt: new Date()
-        },
-      });
-      console.log(`📝 REGISTRATION: User created successfully with ID: ${user.id}`);
+      // Generate IDs and timestamp once to ensure consistency
+      const tenantId = crypto.randomUUID();
+      const userId = crypto.randomUUID();
+      const now = new Date();
+      
+      // Check if transaction is available on the auth Prisma instance
+      if (typeof authPrisma.$transaction === 'function') {
+        // Use transaction approach (preferred for data consistency)
+        console.log(`📝 REGISTRATION: Using transaction-based approach`);
+        
+        const result = await authPrisma.$transaction(async (tx) => {
+          // First, verify database connection is working
+          await tx.$queryRaw`SELECT 1 as connected`;
+          
+          // 1. Create tenant first
+          const newTenant = await tx.tenant.create({
+            data: {
+              id: tenantId,
+              name: `${firstName} ${lastName}`,
+              type: userType,
+              createdAt: now,
+              updatedAt: now
+            },
+          });
+          
+          console.log(`📝 REGISTRATION: Tenant created successfully with ID: ${newTenant.id}`);
+          
+          // 2. Create user with reference to tenant
+          const newUser = await tx.user.create({
+            data: {
+              id: userId,
+              email,
+              password: hashedPassword,
+              firstName,
+              lastName,
+              phoneNumber,
+              tenantId: newTenant.id,
+              role: userType === 'STUDIO' ? 'ADMIN' : 'USER', // Assign appropriate role
+              createdAt: now,
+              updatedAt: now
+            },
+          });
+          
+          console.log(`📝 REGISTRATION: User created successfully with ID: ${newUser.id}`);
+          
+          // 3. Create profile/studio based on user type in the same transaction
+          if (userType === "TALENT") {
+            console.log(`📝 REGISTRATION: Creating talent profile for user ${newUser.id}`);
+            const profile = await tx.profile.create({
+              data: {
+                id: crypto.randomUUID(),
+                userId: newUser.id,
+                availability: true, // Default to available
+                createdAt: now,
+                updatedAt: now
+              },
+            });
+            console.log(`📝 REGISTRATION: Talent profile created with ID: ${profile.id}`);
+          } else if (userType === "STUDIO") {
+            // Create a studio record automatically
+            const studioName = `${firstName} ${lastName}`.trim() || 'New Studio';
+            console.log(`📝 REGISTRATION: Creating studio record for tenant ${newTenant.id}`);
+            const studio = await tx.studio.create({
+              data: {
+                id: crypto.randomUUID(),
+                name: studioName,
+                tenantId: newTenant.id,
+                description: `Studio for ${studioName}`,
+                createdAt: now,
+                updatedAt: now
+              },
+            });
+            console.log(`📝 REGISTRATION: Studio created with ID: ${studio.id}`);
+          }
+          
+          return { tenant: newTenant, user: newUser };
+        }, {
+          maxWait: 10000, // 10s max wait time
+          timeout: 20000, // 20s timeout
+        });
+        
+        tenant = result.tenant;
+        user = result.user;
+      } else {
+        // Fallback to sequential operations if transaction is not available
+        // (This happens with the mock client during development)
+        console.log(`📝 REGISTRATION: Transaction not available, using sequential operations`);
+        
+        // 1. Create tenant first
+        tenant = await authPrisma.tenant.create({
+          data: {
+            id: tenantId,
+            name: `${firstName} ${lastName}`,
+            type: userType,
+            createdAt: now,
+            updatedAt: now
+          },
+        });
+        
+        console.log(`📝 REGISTRATION: Tenant created successfully with ID: ${tenant.id}`);
+        
+        // 2. Create user with reference to tenant
+        user = await authPrisma.user.create({
+          data: {
+            id: userId,
+            email,
+            password: hashedPassword,
+            firstName,
+            lastName,
+            phoneNumber,
+            tenantId: tenant.id,
+            role: userType === 'STUDIO' ? 'ADMIN' : 'USER', // Assign appropriate role
+            createdAt: now,
+            updatedAt: now
+          },
+        });
+        
+        console.log(`📝 REGISTRATION: User created successfully with ID: ${user.id}`);
+        
+        // 3. Create profile/studio based on user type
+        if (userType === "TALENT") {
+          console.log(`📝 REGISTRATION: Creating talent profile for user ${user.id}`);
+          const profile = await authPrisma.profile.create({
+            data: {
+              id: crypto.randomUUID(),
+              userId: user.id,
+              availability: true, // Default to available
+              createdAt: now,
+              updatedAt: now
+            },
+          });
+          console.log(`📝 REGISTRATION: Talent profile created with ID: ${profile.id}`);
+        } else if (userType === "STUDIO") {
+          // Create a studio record automatically
+          const studioName = `${firstName} ${lastName}`.trim() || 'New Studio';
+          console.log(`📝 REGISTRATION: Creating studio record for tenant ${tenant.id}`);
+          const studio = await authPrisma.studio.create({
+            data: {
+              id: crypto.randomUUID(),
+              name: studioName,
+              tenantId: tenant.id,
+              description: `Studio for ${studioName}`,
+              createdAt: now,
+              updatedAt: now
+            },
+          });
+          console.log(`📝 REGISTRATION: Studio created with ID: ${studio.id}`);
+        }
+      }
+      
+      console.log(`📝 REGISTRATION: Registration completed successfully, created user ${user.id} and tenant ${tenant.id}`);
     } catch (dbError) {
       console.error(`📝 REGISTRATION ERROR: Database error creating user/tenant:`, dbError);
-      throw dbError; // Re-throw to be caught by outer try/catch
+      
+      // Specific handling for common database errors
+      let errorMessage = "Failed to create account";
+      
+      if (dbError instanceof Error) {
+        // Check for unique constraint violations (duplicate email)
+        if (dbError.message.includes('Unique constraint') && dbError.message.includes('email')) {
+          errorMessage = "Email address is already in use";
+        }
+        // Check for foreign key constraint failures
+        else if (dbError.message.includes('Foreign key constraint')) {
+          errorMessage = "Database constraint violation";
+        }
+        // Check for connection failures
+        else if (dbError.message.includes('connect') || dbError.message.includes('connection')) {
+          errorMessage = "Database connection error";
+        }
+      }
+      
+      return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
     
     if (!tenant || !user) {
-      throw new Error("Failed to create tenant or user records");
+      console.error(`📝 REGISTRATION ERROR: Transaction returned incomplete data`);
+      return NextResponse.json({ error: "Failed to create user account - incomplete data" }, { status: 500 });
     }
     
-    // If there's a submission ID, mark the casting submission as converted
+    // Process submission ID in a separate transaction (if present)
+    // This is done after the main transaction to ensure user creation succeeds
     if (submissionId && userType === 'TALENT') {
       try {
-        // Find the casting submission
-        const submission = await prisma.castingSubmission.findUnique({
-          where: { id: submissionId },
-          include: { 
-            externalActor: true,
-            castingCode: {
-              include: {
-                studio: true,
-                project: true
-              }
-            }
-          }
+        console.log(`📝 REGISTRATION: Processing submission ID: ${submissionId} for user ${user.id}`);
+        
+        // Get the user's profile
+        const profile = await prisma.profile.findUnique({
+          where: { userId: user.id }
         });
         
-        if (submission) {
-          // Get the created profile for the new user
-          const profile = await prisma.profile.findUnique({
-            where: { userId: user.id }
-          });
-          
-          if (!profile) {
-            throw new Error('Profile not found for new user');
-          }
-          
-          // Update the submission status
-          await prisma.castingSubmission.update({
-            where: { id: submissionId },
-            data: {
-              status: 'CONVERTED',
-              convertedUserId: user.id,
-              convertedToProfileId: profile.id,
-              updatedAt: new Date()
+        if (!profile) {
+          console.warn(`📝 REGISTRATION WARNING: Profile not found for user ${user.id}, cannot process submission`);
+        } else {
+          // Process the submission (with transaction if available)
+          if (typeof prisma.$transaction === 'function') {
+            // Use transaction approach
+            await prisma.$transaction(async (tx) => {
+              // Find the casting submission
+              const submission = await tx.castingSubmission.findUnique({
+                where: { id: submissionId },
+                include: { 
+                  externalActor: true,
+                  castingCode: {
+                    include: {
+                      project: true
+                    }
+                  }
+                }
+              });
+              
+              if (!submission) {
+                console.warn(`📝 REGISTRATION WARNING: Submission ${submissionId} not found`);
+                return;
+              }
+              
+              // Update the submission status
+              await tx.castingSubmission.update({
+                where: { id: submissionId },
+                data: {
+                  status: 'CONVERTED',
+                  convertedUserId: user.id,
+                  convertedToProfileId: profile.id,
+                  updatedAt: new Date()
+                }
+              });
+              
+              console.log(`📝 REGISTRATION: Updated submission ${submissionId} to CONVERTED status`);
+              
+              // Process external actor and project membership if needed
+              if (submission.externalActor && submission.castingCode?.projectId) {
+                console.log(`📝 REGISTRATION: Processing external actor and project membership`);
+                await tx.externalActor.update({
+                  where: { id: submission.externalActor.id },
+                  data: {
+                    status: 'CONVERTED',
+                    convertedToUserId: user.id,
+                    convertedProfileId: profile.id,
+                    convertedToTalentAt: new Date(),
+                    updatedAt: new Date()
+                  }
+                });
+                
+                // Add to project if needed
+                await tx.projectMember.upsert({
+                  where: {
+                    projectId_profileId: {
+                      projectId: submission.castingCode.projectId,
+                      profileId: profile.id
+                    }
+                  },
+                  create: {
+                    id: crypto.randomUUID(),
+                    projectId: submission.castingCode.projectId,
+                    profileId: profile.id,
+                    role: 'Talent',
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                  },
+                  update: {
+                    updatedAt: new Date()
+                  }
+                });
+              }
+            });
+          } else {
+            // Sequential operations fallback
+            console.log(`📝 REGISTRATION: Processing submission without transaction`);
+            
+            // Find the casting submission
+            const submission = await prisma.castingSubmission.findUnique({
+              where: { id: submissionId },
+              include: { 
+                externalActor: true,
+                castingCode: {
+                  include: {
+                    project: true
+                  }
+                }
+              }
+            });
+            
+            if (!submission) {
+              console.warn(`📝 REGISTRATION WARNING: Submission ${submissionId} not found`);
+              return;
             }
-          });
-          
-          // If there's an external actor record, mark it as converted too
-          if (submission.externalActor) {
-            await prisma.externalActor.update({
-              where: { id: submission.externalActor.id },
+            
+            // Update the submission status
+            await prisma.castingSubmission.update({
+              where: { id: submissionId },
               data: {
                 status: 'CONVERTED',
-                convertedToUserId: user.id,
-                convertedProfileId: profile.id,
-                convertedToTalentAt: new Date(),
+                convertedUserId: user.id,
+                convertedToProfileId: profile.id,
                 updatedAt: new Date()
               }
             });
             
-            // If the submission has a project, add the user to the project
-            if (submission.castingCode?.projectId) {
+            console.log(`📝 REGISTRATION: Updated submission ${submissionId} to CONVERTED status`);
+            
+            // Process external actor and project membership if needed
+            if (submission.externalActor && submission.castingCode?.projectId) {
+              console.log(`📝 REGISTRATION: Processing external actor and project membership`);
+              await prisma.externalActor.update({
+                where: { id: submission.externalActor.id },
+                data: {
+                  status: 'CONVERTED',
+                  convertedToUserId: user.id,
+                  convertedProfileId: profile.id,
+                  convertedToTalentAt: new Date(),
+                  updatedAt: new Date()
+                }
+              });
+              
               try {
-                // Check if the user is already in this project
-                const existingProjectMember = await prisma.projectMember.findFirst({
+                // Add to project if needed - use create or update based on existence
+                const existingMember = await prisma.projectMember.findUnique({
                   where: {
-                    projectId: submission.castingCode.projectId,
-                    profileId: profile.id
+                    projectId_profileId: {
+                      projectId: submission.castingCode.projectId,
+                      profileId: profile.id
+                    }
                   }
                 });
                 
-                if (!existingProjectMember) {
-                  // Add the new user to the project as a member
+                if (existingMember) {
+                  // Update existing member
+                  await prisma.projectMember.update({
+                    where: {
+                      projectId_profileId: {
+                        projectId: submission.castingCode.projectId,
+                        profileId: profile.id
+                      }
+                    },
+                    data: {
+                      updatedAt: new Date()
+                    }
+                  });
+                } else {
+                  // Create new member
                   await prisma.projectMember.create({
                     data: {
                       id: crypto.randomUUID(),
                       projectId: submission.castingCode.projectId,
                       profileId: profile.id,
                       role: 'Talent',
+                      createdAt: new Date(),
                       updatedAt: new Date()
                     }
                   });
                 }
-              } catch (projectError) {
-                console.error('Error adding user to project:', projectError);
-                // Continue with registration even if project association fails
+              } catch (memberError) {
+                console.error(`📝 REGISTRATION WARNING: Error processing project membership:`, memberError);
               }
             }
           }
         }
       } catch (submissionError) {
-        console.error('Error updating casting submission:', submissionError);
-        // Continue with registration even if this fails
+        console.error('📝 REGISTRATION WARNING: Error processing submission:', submissionError);
+        // Continue with registration even if submission processing fails
       }
-    }
-    
-    // Create profile based on user type
-    try {
-      if (userType === "TALENT" && user) {
-        console.log(`📝 REGISTRATION: Creating talent profile for user ${user.id}`);
-        const profile = await prisma.profile.create({
-          data: {
-            id: crypto.randomUUID(),
-            userId: user.id,
-            availability: true, // Default to available
-            updatedAt: new Date()
-          },
-        });
-        console.log(`📝 REGISTRATION: Talent profile created with ID: ${profile.id}`);
-      } else if (userType === "STUDIO" && tenant) {
-        // Create a studio record automatically
-        const studioName = `${firstName} ${lastName}`.trim() || 'New Studio';
-        console.log(`📝 REGISTRATION: Creating studio record for tenant ${tenant.id}`);
-        const studio = await prisma.studio.create({
-          data: {
-            id: crypto.randomUUID(),
-            name: studioName,
-            tenantId: tenant.id,
-            description: `Studio for ${studioName}`,
-            updatedAt: new Date()
-          },
-        });
-        console.log(`📝 REGISTRATION: Studio created with ID: ${studio.id}`);
-      }
-    } catch (profileError) {
-      console.error(`📝 REGISTRATION ERROR: Database error creating profile/studio:`, profileError);
-      // Continue with registration even if profile/studio creation fails
-      // We'll return the user data but log the error
     }
     
     // Return user data (exclude password)

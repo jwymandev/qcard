@@ -12,10 +12,15 @@ export function getDatabaseUrl(): string {
   if (process.env.DATABASE_URL) {
     // Check if the URL is a PostgreSQL URL
     if (process.env.DATABASE_URL.startsWith('postgresql://') || process.env.DATABASE_URL.startsWith('postgres://')) {
+      // Log database connection info (without credentials)
+      const sanitizedUrl = sanitizeDatabaseUrl(process.env.DATABASE_URL);
+      console.log(`Using database connection from DATABASE_URL: ${sanitizedUrl}`);
       return process.env.DATABASE_URL;
     }
     
     console.warn('DATABASE_URL is not in a recognized PostgreSQL format, attempting to construct from components');
+  } else {
+    console.warn('DATABASE_URL environment variable is not set');
   }
   
   // Otherwise, construct the URL from individual components
@@ -25,15 +30,50 @@ export function getDatabaseUrl(): string {
   const username = process.env.DATABASE_USERNAME || 'postgres';
   const password = process.env.DATABASE_PASSWORD || '';
   
+  // Log database connection components (without password)
+  console.log(`Database connection components:
+  - Host: ${host}
+  - Port: ${port}
+  - Database: ${name}
+  - Username: ${username}
+  - Password: ${password ? '[SET]' : '[NOT SET]'}
+  `);
+  
   // Construct the URL with proper URL encoding for the password
   // This ensures special characters in the password are handled correctly
   const encodedPassword = encodeURIComponent(password);
   
   // Verify database name is not the same as the host (common issue)
-  const databaseName = host.includes(name) ? 'defaultdb' : name;
+  const databaseName = name === host ? 'defaultdb' : name;
+  if (name === host) {
+    console.warn(`Database name "${name}" matches host, using "defaultdb" instead`);
+  }
   
-  // Add sslmode=require for DigitalOcean managed databases
-  return `postgresql://${username}:${encodedPassword}@${host}:${port}/${databaseName}?sslmode=require`;
+  // For local development without SSL
+  if (host === 'localhost' || host === '127.0.0.1') {
+    const url = `postgresql://${username}:${encodedPassword}@${host}:${port}/${databaseName}`;
+    console.log(`Using local database connection: postgresql://${username}:[REDACTED]@${host}:${port}/${databaseName}`);
+    return url;
+  }
+  
+  // Add sslmode=require for production/remote databases
+  const url = `postgresql://${username}:${encodedPassword}@${host}:${port}/${databaseName}?sslmode=require`;
+  console.log(`Using remote database with SSL: postgresql://${username}:[REDACTED]@${host}:${port}/${databaseName}?sslmode=require`);
+  return url;
+}
+
+/**
+ * Sanitizes a database URL to hide sensitive information for logging
+ */
+function sanitizeDatabaseUrl(url: string): string {
+  try {
+    const parsedUrl = new URL(url);
+    // Hide password
+    parsedUrl.password = parsedUrl.password ? '[REDACTED]' : '';
+    return parsedUrl.toString();
+  } catch (e) {
+    return '[Invalid URL format]';
+  }
 }
 
 /**

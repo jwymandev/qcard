@@ -80,7 +80,8 @@ const nextConfig = {
   env: {
     PORT: process.env.PORT || '8080',
     // Add flag to skip database connection during build
-    NEXT_BUILD_SKIP_DB: 'true',
+    // Only set this during the build command, not for development
+    NEXT_BUILD_SKIP_DB: process.env.NODE_ENV === 'production' ? 'true' : 'false',
     SKIP_API_ROUTES: 'true',
     NEXT_PUBLIC_SKIP_API_ROUTES: 'true',
     // Set a dummy database URL for build

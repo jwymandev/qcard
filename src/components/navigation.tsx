@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+import { signOut } from '@/lib/client-auth';
+import { navigateTo, useForceRefreshStrategy } from '@/lib/navigation-utils';
 
 // Badge component for notifications
 const NotificationBadge = ({ count }: { count: number }) => {
@@ -16,15 +18,59 @@ const NotificationBadge = ({ count }: { count: number }) => {
   );
 };
 
+// Custom NavLink component that handles authentication-aware navigation
+const NavLink: React.FC<{
+  href: string;
+  className?: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}> = ({ href, className, onClick, children }) => {
+  const { shouldForceRefresh } = useForceRefreshStrategy();
+  const router = useRouter();
+  
+  const handleClick = (e: React.MouseEvent) => {
+    if (onClick) {
+      onClick();
+    }
+    
+    // Only handle navigation if we're forcing refreshes
+    if (shouldForceRefresh) {
+      e.preventDefault();
+      window.location.href = href;
+    }
+    
+    // Otherwise let Next.js Link handle it normally
+  };
+  
+  return (
+    <Link href={href} className={className} onClick={handleClick}>
+      {children}
+    </Link>
+  );
+};
+
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { data: session, status } = useSession();
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const { shouldForceRefresh } = useForceRefreshStrategy();
   
   const isAuthenticated = status === 'authenticated';
   const user = session?.user || { name: '', image: null };
+  
+  // Custom navigation handler that works reliably with authentication
+  const handleNavigation = useCallback((path: string) => {
+    if (shouldForceRefresh) {
+      // Use hard navigation for reliability
+      window.location.href = path;
+    } else {
+      // Use client-side navigation for speed
+      router.push(path);
+    }
+  }, [router, shouldForceRefresh]);
   
   // Only log session state changes in development and when status changes
   useEffect(() => {
@@ -282,7 +328,29 @@ export default function Navigation() {
                         Settings
                       </Link>
                       <button
-                        onClick={() => signOut({ callbackUrl: '/' })}
+                        onClick={async () => {
+                          try {
+                            // Use our enhanced signOut function with multiple fallbacks
+                            console.log("Initiating sign out...");
+                            setIsUserMenuOpen(false);
+                            
+                            // Our enhanced signOut handles all fallbacks internally
+                            const result = await signOut({ callbackUrl: '/' });
+                            
+                            console.log("Sign out result:", result);
+                            
+                            // Redirect to home page if signOut doesn't do it automatically
+                            if (result?.url) {
+                              window.location.href = result.url;
+                            } else {
+                              window.location.href = '/';
+                            }
+                          } catch (error) {
+                            console.error("Sign out error:", error);
+                            // Last resort fallback - just go to home page
+                            window.location.href = '/';
+                          }
+                        }}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         role="menuitem"
                         tabIndex={-1}
@@ -496,7 +564,28 @@ export default function Navigation() {
                     Settings
                   </Link>
                   <button
-                    onClick={() => signOut({ callbackUrl: '/' })}
+                    onClick={async () => {
+                      try {
+                        // Use our enhanced signOut function with multiple fallbacks
+                        console.log("Initiating sign out from mobile menu...");
+                        
+                        // Our enhanced signOut handles all fallbacks internally
+                        const result = await signOut({ callbackUrl: '/' });
+                        
+                        console.log("Sign out result:", result);
+                        
+                        // Redirect to home page if signOut doesn't do it automatically
+                        if (result?.url) {
+                          window.location.href = result.url;
+                        } else {
+                          window.location.href = '/';
+                        }
+                      } catch (error) {
+                        console.error("Sign out error:", error);
+                        // Last resort fallback - just go to home page
+                        window.location.href = '/';
+                      }
+                    }}
                     className="block w-full text-left pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700"
                   >
                     Sign out
