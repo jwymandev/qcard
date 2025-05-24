@@ -6,16 +6,19 @@ import { useRouter, useSearchParams } from 'next/navigation'
 /**
  * Emergency bypass sign-in component that skips normal authentication
  * This is only used when the database connection is not working
- * and should be removed once normal authentication is fixed
+ * and is restricted to admin access only.
+ * 
+ * To use this component, an admin must access the sign-in page with:
+ * ?admin_bypass=true&access_key=qcard_admin_2025
  */
 export default function BypassSignIn() {
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const isBypass = searchParams?.get('emergency_bypass') === 'true' || 
-                  searchParams?.get('bypass_auth') === 'true' ||
-                  searchParams?.get('auth_timeout') === 'true'
+  // Only show this for admins with the admin_bypass parameter
+  const isBypass = searchParams?.get('admin_bypass') === 'true' && 
+                  searchParams?.get('access_key') === 'qcard_admin_2025'
   
   if (!isBypass) {
     // Only show this component when one of the bypass parameters is present
@@ -41,9 +44,9 @@ export default function BypassSignIn() {
   
   return (
     <div className="bg-red-50 border border-red-200 p-4 rounded-md mt-6 mb-6">
-      <h2 className="text-lg font-bold text-red-700 mb-2">⚠️ Emergency Bypass Mode</h2>
+      <h2 className="text-lg font-bold text-red-700 mb-2">⚠️ Admin Emergency Access</h2>
       <p className="text-sm text-red-600 mb-4">
-        This mode bypasses the normal authentication process. Use only during database issues.
+        This restricted mode is for administrators only. Use only during critical database issues.
       </p>
       
       <div className="space-y-3">
@@ -79,7 +82,7 @@ export default function BypassSignIn() {
             className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
             disabled={!email}
           >
-            Emergency Access
+            Admin Emergency Access
           </button>
         </div>
       </div>

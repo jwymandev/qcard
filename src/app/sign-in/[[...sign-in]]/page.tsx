@@ -95,12 +95,6 @@ export default function SignInPage() {
           >
             Clear All Cookies
           </Link>
-          <a 
-            href={`${window.location.pathname}?emergency_bypass=true&debug=true`}
-            className="ml-2 bg-red-200 px-2 py-1 rounded inline-block"
-          >
-            Enable Emergency Bypass
-          </a>
         </div>
       </div>
     );
@@ -146,7 +140,6 @@ export default function SignInPage() {
                 </p>
                 <ul className="list-disc ml-5 mt-1 text-xs">
                   <li>Try signing in (the database may be available now)</li>
-                  <li>Use emergency bypass mode below</li>
                   <li>Try again later if the issue persists</li>
                 </ul>
               </div>
@@ -228,16 +221,6 @@ export default function SignInPage() {
         {/* Debug section for troubleshooting */}
         <DebugSection />
         
-        {/* Emergency bypass link at bottom */}
-        <div className="text-center text-xs text-gray-500 mt-8">
-          Having trouble? Try{' '}
-          <a 
-            href="?emergency_bypass=true" 
-            className="text-red-500 hover:text-red-600"
-          >
-            emergency mode
-          </a>
-        </div>
       </div>
     </div>
   );
