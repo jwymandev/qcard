@@ -193,7 +193,7 @@ async function main() {
         productionBrowserSourceMaps: true,
         assetPrefix: process.env.NEXT_PUBLIC_APP_URL || '',
         experimental: {
-          serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'],
+          serverComponentsExternalPackages: ['bcrypt'],
           optimizePackageImports: ['@prisma/client'],
         },
         webpack: (config, { isServer, dev }) => {

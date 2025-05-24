@@ -2,6 +2,20 @@
 
 This document tracks all fixes applied to resolve deployment issues with Digital Ocean App Platform.
 
+## Latest Fix - May 24, 2025
+
+Fixed conflict between `serverComponentsExternalPackages` and `transpilePackages` options in Next.js 14.2.4. The error was:
+
+```
+Error: The packages specified in the 'transpilePackages' conflict with the 'serverComponentsExternalPackages': @prisma/client
+```
+
+### Solution:
+1. Removed @prisma/client from serverComponentsExternalPackages
+2. Created a simplified build script that avoids Digital Ocean specific commands
+3. Updated experimental options to use Next.js 14.2.4 compatible settings
+4. Fixed caching options to use cacheMaxMemorySize instead of isrMemoryCacheSize
+
 ## Issues Fixed
 
 1. **"Loading Authentication..." White Screen**

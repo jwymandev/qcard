@@ -21,15 +21,14 @@ const nextConfig = {
   
   // Configuration for API routes and optimizations
   experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'],
+    serverComponentsExternalPackages: ['bcrypt'],
     // Use Next.js 14 supported options
     optimizePackageImports: ['@prisma/client'],
     serverActions: {
       allowedOrigins: ['*'],
     },
-    // Enable incremental build features
-    incrementalCacheHandlerPath: false,
-    isrMemoryCacheSize: 50, // Megabytes
+    // Use Next.js 14.2.4 compatible options
+    cacheMaxMemorySize: 50, // Megabytes (replaces isrMemoryCacheSize)
   },
   
   // Ignore errors during build

@@ -21,7 +21,7 @@ const nextConfig = {
   assetPrefix: process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_APP_URL || '' : '',
   // Configure API routes to be fully dynamic
   experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'],
+    serverComponentsExternalPackages: ['bcrypt'],
     optimizePackageImports: ['@prisma/client'],
     serverActions: {
       allowedOrigins: ['*'],
