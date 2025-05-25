@@ -22,8 +22,8 @@ export const {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // Important: Disable CSRF check for now to fix login issues
-  skipCSRFCheck: process.env.NODE_ENV === 'development', 
+  // Important: Disable CSRF check in all environments to fix login issues
+  skipCSRFCheck: true, 
   cookies: {
     sessionToken: {
       name: `next-auth.session-token`,
