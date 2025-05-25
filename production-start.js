@@ -261,14 +261,10 @@ function startApplication() {
   
     // First check if standalone server file exists
   const fs = require('fs');
-  const standaloneServerPath = path.join(process.cwd(), '.next-do/standalone/server.js');
-  const fallbackStandaloneServerPath = path.join(process.cwd(), '.next/standalone/server.js');
+  const standaloneServerPath = path.join(process.cwd(), '.next/standalone/server.js');
   
   if (fs.existsSync(standaloneServerPath)) {
-    console.log('Detected DigitalOcean standalone output mode, using .next-do/standalone/server.js');
-    startStandaloneServer(port, '.next-do');
-  } else if (fs.existsSync(fallbackStandaloneServerPath)) {
-    console.log('Detected regular standalone output mode, using .next/standalone/server.js');
+    console.log('Detected standalone output mode, using .next/standalone/server.js');
     startStandaloneServer(port, '.next');
   } else {
     console.log('Using standard Next.js start mode');

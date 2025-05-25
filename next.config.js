@@ -13,8 +13,6 @@ const nextConfig = {
   },
   // Use standalone output for DigitalOcean App Platform
   output: 'standalone',
-  // Use separate build directory for DO
-  distDir: '.next-do',
   // Don't set asset prefix - let Next.js handle static assets naturally
   // assetPrefix: '', // Removed problematic asset prefix
   

@@ -2,7 +2,7 @@ name: qcard
 services:
   - name: web
     run_command: npm start
-    build_command: npm run build:do
+    build_command: npm run build
     github:
       branch: main
     environment_slug: node-js
