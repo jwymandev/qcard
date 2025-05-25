@@ -39,7 +39,9 @@ export default function RegionsAdminPage() {
   const fetchRegions = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/regions?includeStats=true');
+      const response = await fetch('/api/regions?includeStats=true', {
+        credentials: 'include' // Make sure credentials are included for auth
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch regions: ${response.status}`);
@@ -72,6 +74,7 @@ export default function RegionsAdminPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(newRegion),
+        credentials: 'include' // Make sure credentials are included for auth
       });
       
       if (!response.ok) {

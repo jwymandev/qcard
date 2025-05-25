@@ -1,5 +1,5 @@
-import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { auth } from '@/auth';
 
 // Helper function to check if user is a super admin
@@ -17,177 +17,192 @@ async function requireSuperAdmin() {
   return { authorized: true, session };
 }
 
-// GET /api/regions/[id] - Get a specific region
+// GET /api/regions/[id]
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { searchParams } = new URL(request.url);
-    const includeStats = searchParams.get('includeStats') === 'true';
+    const id = params.id;
+    console.log(`GET /api/regions/${id} request received`);
     
-    if (includeStats) {
-      // Use raw SQL to get the region with stats
-      const regions = await prisma.$queryRaw<Array<Record<string, any>>>`
-        SELECT 
-          r.*,
-          (SELECT COUNT(*) FROM "Location" WHERE "regionId" = r.id) as location_count,
-          (SELECT COUNT(*) FROM "CastingCall" WHERE "regionId" = r.id) as casting_call_count,
-          (SELECT COUNT(*) FROM "ProfileRegion" WHERE "regionId" = r.id) as profile_count,
-          (SELECT COUNT(*) FROM "StudioRegion" WHERE "regionId" = r.id) as studio_count
-        FROM "Region" r
-        WHERE r.id = ${params.id}
-      `;
-      
-      if (!regions || regions.length === 0) {
-        return NextResponse.json({ error: "Region not found" }, { status: 404 });
-      }
-      
-      const region = regions[0];
-      
-      // Get associated locations
-      const locations = await prisma.$queryRaw<Array<Record<string, any>>>`
-        SELECT * FROM "Location" WHERE "regionId" = ${params.id}
-      `;
-      
-      // Format the response to match the original schema
-      const formattedRegion = {
-        ...region,
-        locations,
+    // Use Prisma's findUnique instead of raw SQL
+    // Note: The Prisma field names should match exactly what's in the schema
+    const region = await authPrisma.region.findUnique({
+      where: { id },
+      include: {
         _count: {
-          locations: Number(region.location_count),
-          castingCalls: Number(region.casting_call_count),
-          profiles: Number(region.profile_count),
-          studios: Number(region.studio_count)
+          select: {
+            locations: true,
+            castingCalls: true,
+            ProfileRegion: true,
+            StudioRegion: true
+          }
         }
-      };
-      
-      return NextResponse.json(formattedRegion);
-    }
-    
-    // Regular query without stats - use raw SQL
-    const regions = await prisma.$queryRaw<Array<Record<string, any>>>`
-      SELECT * FROM "Region" WHERE id = ${params.id}
-    `;
-    
-    if (!regions || regions.length === 0) {
-      return NextResponse.json({ error: "Region not found" }, { status: 404 });
-    }
-    
-    const region = regions[0];
-    
-    // Get associated locations
-    const locations = await prisma.$queryRaw<Array<Record<string, any>>>`
-      SELECT * FROM "Location" WHERE "regionId" = ${params.id}
-    `;
-    
-    region.locations = locations;
+      }
+    });
     
     if (!region) {
       return NextResponse.json({ error: "Region not found" }, { status: 404 });
     }
     
-    return NextResponse.json(region);
+    // Format response to match the expected structure
+    const formattedRegion = {
+      ...region,
+      _count: {
+        locations: region._count.locations,
+        castingCalls: region._count.castingCalls,
+        profiles: region._count.ProfileRegion,
+        studios: region._count.StudioRegion
+      }
+    };
+    
+    return NextResponse.json(formattedRegion);
   } catch (error) {
     console.error(`Error fetching region ${params.id}:`, error);
     return NextResponse.json({ error: "Failed to fetch region" }, { status: 500 });
   }
 }
 
-// PATCH /api/regions/[id] - Update a region (super admin only)
-export async function PATCH(
+// PUT /api/regions/[id]
+export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
+    const id = params.id;
+    console.log(`PUT /api/regions/${id} request received`);
+    
     // Check authorization
     const auth = await requireSuperAdmin();
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.message }, { status: auth.status });
     }
     
+    // Parse and validate data
     const data = await request.json();
     
     if (!data.name) {
       return NextResponse.json({ error: "Region name is required" }, { status: 400 });
     }
     
-    // Update region using raw SQL
-    const now = new Date().toISOString();
+    // Check if region exists
+    const existingRegion = await authPrisma.region.findUnique({
+      where: { id }
+    });
     
-    await prisma.$executeRaw`
-      UPDATE "Region"
-      SET name = ${data.name}, description = ${data.description}, "updatedAt" = ${now}
-      WHERE id = ${params.id}
-    `;
-    
-    // Get the updated region
-    const regions = await prisma.$queryRaw<Array<Record<string, any>>>`
-      SELECT * FROM "Region" WHERE id = ${params.id}
-    `;
-    
-    if (!regions || regions.length === 0) {
+    if (!existingRegion) {
       return NextResponse.json({ error: "Region not found" }, { status: 404 });
     }
     
-    const region = regions[0];
+    // Update region using Prisma's update method
+    console.log('Updating region using authPrisma:', { id, name: data.name });
+    const updatedRegion = await authPrisma.region.update({
+      where: { id },
+      data: {
+        name: data.name,
+        description: data.description || null,
+        updatedAt: new Date()
+      }
+    });
     
-    return NextResponse.json(region);
+    return NextResponse.json(updatedRegion);
   } catch (error) {
     console.error(`Error updating region ${params.id}:`, error);
     return NextResponse.json({ error: "Failed to update region" }, { status: 500 });
   }
 }
 
-// DELETE /api/regions/[id] - Delete a region (super admin only)
+// DELETE /api/regions/[id]
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
+    const id = params.id;
+    console.log(`DELETE /api/regions/${id} request received`);
+    
     // Check authorization
-    const auth = await requireSuperAdmin();
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.message }, { status: auth.status });
+    const authResult = await requireSuperAdmin();
+    console.log('SuperAdmin check result:', { authorized: authResult.authorized, userId: authResult.session?.user?.id });
+    
+    if (!authResult.authorized) {
+      console.log('Not authorized to delete region:', authResult.message);
+      return NextResponse.json({ error: authResult.message }, { status: authResult.status });
     }
     
-    // Check for dependencies before deletion using raw SQL
-    const dependenciesQuery = await prisma.$queryRaw<Array<Record<string, any>>>`
-      SELECT
-        (SELECT COUNT(*) FROM "Location" WHERE "regionId" = ${params.id}) as location_count,
-        (SELECT COUNT(*) FROM "CastingCall" WHERE "regionId" = ${params.id}) as casting_call_count,
-        (SELECT COUNT(*) FROM "ProfileRegion" WHERE "regionId" = ${params.id}) as profile_count,
-        (SELECT COUNT(*) FROM "StudioRegion" WHERE "regionId" = ${params.id}) as studio_count
-    `;
+    // Check if region exists
+    console.log(`Checking if region ${id} exists`);
+    const existingRegion = await authPrisma.region.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            locations: true,
+            castingCalls: true,
+            ProfileRegion: true,
+            StudioRegion: true
+          }
+        }
+      }
+    });
     
-    const dependencyCounts = dependenciesQuery[0];
+    if (!existingRegion) {
+      console.log(`Region with ID ${id} not found`);
+      return NextResponse.json({ error: "Region not found" }, { status: 404 });
+    }
     
-    // Prevent deletion if there are dependencies (protect data integrity)
-    if (dependencyCounts && (
-      Number(dependencyCounts.location_count) > 0 ||
-      Number(dependencyCounts.casting_call_count) > 0 ||
-      Number(dependencyCounts.profile_count) > 0 ||
-      Number(dependencyCounts.studio_count) > 0
-    )) {
-      return NextResponse.json({ 
-        error: "Cannot delete region with dependencies", 
+    console.log(`Found region: ${existingRegion.name} (${existingRegion.id})`);
+    
+    // Check for dependencies
+    const totalDependencies = 
+      existingRegion._count.locations + 
+      existingRegion._count.castingCalls + 
+      existingRegion._count.ProfileRegion + 
+      existingRegion._count.StudioRegion;
+    
+    console.log(`Region dependencies:`, {
+      locations: existingRegion._count.locations,
+      castingCalls: existingRegion._count.castingCalls,
+      profiles: existingRegion._count.ProfileRegion,
+      studios: existingRegion._count.StudioRegion,
+      total: totalDependencies
+    });
+    
+    if (totalDependencies > 0) {
+      console.log(`Cannot delete region ${id} due to dependencies`);
+      return NextResponse.json({
+        error: "Cannot delete region with existing dependencies",
         dependencies: {
-          locations: Number(dependencyCounts.location_count),
-          castingCalls: Number(dependencyCounts.casting_call_count),
-          profiles: Number(dependencyCounts.profile_count),
-          studios: Number(dependencyCounts.studio_count)
+          locations: existingRegion._count.locations,
+          castingCalls: existingRegion._count.castingCalls,
+          profiles: existingRegion._count.ProfileRegion,
+          studios: existingRegion._count.StudioRegion
         }
       }, { status: 400 });
     }
     
-    // Delete region if no dependencies using raw SQL
-    await prisma.$executeRaw`
-      DELETE FROM "Region" WHERE id = ${params.id}
-    `;
-    
-    return NextResponse.json({ success: true });
+    // Delete region
+    console.log('Deleting region using authPrisma:', { id });
+    try {
+      await authPrisma.region.delete({
+        where: { id }
+      });
+      console.log(`Region ${id} deleted successfully`);
+      return NextResponse.json({ success: true });
+    } catch (dbError) {
+      console.error('Database error deleting region:', dbError);
+      // If the error is not a "not found" error, rethrow it
+      if (dbError.code !== 'P2025') {
+        throw dbError;
+      }
+      return NextResponse.json({ error: "Region not found" }, { status: 404 });
+    }
   } catch (error) {
     console.error(`Error deleting region ${params.id}:`, error);
-    return NextResponse.json({ error: "Failed to delete region" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to delete region",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

@@ -11,6 +11,8 @@ export default function AuthDebugPage() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [cookies, setCookies] = useState<string[]>([]);
   const [sessionJSON, setSessionJSON] = useState('');
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
+  const [csrfLoading, setCsrfLoading] = useState(false);
   
   // Fetch database status on initial load
   useEffect(() => {
@@ -38,6 +40,28 @@ export default function AuthDebugPage() {
   useEffect(() => {
     const cookieList = document.cookie.split(';').map(cookie => cookie.trim());
     setCookies(cookieList);
+    
+    // Check for CSRF token
+    const fetchCsrfToken = async () => {
+      try {
+        setCsrfLoading(true);
+        const response = await fetch('/api/auth/csrf');
+        const data = await response.json();
+        
+        if (data.success && data.csrfToken) {
+          setCsrfToken(data.csrfToken);
+        } else {
+          setCsrfToken(null);
+        }
+      } catch (error) {
+        console.error('Error fetching CSRF token:', error);
+        setCsrfToken(null);
+      } finally {
+        setCsrfLoading(false);
+      }
+    };
+    
+    fetchCsrfToken();
   }, []);
   
   // Format session data as JSON
@@ -188,7 +212,18 @@ export default function AuthDebugPage() {
             <p className="text-gray-500">No cookies found</p>
           )}
           
-          <div className="mt-4 flex space-x-2">
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold mb-2">CSRF Token:</h3>
+            {csrfLoading ? (
+              <div className="animate-pulse h-5 bg-gray-200 rounded w-40"></div>
+            ) : (
+              <div className="text-sm font-mono bg-gray-100 p-2 rounded overflow-auto">
+                {csrfToken || 'No CSRF token found'}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
             <button
               onClick={() => {
                 document.cookie.split(';').forEach(c => {
@@ -216,6 +251,25 @@ export default function AuthDebugPage() {
               className="px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700"
             >
               Clear Auth Cookies
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/auth/init-csrf');
+                  const data = await response.json();
+                  if (data.success) {
+                    window.location.reload();
+                  } else {
+                    alert('Failed to regenerate CSRF token: ' + data.error);
+                  }
+                } catch (error) {
+                  console.error('Error regenerating CSRF token:', error);
+                  alert('Error regenerating CSRF token');
+                }
+              }}
+              className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+            >
+              Regenerate CSRF Token
             </button>
           </div>
         </div>

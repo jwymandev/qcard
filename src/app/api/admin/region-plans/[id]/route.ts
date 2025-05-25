@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 
@@ -31,8 +32,9 @@ export async function GET(
     
     const id = params.id;
     
-    // Fetch the region plan with the given ID
-    const regionPlan = await prisma.regionSubscriptionPlan.findUnique({
+    // Fetch the region plan with the given ID - use authPrisma for reliable database access
+    console.log(`Fetching region plan ${id} using authPrisma`);
+    const regionPlan = await authPrisma.regionSubscriptionPlan.findUnique({
       where: { id },
       include: {
         region: true
@@ -65,8 +67,9 @@ export async function PUT(
     const id = params.id;
     const data = await request.json();
     
-    // Check if the region plan exists
-    const existingPlan = await prisma.regionSubscriptionPlan.findUnique({
+    // Check if the region plan exists - use authPrisma for reliable database access
+    console.log(`Checking if region plan ${id} exists using authPrisma`);
+    const existingPlan = await authPrisma.regionSubscriptionPlan.findUnique({
       where: { id }
     });
     
@@ -83,8 +86,12 @@ export async function PUT(
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.stripePriceId !== undefined) updateData.stripePriceId = data.stripePriceId;
     
-    // Update the region plan
-    const updatedPlan = await prisma.regionSubscriptionPlan.update({
+    // Add updated timestamp
+    updateData.updatedAt = new Date();
+    
+    // Update the region plan - use authPrisma for reliable database access
+    console.log(`Updating region plan ${id} using authPrisma`);
+    const updatedPlan = await authPrisma.regionSubscriptionPlan.update({
       where: { id },
       data: updateData,
       include: {
@@ -113,8 +120,9 @@ export async function DELETE(
     
     const id = params.id;
     
-    // Check if the region plan exists
-    const existingPlan = await prisma.regionSubscriptionPlan.findUnique({
+    // Check if the region plan exists - use authPrisma for reliable database access
+    console.log(`Checking if region plan ${id} exists using authPrisma`);
+    const existingPlan = await authPrisma.regionSubscriptionPlan.findUnique({
       where: { id }
     });
     
@@ -122,8 +130,9 @@ export async function DELETE(
       return NextResponse.json({ error: "Region plan not found" }, { status: 404 });
     }
     
-    // Check if the plan has active subscriptions
-    const activeSubscriptions = await prisma.userRegionSubscription.findMany({
+    // Check if the plan has active subscriptions - use authPrisma for reliable database access
+    console.log(`Checking for active subscriptions for plan ${id} using authPrisma`);
+    const activeSubscriptions = await authPrisma.userRegionSubscription.findMany({
       where: {
         regionPlanId: id,
         status: 'ACTIVE'
@@ -137,8 +146,9 @@ export async function DELETE(
       }, { status: 400 });
     }
     
-    // Delete the region plan
-    await prisma.regionSubscriptionPlan.delete({
+    // Delete the region plan - use authPrisma for reliable database access
+    console.log(`Deleting region plan ${id} using authPrisma`);
+    await authPrisma.regionSubscriptionPlan.delete({
       where: { id }
     });
     

@@ -19,27 +19,59 @@ export async function GET(request: Request) {
     // Check for token
     let token = null;
     let tokenExists = false;
+    let tokenError = null;
     
     try {
+      // Try with default options first
       token = await getToken({
         req: request,
         secret: process.env.NEXTAUTH_SECRET || "development-secret",
       });
       tokenExists = !!token;
-    } catch (tokenError) {
-      console.error("Error checking token:", tokenError);
+    } catch (error) {
+      tokenError = error instanceof Error ? error.message : String(error);
+      console.error("Error checking token:", error);
+      
+      // In development mode, try alternative token validation strategies
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          // Try with secure cookie
+          token = await getToken({
+            req: request,
+            cookieName: '__Secure-next-auth.session-token',
+            secureCookie: true,
+            secret: process.env.NEXTAUTH_SECRET || "development-secret",
+          });
+          tokenExists = !!token;
+          
+          if (token) {
+            console.log("Token found using secure cookie option");
+          }
+        } catch (secureError) {
+          console.error("Error with secure cookie option:", secureError);
+        }
+      }
     }
     
     // Check for auth cookies
     const cookieStore = cookies();
     const allCookies = cookieStore.getAll();
     
+    // Get specific session cookies
+    const sessionCookie = cookieStore.get('next-auth.session-token');
+    const secureSessionCookie = cookieStore.get('__Secure-next-auth.session-token');
+    
     // Look for auth-related cookies
     const authCookies = {
       hasSessionCookie: allCookies.some(c => c.name.includes('next-auth.session-token')),
+      hasSecureSessionCookie: allCookies.some(c => c.name.includes('__Secure-next-auth.session-token')),
       hasCallbackCookie: allCookies.some(c => c.name.includes('next-auth.callback-url')),
       hasCsrfCookie: allCookies.some(c => c.name.includes('next-auth.csrf-token')),
       allCookieNames: allCookies.map(c => c.name),
+      sessionCookiePresent: !!sessionCookie,
+      secureSessionCookiePresent: !!secureSessionCookie,
+      sessionCookieValue: sessionCookie ? `${sessionCookie.value.substring(0, 10)}...` : null,
+      secureSessionCookieValue: secureSessionCookie ? `${secureSessionCookie.value.substring(0, 10)}...` : null,
     };
     
     // Check database connectivity
@@ -61,6 +93,31 @@ export async function GET(request: Request) {
       dbStatus = "error";
       dbError = error instanceof Error ? error.message : String(error);
       console.error("Database error during auth status check:", error);
+    }
+    
+    // In development mode, check with authPrisma too
+    let authDbStatus = "unknown";
+    let authUserCount = 0;
+    let authDbError = null;
+    
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const { authPrisma } = await import('@/lib/secure-db-connection');
+        
+        // Simple auth database test
+        const startTime = Date.now();
+        await authPrisma.$queryRaw`SELECT 1 as test`;
+        const queryTime = Date.now() - startTime;
+        
+        // Count users in auth database
+        authUserCount = await authPrisma.user.count();
+        
+        authDbStatus = `connected (${queryTime}ms)`;
+      } catch (error) {
+        authDbStatus = "error";
+        authDbError = error instanceof Error ? error.message : String(error);
+        console.error("Auth database error during auth status check:", error);
+      }
     }
     
     // Determine environment
@@ -96,6 +153,7 @@ export async function GET(request: Request) {
       },
       token: {
         exists: tokenExists,
+        error: tokenError,
         contents: token ? {
           // Don't include sensitive token data, just useful fields
           name: token.name,
@@ -112,6 +170,12 @@ export async function GET(request: Request) {
         status: dbStatus,
         userCount,
         error: dbError,
+        // Include auth database info in development
+        auth: process.env.NODE_ENV === 'development' ? {
+          status: authDbStatus,
+          userCount: authUserCount,
+          error: authDbError,
+        } : undefined,
       },
       environment,
       authConfig,

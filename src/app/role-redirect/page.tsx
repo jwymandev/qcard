@@ -84,7 +84,17 @@ export default function RoleRedirect() {
     redirected.current = true;
     
     console.log("Redirect triggered with status:", status);
-    console.log("Session data:", session);
+    console.log("Session data:", JSON.stringify(session, null, 2));
+    
+    // Try to access the auth status API to check the session
+    fetch('/api/auth/auth-status')
+      .then(res => res.json())
+      .then(data => {
+        console.log("Auth status check:", data);
+      })
+      .catch(err => {
+        console.error("Error checking auth status:", err);
+      });
     
     // Add a timestamp to prevent redirect loops
     const now = Date.now();
@@ -121,14 +131,21 @@ export default function RoleRedirect() {
     });
     
     // Direct redirect based on user role/type - always use window.location for reliability
-    if (session?.user?.isAdmin || session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN' || session?.user?.tenantType === 'ADMIN') {
+    // Check for tenant type or role
+    const role = session?.user?.role || 'USER';
+    const tenantType = session?.user?.tenantType || '';
+    const isAdmin = session?.user?.isAdmin || role === 'ADMIN' || role === 'SUPER_ADMIN';
+    
+    console.log(`Redirecting based on - Role: ${role}, TenantType: ${tenantType}, isAdmin: ${isAdmin}`);
+    
+    if (isAdmin) {
       console.log("User is admin, redirecting to admin dashboard");
       window.location.href = '/admin/dashboard';
-    } else if (session?.user?.tenantType === 'STUDIO') {
+    } else if (tenantType.toUpperCase() === 'STUDIO') {
       console.log("User is studio, redirecting to studio dashboard");
       window.location.href = '/studio/dashboard';
     } else {
-      console.log("User is talent, redirecting to talent dashboard");
+      console.log("User is talent (default), redirecting to talent dashboard");
       window.location.href = '/talent/dashboard';
     }
   }, [status, session, router]);

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 
 // GET /api/talent/calendar - Get calendar events for the talent
 export async function GET(request: Request) {
@@ -11,22 +12,29 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // Find the user and their profile
-    const user = await prisma.user.findUnique({
+    // Find the user and their profile - using authPrisma for reliability
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { 
         Profile: true 
       },
     });
     
-    if (!user?.Profile) {
-      return NextResponse.json({ error: "Talent profile not found" }, { status: 404 });
+    if (!user) {
+      console.log("User not found in calendar API:", session.user.id);
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    
+    // If profile doesn't exist, return an empty calendar instead of an error
+    if (!user.Profile) {
+      console.log("No profile found for user in calendar API:", session.user.id);
+      return NextResponse.json([]);
     }
     
     const profileId = user.Profile.id;
     
-    // Get all projects the talent is a member of
-    const projectMemberships = await prisma.projectMember.findMany({
+    // Get all projects the talent is a member of - using authPrisma for reliability
+    const projectMemberships = await authPrisma.projectMember.findMany({
       where: {
         profileId: profileId,
       },

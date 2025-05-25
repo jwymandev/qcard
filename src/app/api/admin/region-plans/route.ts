@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import crypto from 'crypto';
@@ -49,8 +50,9 @@ export async function GET(request: Request) {
       };
     }
     
-    // Fetch all region plans
-    const regionPlans = await prisma.regionSubscriptionPlan.findMany(query);
+    // Fetch all region plans using authPrisma for reliable database access
+    console.log('Fetching region plans using authPrisma');
+    const regionPlans = await authPrisma.regionSubscriptionPlan.findMany(query);
     
     return NextResponse.json(regionPlans);
   } catch (error) {
@@ -77,8 +79,9 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
     
-    // Check if the region exists
-    const region = await prisma.region.findUnique({
+    // Check if the region exists - use authPrisma for reliable database access
+    console.log('Checking if region exists using authPrisma');
+    const region = await authPrisma.region.findUnique({
       where: { id: data.regionId }
     });
     
@@ -86,8 +89,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Region not found" }, { status: 404 });
     }
     
-    // Create the new region plan
-    const newPlan = await prisma.regionSubscriptionPlan.create({
+    // Create the new region plan - use authPrisma for reliable database access
+    console.log('Creating new region plan using authPrisma');
+    const newPlan = await authPrisma.regionSubscriptionPlan.create({
       data: {
         id: crypto.randomUUID(),
         regionId: data.regionId,

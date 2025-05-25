@@ -144,6 +144,10 @@ export async function GET(request: Request) {
         userId: session?.user?.id || null,
         userEmail: session?.user?.email || null,
         userRole: session?.user?.role || null,
+        isSuperAdmin: session?.user?.role === 'SUPER_ADMIN',
+        isAdmin: session?.user?.isAdmin || session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN',
+        tenantType: session?.user?.tenantType || null,
+        session: session || null,
         sessionExists: !!session
       },
       environment: {

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { z } from 'zod';
 import crypto from 'crypto';
 
@@ -43,8 +44,8 @@ export async function GET() {
   try {
     console.log("Fetching profile for user:", session.user.id);
     
-    // Get user profile with related data
-    const user = await prisma.user.findUnique({
+    // Get user profile with related data - use authPrisma for reliability
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id }
     });
     
@@ -64,8 +65,8 @@ export async function GET() {
     // Get the profile directly from the database for debugging
     console.log("Fetching raw profile data");
     
-    // Get profile with relations
-    const profile = await prisma.profile.findUnique({
+    // Get profile with relations - use authPrisma for reliability
+    const profile = await authPrisma.profile.findUnique({
       where: { userId: user.id },
       include: {
         Skill: true,
@@ -89,7 +90,7 @@ export async function GET() {
       // Fetch images
       try {
         console.log("Fetching profile images");
-        profileImages = await prisma.profileImage.findMany({
+        profileImages = await authPrisma.profileImage.findMany({
           where: { profileId: profile.id },
           orderBy: { isPrimary: 'desc' } // Primary image first
         });
@@ -157,16 +158,16 @@ export async function PATCH(request: Request) {
     
     console.log("Updating profile for user:", session.user.id);
     
-    // Get user profile
-    let profile = await prisma.profile.findUnique({
+    // Get user profile - use authPrisma for reliability
+    let profile = await authPrisma.profile.findUnique({
       where: { userId: session.user.id },
     });
     
     if (!profile) {
       console.log("Profile not found for user", session.user.id, "- creating new profile during update");
       
-      // Double-check that user exists first
-      const userExists = await prisma.user.findUnique({
+      // Double-check that user exists first - use authPrisma for reliability
+      const userExists = await authPrisma.user.findUnique({
         where: { id: session.user.id },
         select: { id: true }
       });
@@ -178,7 +179,7 @@ export async function PATCH(request: Request) {
       
       // Create profile if it doesn't exist
       try {
-        profile = await prisma.profile.create({
+        profile = await authPrisma.profile.create({
           data: {
             id: crypto.randomUUID(),
             userId: session.user.id,
@@ -247,7 +248,7 @@ export async function PATCH(request: Request) {
       const minimalProfileData: any = { bio: profileData.bio || null };
       
       // Update profile without including any relations
-      const updatedProfile = await prisma.profile.update({
+      const updatedProfile = await authPrisma.profile.update({
         where: { id: profile.id },
         data: minimalProfileData
       });
@@ -270,7 +271,7 @@ export async function PATCH(request: Request) {
       if (profileData.availability !== undefined) {
         try {
           console.log("Updating availability field");
-          await prisma.profile.update({
+          await authPrisma.profile.update({
             where: { id: profile.id },
             data: { availability: profileData.availability } as any,
           });
@@ -284,7 +285,7 @@ export async function PATCH(request: Request) {
         if (profileData[field] !== undefined) {
           try {
             console.log(`Updating ${field} field`);
-            await prisma.profile.update({
+            await authPrisma.profile.update({
               where: { id: profile.id },
               data: { [field]: profileData[field] } as any,
             });
@@ -298,7 +299,7 @@ export async function PATCH(request: Request) {
       if (profileData.experience !== undefined) {
         try {
           console.log("Updating experience field");
-          await prisma.profile.update({
+          await authPrisma.profile.update({
             where: { id: profile.id },
             data: { experience: profileData.experience } as any,
           });
@@ -311,7 +312,7 @@ export async function PATCH(request: Request) {
       if (languages !== null) {
         try {
           console.log("Updating languages field");
-          await prisma.profile.update({
+          await authPrisma.profile.update({
             where: { id: profile.id },
             data: { languages } as any,
           });
@@ -324,7 +325,7 @@ export async function PATCH(request: Request) {
       if (skillIds) {
         try {
           console.log("Updating skills relation");
-          await prisma.profile.update({
+          await authPrisma.profile.update({
             where: { id: profile.id },
             data: {
               Skill: {
@@ -340,7 +341,7 @@ export async function PATCH(request: Request) {
       if (locationIds) {
         try {
           console.log("Updating locations relation");
-          await prisma.profile.update({
+          await authPrisma.profile.update({
             where: { id: profile.id },
             data: {
               Location: {
@@ -354,7 +355,7 @@ export async function PATCH(request: Request) {
       }
       
       // After basic update works, fetch the full profile info
-      const fullProfile = await prisma.profile.findUnique({
+      const fullProfile = await authPrisma.profile.findUnique({
         where: { id: profile.id },
         include: {
           Location: true,
@@ -366,7 +367,7 @@ export async function PATCH(request: Request) {
       let profileImages: any[] = [];
       try {
         if (fullProfile && fullProfile.id) {
-          profileImages = await prisma.profileImage.findMany({
+          profileImages = await authPrisma.profileImage.findMany({
             where: { profileId: fullProfile.id },
             orderBy: { isPrimary: 'desc' } // Primary image first
           });

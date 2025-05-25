@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { requireAdmin } from '@/lib/admin-helpers';
 
 // GET /api/admin/stats
@@ -9,6 +10,8 @@ export async function GET() {
     await requireAdmin();
 
     // Run queries in parallel for better performance
+    // Use authPrisma for reliable database access
+    console.log('Fetching admin statistics with authPrisma');
     const [
       usersCount,
       studiosCount, 
@@ -17,11 +20,11 @@ export async function GET() {
       castingCallsCount,
       recentActivity
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.studio.count(),
-      prisma.profile.count(),
-      prisma.project.count(),
-      prisma.castingCall.count(),
+      authPrisma.user.count(),
+      authPrisma.studio.count(),
+      authPrisma.profile.count(),
+      authPrisma.project.count(),
+      authPrisma.castingCall.count(),
       getRecentActivity()
     ]);
 
@@ -44,9 +47,10 @@ export async function GET() {
 
 // Helper function to get recent activity
 async function getRecentActivity() {
-  // Get recent users, projects, casting calls limited to 5 total items
+  // Get recent users, projects, casting calls limited to 5 total items - use authPrisma for reliable database access
+  console.log('Fetching recent activity with authPrisma');
   const [recentUsers, recentProjects, recentCastingCalls] = await Promise.all([
-    prisma.user.findMany({
+    authPrisma.user.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
       select: {
@@ -62,7 +66,7 @@ async function getRecentActivity() {
         }
       }
     }),
-    prisma.project.findMany({
+    authPrisma.project.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
       select: {
@@ -76,7 +80,7 @@ async function getRecentActivity() {
         }
       }
     }),
-    prisma.castingCall.findMany({
+    authPrisma.castingCall.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
       select: {

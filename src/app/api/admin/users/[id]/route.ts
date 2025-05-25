@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { requireAdmin } from '@/lib/admin-helpers';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
@@ -34,8 +35,8 @@ export async function GET(
       );
     }
     
-    // Check if user exists
-    const user = await prisma.user.findUnique({
+    // Check if user exists - use authPrisma for reliable database access
+    const user = await authPrisma.user.findUnique({
       where: { id: params.id },
       include: {
         Tenant: true
@@ -95,8 +96,8 @@ export async function PUT(
       );
     }
     
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
+    // Check if user exists - use authPrisma for reliable database access
+    const existingUser = await authPrisma.user.findUnique({
       where: { id: params.id },
       include: { Tenant: true }
     });
@@ -140,8 +141,8 @@ export async function PUT(
       updateData.password = await bcrypt.hash(password, 10);
     }
     
-    // Update user
-    const updatedUser = await prisma.user.update({
+    // Update user - use authPrisma for reliable database access
+    const updatedUser = await authPrisma.user.update({
       where: { id: params.id },
       data: updateData,
       include: { Tenant: true }
@@ -196,12 +197,13 @@ export async function DELETE(
       );
     }
     
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
+    // Check if user exists - use authPrisma for reliable database access
+    const existingUser = await authPrisma.user.findUnique({
       where: { id: params.id }
     });
     
     if (!existingUser) {
+      console.log(`User not found with ID: ${params.id}`);
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -210,14 +212,17 @@ export async function DELETE(
     
     // Prevent deleting your own account
     if (session.user.id === params.id) {
+      console.log(`Admin attempted to delete their own account: ${params.id}`);
       return NextResponse.json(
         { error: 'You cannot delete your own account' },
         { status: 400 }
       );
     }
     
-    // Delete user
-    await prisma.user.delete({
+    console.log(`Deleting user: ${existingUser.email} (${existingUser.id})`);
+    
+    // Delete user - use authPrisma for reliable database access
+    await authPrisma.user.delete({
       where: { id: params.id }
     });
     

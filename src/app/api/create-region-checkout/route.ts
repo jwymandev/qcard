@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import stripe from '@/lib/stripe';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import crypto from 'crypto';
 
 export async function POST(req: Request) {
@@ -19,7 +20,9 @@ export async function POST(req: Request) {
     
     const userId = session.user.id;
     
-    const user = await prisma.user.findUnique({
+    // Use authPrisma for reliable database access
+    console.log(`Fetching user ${userId} using authPrisma`);
+    const user = await authPrisma.user.findUnique({
       where: { id: userId },
       include: { Profile: true },
     });
@@ -28,8 +31,9 @@ export async function POST(req: Request) {
       return new NextResponse('User not found', { status: 404 });
     }
     
-    // Fetch all regions and their subscription plans
-    const regionPlans = await prisma.regionSubscriptionPlan.findMany({
+    // Fetch all regions and their subscription plans using authPrisma for reliable database access
+    console.log('Fetching region plans using authPrisma');
+    const regionPlans = await authPrisma.regionSubscriptionPlan.findMany({
       where: {
         regionId: {
           in: regionIds
@@ -55,8 +59,9 @@ export async function POST(req: Request) {
       discountPercentage = discount.percentage;
       discountAmount = (subtotal * (discountPercentage / 100));
     } else if (regionIds.length > 1) {
-      // Fetch discount from database if not provided
-      const discountTier = await prisma.multiRegionDiscount.findFirst({
+      // Fetch discount from database if not provided - use authPrisma for reliable database access
+      console.log(`Fetching discount tier for ${regionIds.length} regions using authPrisma`);
+      const discountTier = await authPrisma.multiRegionDiscount.findFirst({
         where: {
           regionCount: regionIds.length
         }
@@ -128,8 +133,9 @@ export async function POST(req: Request) {
       ...discountOptions
     });
     
-    // Create payment record
-    await prisma.payment.create({
+    // Create payment record - use authPrisma for reliable database access
+    console.log(`Creating payment record for checkout ${checkoutSession.id} using authPrisma`);
+    await authPrisma.payment.create({
       data: {
         id: crypto.randomUUID(),
         amount: totalAmount / 100, // Convert to dollars

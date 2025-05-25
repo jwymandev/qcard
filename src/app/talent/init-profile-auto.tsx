@@ -23,18 +23,73 @@ export default function AutoInitProfile() {
         console.log("Auto-initializing talent profile...");
         setInitAttempted(true);
         
-        const response = await fetch('/api/talent-init', {
-          method: 'POST',
-        });
-        
-        if (!response.ok) {
-          let errorMessage = 'Failed to initialize profile';
+        // Add fetch timeout to handle potential server issues
+        const fetchWithTimeout = async (url, options, timeout = 10000) => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeout);
+          
           try {
-            const data = await response.json();
-            errorMessage = data.error || errorMessage;
+            const response = await fetch(url, {
+              ...options,
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            return response;
+          } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+          }
+        };
+        
+        // Make multiple attempts with exponential backoff
+        let attempt = 0;
+        const maxAttempts = 3;
+        let response = null;
+        
+        while (attempt < maxAttempts) {
+          attempt++;
+          const backoffTime = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+          
+          try {
+            console.log(`Attempt ${attempt}/${maxAttempts} to initialize profile...`);
+            response = await fetchWithTimeout('/api/talent-init', {
+              method: 'POST',
+              headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+              }
+            }, 15000);
+            
+            // If successful, break out of retry loop
+            if (response.ok) break;
+            
+            // If 404 or 500 error, wait before retrying
+            console.warn(`Profile init failed with status ${response.status}, retrying in ${backoffTime}ms...`);
+            await new Promise(resolve => setTimeout(resolve, backoffTime));
+          } catch (fetchError) {
+            console.error(`Fetch error on attempt ${attempt}:`, fetchError);
+            
+            // Wait before retrying
+            if (attempt < maxAttempts) {
+              console.warn(`Retrying in ${backoffTime}ms...`);
+              await new Promise(resolve => setTimeout(resolve, backoffTime));
+            }
+          }
+        }
+        
+        // Check final result
+        if (!response || !response.ok) {
+          let errorMessage = 'Failed to initialize profile after multiple attempts';
+          try {
+            if (response) {
+              const data = await response.json();
+              errorMessage = data.error || errorMessage;
+            }
           } catch {
             // If response isn't JSON, use status text
-            errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
+            if (response) {
+              errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
+            }
           }
           throw new Error(errorMessage);
         }

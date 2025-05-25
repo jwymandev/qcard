@@ -22,6 +22,8 @@ export const {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  // Important: Disable CSRF check for now to fix login issues
+  skipCSRFCheck: process.env.NODE_ENV === 'development', 
   cookies: {
     sessionToken: {
       name: `next-auth.session-token`,
@@ -29,7 +31,7 @@ export const {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: true,
+        secure: process.env.NODE_ENV === 'production', // Only secure in production
         domain: undefined, // Don't set domain to avoid issues
       },
     },
@@ -38,7 +40,7 @@ export const {
       options: {
         sameSite: "lax",
         path: "/",
-        secure: true,
+        secure: process.env.NODE_ENV === 'production', // Only secure in production
         domain: undefined,
       },
     },
@@ -48,7 +50,7 @@ export const {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: true,
+        secure: process.env.NODE_ENV === 'production', // Only secure in production
         domain: undefined,
       },
     },
@@ -384,12 +386,16 @@ export const {
           }
           
           console.log("=== AUTH SUCCESSFUL ===");
+          // Make sure we correctly pass through the tenant type
+          const tenantType = user.Tenant?.type || 'TALENT';
+          console.log(`Setting user tenantType to: ${tenantType} from:`, user.Tenant);
+          
           return {
             id: user.id,
             email: user.email,
             name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null,
             role: user.role || 'USER',
-            tenantType: user.Tenant?.type || 'TALENT',
+            tenantType: tenantType,
           };
         } catch (error) {
           console.error("Authorization error:", error);
@@ -402,19 +408,75 @@ export const {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        console.log("JWT Callback - Creating token for user:", {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          tenantType: user.tenantType
+        });
+        
         token.id = user.id;
         token.role = user.role || 'USER';
         token.isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
         token.tenantType = user.tenantType || "TALENT";
+        
+        // Store email in token for emergency fallback lookups
+        token.email = user.email;
+      } else {
+        console.log("JWT Callback - Refreshing token (no user data):", {
+          tokenId: token.id,
+          tokenEmail: token.email
+        });
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
+        console.log("Session Callback - Creating session from token:", {
+          tokenId: token.id,
+          tokenEmail: token.email
+        });
+        
         session.user.id = token.id as string;
         session.user.role = token.role as string || 'USER';
         session.user.tenantType = token.tenantType as string || 'TALENT';
         session.user.isAdmin = !!token.isAdmin;
+        
+        // Always include email in the session
+        if (token.email && (!session.user.email || session.user.email !== token.email)) {
+          console.log(`Setting session email from token: ${token.email}`);
+          session.user.email = token.email as string;
+        }
+        
+        // IMPORTANT: Validate that the user actually exists in the database
+        // This can help catch issues with session/database mismatches early
+        if (process.env.NODE_ENV === 'development') {
+          try {
+            const userCheck = await authPrisma.user.findUnique({
+              where: { id: session.user.id },
+              select: { id: true, email: true }
+            });
+            
+            if (!userCheck) {
+              console.warn(`SESSION VALIDATION WARNING: User with ID ${session.user.id} not found in database!`);
+              
+              // If we have email, try to find by email as fallback
+              if (session.user.email) {
+                const userByEmail = await authPrisma.user.findUnique({
+                  where: { email: session.user.email },
+                  select: { id: true, email: true }
+                });
+                
+                if (userByEmail) {
+                  console.warn(`SESSION MISMATCH: Found user by email with different ID: ${userByEmail.id}`);
+                  // Don't automatically fix it here, let the routes handle it
+                }
+              }
+            }
+          } catch (validationError) {
+            console.error("Error validating session user:", validationError);
+          }
+        }
       }
       return session;
     },

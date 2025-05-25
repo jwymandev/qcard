@@ -10,12 +10,45 @@ export default function SignInPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [csrfToken, setCsrfToken] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
   const showDebugMode = searchParams?.get('debug') === 'true';
   const hasAuthTimeout = searchParams?.get('auth_timeout') === 'true';
   const isNewlyRegistered = searchParams?.get('registered') === 'true';
   const callbackUrl = searchParams?.get('callbackUrl') || '/role-redirect';
+  
+  // Use a simplified approach in development to avoid CSRF issues
+  useEffect(() => {
+    // In development, we're using skipCSRFCheck in auth.ts
+    // so we don't need to fetch a real token
+    if (process.env.NODE_ENV === 'development') {
+      setCsrfToken('development_csrf_token');
+      console.log('Using development CSRF token');
+      return;
+    }
+    
+    // Only attempt to fetch a real token in production
+    async function fetchCsrfToken() {
+      try {
+        // Try to get the CSRF token from auth providers endpoint
+        const response = await fetch('/api/auth/providers');
+        const data = await response.json();
+        if (data.csrf) {
+          setCsrfToken(data.csrf);
+          console.log('CSRF token fetched from providers');
+        } else {
+          console.warn('No CSRF token in providers response');
+          setCsrfToken('fallback_token');
+        }
+      } catch (error) {
+        console.error('Failed to fetch CSRF token:', error);
+        setCsrfToken('error_fallback_token');
+      }
+    }
+    
+    fetchCsrfToken();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -261,6 +294,7 @@ export default function SignInPage() {
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <input type="hidden" name="remember" defaultValue="true" />
+          <input type="hidden" name="csrfToken" value={csrfToken} />
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email-address" className="sr-only">

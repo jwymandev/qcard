@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import crypto from 'crypto';
@@ -39,8 +40,9 @@ export async function GET(request: Request) {
       query.where = { regionId };
     }
     
-    // Get locations with the constructed query
-    const locations = await prisma.location.findMany(query);
+    // Get locations with the constructed query - use authPrisma for reliable database access
+    console.log('Fetching locations with authPrisma');
+    const locations = await authPrisma.location.findMany(query);
     
     return NextResponse.json(locations);
   } catch (error) {
@@ -67,8 +69,9 @@ export async function POST(request: Request) {
       
       // Verify the region exists
       try {
-        // Execute a simple count query to validate if region exists
-        const regionCount = await prisma.$queryRaw`
+        // Execute a simple count query to validate if region exists - use authPrisma for reliable database access
+        console.log('Validating region existence with authPrisma');
+        const regionCount = await authPrisma.$queryRaw`
           SELECT COUNT(*) as count FROM "Region" WHERE id = ${data.regionId}
         `;
         
@@ -81,28 +84,22 @@ export async function POST(request: Request) {
       }
     }
     
-    // Create the location using raw SQL
+    // Create the location using Prisma's create method instead of raw SQL
     const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const now = new Date(); // Use a Date object, not a string
     
     // Insert the location with or without regionId
-    if (data.regionId) {
-      await prisma.$executeRaw`
-        INSERT INTO "Location" (id, name, "regionId", "createdAt", "updatedAt")
-        VALUES (${id}, ${data.name}, ${data.regionId}, ${now}, ${now})
-      `;
-    } else {
-      await prisma.$executeRaw`
-        INSERT INTO "Location" (id, name, "createdAt", "updatedAt")
-        VALUES (${id}, ${data.name}, ${now}, ${now})
-      `;
-    }
+    console.log('Creating location with authPrisma:', { id, name: data.name, regionId: data.regionId });
     
-    // Get the created location
-    const locations = await prisma.$queryRaw<Array<Record<string, any>>>`
-      SELECT * FROM "Location" WHERE id = ${id}
-    `;
-    const location = locations[0];
+    const location = await authPrisma.location.create({
+      data: {
+        id,
+        name: data.name,
+        regionId: data.regionId || null,
+        createdAt: now,
+        updatedAt: now
+      }
+    });
     
     return NextResponse.json(location);
   } catch (error) {

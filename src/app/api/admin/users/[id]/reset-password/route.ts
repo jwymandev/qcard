@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { requireAdmin } from '@/lib/admin-helpers';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
@@ -25,8 +26,8 @@ export async function POST(
       );
     }
     
-    // Check if user exists
-    const user = await prisma.user.findUnique({
+    // Check if user exists - use authPrisma for reliable database access
+    const user = await authPrisma.user.findUnique({
       where: { id: params.id },
       select: {
         id: true,
@@ -47,8 +48,8 @@ export async function POST(
     const tempPassword = crypto.randomBytes(12).toString('hex');
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
     
-    // Update user with new password
-    await prisma.user.update({
+    // Update user with new password - use authPrisma for reliable database access
+    await authPrisma.user.update({
       where: { id: params.id },
       data: {
         password: hashedPassword,

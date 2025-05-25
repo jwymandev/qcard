@@ -171,11 +171,22 @@ export default function TalentProfilePage() {
       }
       
       if (!response.ok) {
-        // For 404 errors specifically related to profile initialization
-        if (response.status === 404 && errorData?.error === "Profile not found, needs initialization") {
-          console.log("Profile needs initialization, showing init dialog");
-          setProfileInitNeeded(true);
-          throw new Error("Your talent profile needs to be initialized");
+        // For 404 errors specifically related to profile initialization or user not found
+        if (response.status === 404) {
+          if (errorData?.error === "Profile not found, needs initialization" || 
+              errorData?.error === "User not found" ||
+              errorData?.error?.includes("not found")) {
+            
+            console.log("Profile needs initialization, showing init dialog");
+            setProfileInitNeeded(true);
+            
+            // Auto-initialize profile directly without user intervention
+            await initializeProfile();
+            
+            // After initialization, try to fetch profile again
+            console.log("Auto-initialized profile, fetching profile again");
+            return fetchProfile();
+          }
         }
         
         // Handle other error statuses
@@ -214,6 +225,9 @@ export default function TalentProfilePage() {
         }
       }
       
+      // Profile loaded successfully, clear initialization flag
+      setProfileInitNeeded(false);
+      
       setProfile(profileData);
       console.log("Profile loaded successfully", {
         hasProfile: !!profileData,
@@ -226,6 +240,11 @@ export default function TalentProfilePage() {
       console.error('Error fetching profile:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setError(`Failed to load profile: ${errorMessage}`);
+      
+      // If error happens after multiple attempts, show initialization dialog
+      if (errorMessage.includes("not found") || errorMessage.includes("needs initialization")) {
+        setProfileInitNeeded(true);
+      }
     } finally {
       setLoading(false);
     }

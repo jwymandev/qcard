@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import crypto from 'crypto';
@@ -26,36 +27,43 @@ export async function GET(request: Request) {
     
     // If includeStats is true, include counts of related records
     if (includeStats) {
-      // Use raw SQL for query with stats
-      const regions = await prisma.$queryRaw<Array<Record<string, any>>>`
-        SELECT 
-          r.*,
-          (SELECT COUNT(*) FROM "Location" WHERE "regionId" = r.id) as location_count,
-          (SELECT COUNT(*) FROM "CastingCall" WHERE "regionId" = r.id) as casting_call_count,
-          (SELECT COUNT(*) FROM "ProfileRegion" WHERE "regionId" = r.id) as profile_count,
-          (SELECT COUNT(*) FROM "StudioRegion" WHERE "regionId" = r.id) as studio_count
-        FROM "Region" r
-        ORDER BY r.name ASC
-      `;
+      console.log('Fetching regions with stats using authPrisma');
       
-      // Format the response to match the original schema
+      // Use Prisma client instead of raw SQL
+      // Note: The Prisma field names should match exactly what's in the schema
+      const regions = await authPrisma.region.findMany({
+        include: {
+          _count: {
+            select: {
+              locations: true,
+              castingCalls: true,
+              ProfileRegion: true,
+              StudioRegion: true
+            }
+          }
+        },
+        orderBy: { name: 'asc' }
+      });
+      
+      // Format the response to match the expected schema
       const formattedRegions = regions.map(region => ({
         ...region,
         _count: {
-          locations: Number(region.location_count),
-          castingCalls: Number(region.casting_call_count),
-          profiles: Number(region.profile_count),
-          studios: Number(region.studio_count)
+          locations: region._count.locations,
+          castingCalls: region._count.castingCalls,
+          profiles: region._count.ProfileRegion,
+          studios: region._count.StudioRegion
         }
       }));
       
       return NextResponse.json(formattedRegions);
     }
     
-    // Regular query without stats - use raw SQL
-    const regions = await prisma.$queryRaw<Array<Record<string, any>>>`
-      SELECT * FROM "Region" ORDER BY name ASC
-    `;
+    // Regular query without stats
+    console.log('Fetching regions using authPrisma');
+    const regions = await authPrisma.region.findMany({
+      orderBy: { name: 'asc' }
+    });
     
     return NextResponse.json(regions);
   } catch (error) {
@@ -68,33 +76,57 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Check authorization
-    const auth = await requireSuperAdmin();
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.message }, { status: auth.status });
+    const authResult = await requireSuperAdmin();
+    console.log('SuperAdmin check result:', { authorized: authResult.authorized, userId: authResult.session?.user?.id });
+    
+    if (!authResult.authorized) {
+      console.log('Not authorized to create region:', authResult.message);
+      return NextResponse.json({ error: authResult.message }, { status: authResult.status });
     }
     
-    const data = await request.json();
+    let data;
+    try {
+      data = await request.json();
+      console.log('Received region creation data:', data);
+    } catch (parseError) {
+      console.error('Error parsing request JSON:', parseError);
+      return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
+    }
     
-    if (!data.name) {
+    if (!data || !data.name) {
+      console.log('Missing region name in request');
       return NextResponse.json({ error: "Region name is required" }, { status: 400 });
     }
     
-    // Create new region using raw SQL
+    // Create new region using Prisma's create method instead of raw SQL
     const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const now = new Date(); // Use a Date object, not a string
     
-    await prisma.$executeRaw`
-      INSERT INTO "Region" (id, name, description, "createdAt", "updatedAt")
-      VALUES (${id}, ${data.name}, ${data.description || null}, ${now}, ${now})
-    `;
-    
-    // Get the created region
-    const regions = await prisma.$queryRaw<Array<Record<string, any>>>`
-      SELECT * FROM "Region" WHERE id = ${id}
-    `;
-    const region = regions[0];
-    
-    return NextResponse.json(region);
+    console.log('Creating new region using authPrisma:', { id, name: data.name });
+    try {
+      const region = await authPrisma.region.create({
+        data: {
+          id,
+          name: data.name,
+          description: data.description || null,
+          createdAt: now,
+          updatedAt: now
+        }
+      });
+      
+      console.log('Region created successfully:', { id: region.id, name: region.name });
+      return NextResponse.json(region);
+    } catch (dbError) {
+      console.error('Database error creating region:', dbError);
+      // Check for unique constraint violation
+      if (dbError.code === 'P2002') {
+        return NextResponse.json({ 
+          error: "A region with this name already exists", 
+          code: "DUPLICATE_NAME"
+        }, { status: 409 });
+      }
+      throw dbError;
+    }
   } catch (error) {
     console.error("Error creating region:", error);
     return NextResponse.json({ error: "Failed to create region" }, { status: 500 });

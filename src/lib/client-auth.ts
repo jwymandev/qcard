@@ -29,12 +29,41 @@ export async function signIn(options: SignInOptions): Promise<SignInResponse> {
   const { email, password, redirect = false, callbackUrl = '/role-redirect' } = options;
   
   try {
+    // In development, use a simplified approach
+    let csrfToken = '';
+    
+    // In development with skipCSRFCheck enabled, we don't need a real token
+    if (process.env.NODE_ENV === 'development') {
+      csrfToken = 'development_csrf_token';
+      console.log('Using development CSRF token');
+    } else {
+      // In production, try to get a real token
+      try {
+        console.log('Fetching CSRF token before sign in...');
+        // Try to get the CSRF token from auth providers endpoint
+        const response = await fetch('/api/auth/providers');
+        const data = await response.json();
+        
+        if (data.csrf) {
+          csrfToken = data.csrf;
+          console.log('Successfully fetched CSRF token from providers');
+        } else {
+          console.warn('No CSRF token in providers response, using fallback');
+          csrfToken = 'fallback_token';
+        }
+      } catch (csrfError) {
+        console.error('Error fetching CSRF token:', csrfError);
+        csrfToken = 'error_fallback_token';
+      }
+    }
+    
     // We need to explicitly cast redirect to false to match NextAuth typing
     const result = await nextAuthSignIn('credentials', {
       email,
       password,
       redirect: false, // Always false to handle redirection ourselves
-      callbackUrl
+      callbackUrl,
+      ...(csrfToken ? { csrfToken } : {}) // Include CSRF token if we have it
     });
     
     // Ensure we return a consistent response with proper types

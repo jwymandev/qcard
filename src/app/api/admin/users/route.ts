@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { requireAdmin } from '@/lib/admin-helpers';
-import bcrypt from 'bcrypt';
+import bcrypt from '@/lib/bcrypt-wrapper';
 import crypto from 'crypto';
 import { z } from 'zod';
 
@@ -71,11 +72,14 @@ export async function GET(request: Request) {
       };
     }
 
-    // Get total count
-    const totalCount = await prisma.user.count({ where });
+    // Get total count - use authPrisma for reliability
+    console.log('Counting total users with authPrisma');
+    const totalCount = await authPrisma.user.count({ where });
+    console.log(`Total user count: ${totalCount}`);
 
-    // Get users
-    const users = await prisma.user.findMany({
+    // Get users - use authPrisma for reliability
+    console.log('Fetching users with authPrisma');
+    const users = await authPrisma.user.findMany({
       where,
       select: {
         id: true,
@@ -97,19 +101,27 @@ export async function GET(request: Request) {
       skip,
       take: limit,
     });
+    
+    console.log(`Found ${users.length} users`);
 
     // Format response
-    const formattedUsers = users.map(user => ({
-      id: user.id,
-      email: user.email,
-      name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-      role: user.role,
-      tenantType: user.Tenant?.type || null,
-      tenantName: user.Tenant?.name || null,
-      tenantId: user.Tenant?.id || null,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    }));
+    const formattedUsers = users.map(user => {
+      // Ensure we have the proper data structure
+      const userData = {
+        id: user.id,
+        email: user.email,
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        role: user.role,
+        tenantType: user.Tenant?.type || null,
+        tenantName: user.Tenant?.name || null,
+        tenantId: user.Tenant?.id || null,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      };
+      
+      console.log(`Formatted user: ${userData.email}`);
+      return userData;
+    });
 
     return NextResponse.json({
       users: formattedUsers,
@@ -168,8 +180,8 @@ export async function POST(request: Request) {
 
     const { email, password, firstName, lastName, role, tenantType } = validationResult.data;
 
-    // Check if user with this email already exists
-    const existingUser = await prisma.user.findUnique({
+    // Check if user with this email already exists - use authPrisma for reliability
+    const existingUser = await authPrisma.user.findUnique({
       where: { email },
     });
 
@@ -180,68 +192,177 @@ export async function POST(request: Request) {
       );
     }
 
-    // Hash password
+    // Hash password with our wrapped bcrypt
     const hashedPassword = await bcrypt.hash(password, 10);
+    console.log('Password hashed successfully');
 
-    // Create tenant
+    // Use transaction to ensure all operations succeed or fail together
+    console.log('Creating user with tenant using transaction');
+    
+    // Generate IDs once to ensure consistency
+    const tenantId = crypto.randomUUID();
+    const userId = crypto.randomUUID();
+    const profileId = crypto.randomUUID();
+    const studioId = crypto.randomUUID();
+    const now = new Date();
+    
+    // Format tenant name
     const tenantName = `${firstName || ''} ${lastName || ''}`.trim() || email;
-    const tenant = await prisma.tenant.create({
-      data: {
-        id: crypto.randomUUID(),
-        name: tenantName,
-        type: tenantType,
-        updatedAt: new Date()
-      },
-    });
+    
+    try {
+      // Use a transaction if available
+      if (typeof authPrisma.$transaction === 'function') {
+        const result = await authPrisma.$transaction(async (tx) => {
+          // Create tenant
+          const tenant = await tx.tenant.create({
+            data: {
+              id: tenantId,
+              name: tenantName,
+              type: tenantType,
+              createdAt: now,
+              updatedAt: now
+            },
+          });
+          console.log(`Tenant created with ID: ${tenant.id}`);
+          
+          // Create user
+          const user = await tx.user.create({
+            data: {
+              id: userId,
+              email,
+              password: hashedPassword,
+              firstName: firstName || null,
+              lastName: lastName || null,
+              role,
+              tenantId: tenant.id,
+              createdAt: now,
+              updatedAt: now
+            },
+          });
+          console.log(`User created with ID: ${user.id}`);
+          
+          // If tenant type is TALENT, create profile
+          let profile = null;
+          if (tenantType === 'TALENT') {
+            profile = await tx.profile.create({
+              data: {
+                id: profileId,
+                userId: user.id,
+                availability: true,
+                createdAt: now,
+                updatedAt: now
+              },
+            });
+            console.log(`Profile created with ID: ${profile.id}`);
+          }
+          
+          // If tenant type is STUDIO, create studio
+          let studio = null;
+          if (tenantType === 'STUDIO') {
+            studio = await tx.studio.create({
+              data: {
+                id: studioId,
+                name: tenantName,
+                tenantId: tenant.id,
+                description: `Studio for ${tenantName}`,
+                createdAt: now,
+                updatedAt: now
+              },
+            });
+            console.log(`Studio created with ID: ${studio.id}`);
+          }
+          
+          return { tenant, user, profile, studio };
+        });
+        
+        // Set the created objects from transaction result
+        const tenant = result.tenant;
+        const user = result.user;
+      } else {
+        // Sequential operations if transaction is not available
+        console.log('Transaction not available, using sequential operations');
+        
+        // Create tenant
+        const tenant = await authPrisma.tenant.create({
+          data: {
+            id: tenantId,
+            name: tenantName,
+            type: tenantType,
+            createdAt: now,
+            updatedAt: now
+          },
+        });
+        console.log(`Tenant created with ID: ${tenant.id}`);
+        
+        // Create user
+        const user = await authPrisma.user.create({
+          data: {
+            id: userId,
+            email,
+            password: hashedPassword,
+            firstName: firstName || null,
+            lastName: lastName || null,
+            role,
+            tenantId: tenant.id,
+            createdAt: now,
+            updatedAt: now
+          },
+        });
+        console.log(`User created with ID: ${user.id}`);
+        
+        // If tenant type is TALENT, create profile
+        if (tenantType === 'TALENT') {
+          const profile = await authPrisma.profile.create({
+            data: {
+              id: profileId,
+              userId: user.id,
+              availability: true,
+              createdAt: now,
+              updatedAt: now
+            },
+          });
+          console.log(`Profile created with ID: ${profile.id}`);
+        }
+        
+        // If tenant type is STUDIO, create studio
+        if (tenantType === 'STUDIO') {
+          const studio = await authPrisma.studio.create({
+            data: {
+              id: studioId,
+              name: tenantName,
+              tenantId: tenant.id,
+              description: `Studio for ${tenantName}`,
+              createdAt: now,
+              updatedAt: now
+            },
+          });
+          console.log(`Studio created with ID: ${studio.id}`);
+        }
+      }
+    } catch (createError) {
+      console.error('Error during user creation transaction:', createError);
+      throw createError;
+    }
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        id: crypto.randomUUID(),
-        email,
-        password: hashedPassword,
-        firstName: firstName || null,
-        lastName: lastName || null,
-        role,
-        tenantId: tenant.id,
-        updatedAt: new Date()
-      },
+    // Get the created user to return (without password)
+    const createdUser = await authPrisma.user.findUnique({
+      where: { email },
+      include: { Tenant: true }
     });
-
-    // If tenant type is TALENT, create profile
-    if (tenantType === 'TALENT') {
-      await prisma.profile.create({
-        data: {
-          id: crypto.randomUUID(),
-          userId: user.id,
-          availability: true,
-          updatedAt: new Date()
-        },
-      });
+    
+    if (!createdUser) {
+      throw new Error("User creation failed - created user not found");
     }
     
-    // If tenant type is STUDIO, create studio
-    if (tenantType === 'STUDIO') {
-      await prisma.studio.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: tenantName,
-          tenantId: tenant.id,
-          description: `Studio for ${tenantName}`,
-          updatedAt: new Date()
-        },
-      });
-    }
-
     // Return created user (without password)
     return NextResponse.json({
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
+      id: createdUser.id,
+      email: createdUser.email,
+      firstName: createdUser.firstName,
+      lastName: createdUser.lastName,
+      role: createdUser.role,
       tenantType,
-      tenantId: tenant.id,
+      tenantId: createdUser.tenantId,
     });
   } catch (error) {
     console.error('Error creating user:', error);

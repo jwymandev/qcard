@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { requireAdmin } from '@/lib/admin-helpers';
 
 // GET /api/admin/studios
@@ -70,8 +71,9 @@ export async function GET(request: Request) {
       CastingCall: Array<{ id: string }>;
     };
 
-    // Get studios with counts
-    const studios = await prisma.studio.findMany({
+    // Get studios with counts - use authPrisma for reliable database access
+    console.log('Fetching studios with authPrisma');
+    const studios = await authPrisma.studio.findMany({
       where,
       include: {
         Tenant: true,

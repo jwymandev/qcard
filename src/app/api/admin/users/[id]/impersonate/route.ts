@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { requireAdmin } from '@/lib/admin-helpers';
 import { signOut } from '@/auth';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
@@ -28,8 +29,8 @@ export async function POST(
     // Remember admin user ID (would be stored in a session or token)
     const adminId = session.user.id;
     
-    // Check if user to impersonate exists
-    const userToImpersonate = await prisma.user.findUnique({
+    // Check if user to impersonate exists - use authPrisma for reliable database access
+    const userToImpersonate = await authPrisma.user.findUnique({
       where: { id: params.id },
       include: {
         Tenant: true
@@ -45,8 +46,8 @@ export async function POST(
     
     // Create an impersonation record to track this action for security
     try {
-      // Try to log to an audit table if it exists
-      await prisma.$executeRaw`
+      // Try to log to an audit table if it exists - use authPrisma for reliable database access
+      await authPrisma.$executeRaw`
         INSERT INTO "audit_log" ("action", "admin_id", "target_id", "details", "created_at")
         VALUES ('IMPERSONATE', ${adminId}, ${params.id}, ${{adminEmail: session.user.email, targetEmail: userToImpersonate.email}}, NOW())
       `;

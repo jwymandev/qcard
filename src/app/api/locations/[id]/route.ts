@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 
@@ -23,7 +24,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const location = await prisma.location.findUnique({
+    console.log(`Fetching location ${params.id} with authPrisma`);
+    const location = await authPrisma.location.findUnique({
       where: { id: params.id },
     });
     
@@ -57,8 +59,9 @@ export async function PATCH(
       // Validate that the region exists if not null
       if (data.regionId) {
         try {
-          // Execute a simple count query to validate if region exists
-          const regionCount = await prisma.$queryRaw`
+          // Execute a simple count query to validate if region exists - use authPrisma for reliable database access
+          console.log(`Validating region ${data.regionId} existence with authPrisma`);
+          const regionCount = await authPrisma.$queryRaw`
             SELECT COUNT(*) as count FROM "Region" WHERE id = ${data.regionId}
           `;
           
@@ -72,29 +75,25 @@ export async function PATCH(
       }
     }
     
-    // Update location using raw SQL 
-    const now = new Date().toISOString();
+    // Update location using Prisma's update method instead of raw SQL
+    const now = new Date(); // Use a Date object, not a string
     
-    // Use raw SQL to update both name and regionId
+    // Update using Prisma client
+    console.log(`Updating location ${params.id} with authPrisma`);
+    const updateData: any = {
+      name: data.name,
+      updatedAt: now
+    };
+    
+    // Only include regionId in update if it's provided
     if (data.regionId !== undefined) {
-      await prisma.$executeRaw`
-        UPDATE "Location" 
-        SET name = ${data.name}, "regionId" = ${data.regionId}, "updatedAt" = ${now}
-        WHERE id = ${params.id}
-      `;
-    } else {
-      await prisma.$executeRaw`
-        UPDATE "Location" 
-        SET name = ${data.name}, "updatedAt" = ${now}
-        WHERE id = ${params.id}
-      `;
+      updateData.regionId = data.regionId;
     }
     
-    // Fetch the updated location
-    const locations = await prisma.$queryRaw<Array<Record<string, any>>>`
-      SELECT * FROM "Location" WHERE id = ${params.id}
-    `;
-    const location = locations[0];
+    const location = await authPrisma.location.update({
+      where: { id: params.id },
+      data: updateData
+    });
     
     return NextResponse.json(location);
   } catch (error) {
@@ -115,8 +114,9 @@ export async function DELETE(
       return NextResponse.json({ error: authCheck.message }, { status: authCheck.status });
     }
     
-    // Check for dependencies before deletion
-    const dependencyCounts = await prisma.location.findUnique({
+    // Check for dependencies before deletion - use authPrisma for reliable database access
+    console.log(`Checking dependencies for location ${params.id} with authPrisma`);
+    const dependencyCounts = await authPrisma.location.findUnique({
       where: { id: params.id },
       select: {
         _count: {
@@ -139,12 +139,18 @@ export async function DELETE(
     )) {
       return NextResponse.json({ 
         error: "Cannot delete location with dependencies", 
-        dependencies: dependencyCounts._count
+        dependencies: {
+          castingCalls: dependencyCounts._count.CastingCall,
+          scenes: dependencyCounts._count.Scene,
+          profiles: dependencyCounts._count.Profile,
+          studios: dependencyCounts._count.Studio
+        }
       }, { status: 400 });
     }
     
-    // Delete location if no dependencies
-    await prisma.location.delete({
+    // Delete location if no dependencies - use authPrisma for reliable database access
+    console.log(`Deleting location ${params.id} with authPrisma`);
+    await authPrisma.location.delete({
       where: { id: params.id },
     });
     

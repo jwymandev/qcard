@@ -466,6 +466,34 @@ export async function POST(req: Request) {
     
     console.log(`📝 REGISTRATION: Successfully completed registration for ${email}`);
     
+    // Generate a JWT token to use for automatic sign-in
+    // This will let the client automatically sign in the user without requiring a separate login
+    try {
+      // Import signIn function from auth.ts
+      const { signIn } = await import('@/auth');
+      
+      // Attempt to sign in with the newly created credentials
+      // This will create a valid session token
+      console.log(`📝 REGISTRATION: Attempting automatic sign-in for user ${email}`);
+      
+      const signInResult = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+      
+      if (signInResult?.error) {
+        console.error(`📝 REGISTRATION WARNING: Automatic sign-in failed: ${signInResult.error}`);
+        // Continue with registration response even if auto-login fails
+      } else {
+        console.log(`📝 REGISTRATION: Automatic sign-in successful`);
+      }
+    } catch (signInError) {
+      console.error(`📝 REGISTRATION WARNING: Error during automatic sign-in:`, signInError);
+      // Continue with registration response even if auto-login fails
+    }
+    
+    // Return user data (exclude password)
     return NextResponse.json({
       id: user.id,
       email: user.email,
@@ -473,6 +501,7 @@ export async function POST(req: Request) {
       lastName: user.lastName,
       tenantId: user.tenantId,
       tenantType: userType,
+      autoSignInAttempted: true,
     });
   } catch (error) {
     console.error("📝 REGISTRATION ERROR: Unhandled error during registration:", error);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { requireAdmin } from '@/lib/admin-helpers';
 
 // GET /api/admin/talents
@@ -100,8 +101,9 @@ export async function GET(request: Request) {
       }>;
     };
 
-    // Get users with talent profiles
-    const users = await prisma.user.findMany({
+    // Get users with talent profiles - use authPrisma for reliable database access
+    console.log('Fetching talent profiles with authPrisma');
+    const users = await authPrisma.user.findMany({
       where: {
         Tenant: {
           type: 'TALENT'

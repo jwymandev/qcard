@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { authPrisma } from '@/lib/secure-db-connection';
 import crypto from 'crypto';
 
 // POST /api/studio/init - Initialize a studio account for existing users
@@ -12,8 +13,9 @@ export async function POST() {
   }
   
   try {
-    // Check if the user exists and has the STUDIO tenant type
-    const user = await prisma.user.findUnique({
+    // Check if the user exists and has the STUDIO tenant type - use authPrisma for reliability
+    console.log("Checking if studio user exists with ID:", session.user.id);
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -26,8 +28,9 @@ export async function POST() {
       return NextResponse.json({ error: "Only studio accounts can be initialized" }, { status: 403 });
     }
     
-    // Check if a studio already exists for this tenant
-    const existingStudio = await prisma.studio.findFirst({
+    // Check if a studio already exists for this tenant - use authPrisma for reliability
+    console.log("Checking if studio exists for tenant ID:", user.Tenant.id);
+    const existingStudio = await authPrisma.studio.findFirst({
       where: { tenantId: user.Tenant.id },
     });
     
@@ -42,7 +45,8 @@ export async function POST() {
     // Create a new studio record for this tenant
     const studioName = user.Tenant.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'New Studio';
     
-    const studio = await prisma.studio.create({
+    console.log("Creating new studio with authPrisma for tenant ID:", user.Tenant.id);
+    const studio = await authPrisma.studio.create({
       data: {
         id: crypto.randomUUID(),
         name: studioName,

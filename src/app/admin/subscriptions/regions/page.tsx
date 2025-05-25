@@ -557,7 +557,11 @@ export default function RegionPlansAdminPage() {
                       // View mode
                       <>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{plan.name}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            <Link href={`/admin/subscriptions/regions/${plan.id}`} className="text-blue-600 hover:text-blue-800">
+                              {plan.name}
+                            </Link>
+                          </div>
                           <div className="text-xs text-gray-500">ID: {plan.id}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -605,6 +609,12 @@ export default function RegionPlansAdminPage() {
                               >
                                 Edit
                               </button>
+                              <Link 
+                                href={`/admin/subscriptions/regions/${plan.id}`}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                View
+                              </Link>
                               <button
                                 onClick={() => setConfirmDelete(plan.id)}
                                 className="text-red-600 hover:text-red-900"

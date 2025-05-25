@@ -42,11 +42,21 @@ export default function TalentMessagesPage() {
 
   const fetchConversations = async () => {
     setLoading(true);
+    setError(null); // Clear any existing errors
+    
     try {
       const url = `/api/talent/messages${showUnreadOnly ? '?unread=true' : ''}`;
       const response = await fetch(url);
 
       if (!response.ok) {
+        // Handle specific status codes
+        if (response.status === 404) {
+          // 404 just means no messages - this is normal
+          setConversations([]);
+          return;
+        }
+        
+        // For other error status codes
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to load conversations');
       }
@@ -55,7 +65,12 @@ export default function TalentMessagesPage() {
       setConversations(data);
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      setError('Failed to load conversations. Please try again later.');
+      // Don't set error for empty conversations - only set for actual errors
+      if (error instanceof Error && 
+          !error.message.includes('no messages') && 
+          !error.message.includes('not found')) {
+        setError('Failed to load conversations. Please try again later.');
+      }
     } finally {
       setLoading(false);
     }
@@ -195,10 +210,16 @@ export default function TalentMessagesPage() {
 
         {conversations.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-gray-500">No messages found</p>
-            <p className="text-sm text-gray-400 mt-2">
-              Studios will send you invitations and messages which will appear here
-            </p>
+            <div className="flex flex-col items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <h3 className="text-lg font-medium text-gray-600 mb-2">No messages yet</h3>
+              <p className="text-gray-500">Your inbox is empty</p>
+              <p className="text-sm text-gray-400 mt-2 max-w-md">
+                When studios send you messages about casting opportunities or project invitations, they'll appear here.
+              </p>
+            </div>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200">
