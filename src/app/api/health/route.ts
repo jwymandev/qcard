@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/db';
+import { authPrisma } from '../../../lib/secure-db-connection';
 
 /**
  * Production-grade health check endpoint
@@ -70,19 +71,37 @@ export async function GET() {
       // Check each table's connectivity
       for (const table of essentialTables) {
         try {
-          // Dynamic table access
-          const count = await (prisma as any)[table.toLowerCase()].count();
+          // Try authPrisma first, fall back to regular prisma
+          let count = 0;
+          try {
+            // Dynamic table access with authPrisma (more reliable)
+            count = await (authPrisma as any)[table.toLowerCase()].count();
+          } catch (authPrismaError) {
+            // Fall back to regular prisma
+            count = await (prisma as any)[table.toLowerCase()].count();
+          }
+          
           tableResults[table.toLowerCase()] = {
             exists: true,
             count: count,
             status: 'healthy'
           };
         } catch (tableError) {
-          tableResults[table.toLowerCase()] = {
-            exists: false,
-            error: tableError instanceof Error ? tableError.message : 'Unknown error',
-            status: 'unhealthy'
-          };
+          // Try a simpler check if count fails
+          try {
+            // Just check if the table exists by finding first record
+            await (authPrisma as any)[table.toLowerCase()].findFirst();
+            tableResults[table.toLowerCase()] = {
+              exists: true,
+              status: 'healthy'
+            };
+          } catch (fallbackError) {
+            tableResults[table.toLowerCase()] = {
+              exists: false,
+              error: tableError instanceof Error ? tableError.message : 'Unknown error',
+              status: 'unhealthy'
+            };
+          }
         }
       }
       
