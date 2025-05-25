@@ -284,6 +284,28 @@ function startStandaloneServer(port, buildDir = '.next') {
   console.log(`Starting standalone server from: ${standaloneDir}`);
   console.log(`Static files should be served from: ${staticDir}`);
   
+  // Ensure static files are in the correct location for standalone mode
+  const fs = require('fs');
+  const standaloneStaticDir = path.join(standaloneDir, '.next', 'static');
+  
+  if (!fs.existsSync(standaloneStaticDir) && fs.existsSync(staticDir)) {
+    console.log('Copying static files to standalone directory...');
+    try {
+      // Create the .next directory in standalone if it doesn't exist
+      const standaloneNextDir = path.join(standaloneDir, '.next');
+      if (!fs.existsSync(standaloneNextDir)) {
+        fs.mkdirSync(standaloneNextDir, { recursive: true });
+      }
+      
+      // Copy static files to the standalone directory
+      const { execSync } = require('child_process');
+      execSync(`cp -r "${staticDir}" "${standaloneStaticDir}"`, { stdio: 'inherit' });
+      console.log('✅ Static files copied successfully');
+    } catch (error) {
+      console.error('⚠️ Failed to copy static files:', error.message);
+    }
+  }
+  
   // Change working directory to standalone directory for proper static file serving
   process.chdir(standaloneDir);
   

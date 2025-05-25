@@ -2,32 +2,21 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Copy the standalone build (which now includes static files in the right place)
+COPY .next-do/standalone ./
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy public files
+COPY public ./public
 
-# Install dependencies
-RUN npm ci
-
-# Copy the rest of the application
-COPY . .
-
-# Generate Prisma client
-RUN npx prisma generate
-
-# Build the application
-RUN npm run build:fixed-do
-
-# Copy standalone build to root
-RUN cp -r .next/standalone/* . && \
-    cp -r .next/static ./.next/static && \
-    mkdir -p public && cp -r public .
+# Ensure files are properly accessible
+RUN chmod -R 755 /app/public
 
 # Set environment variables
 ENV NODE_ENV production
 ENV PORT 8080
+
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl
 
 # Expose the port
 EXPOSE 8080

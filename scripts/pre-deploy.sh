@@ -21,8 +21,8 @@ node scripts/prisma-deployment-fix.js
 
 # Fix static file location for standalone mode
 echo "📂 Copying static files to correct location for standalone mode..."
-mkdir -p .next-do/standalone/.next
-cp -r .next-do/static .next-do/standalone/.next/static
+mkdir -p .next-do/standalone/.next/static
+cp -r .next-do/static/* .next-do/standalone/.next/static/
 
 # Copy the Prisma schema to the standalone directory
 echo "📄 Copying Prisma schema and engines..."
