@@ -4,11 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
+interface AutoInitProfileProps {
+  onComplete?: () => void;
+}
+
 /**
  * Automatically initializes a talent profile without requiring user interaction
  * Shows a loading screen while initializing
  */
-export default function AutoInitProfile() {
+export default function AutoInitProfile({ onComplete }: AutoInitProfileProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -96,10 +100,15 @@ export default function AutoInitProfile() {
         
         console.log("Talent profile initialized successfully");
         
-        // Redirect to profile page after initialization
-        router.push('/talent/profile');
-        // Also trigger a reload to refresh session data
-        window.location.reload();
+        // Call onComplete callback if provided
+        if (onComplete) {
+          console.log("Calling onComplete callback");
+          onComplete();
+        } else {
+          // If no callback, redirect to profile page after initialization
+          console.log("No callback provided, redirecting to profile page");
+          router.push('/talent/profile');
+        }
       } catch (error) {
         console.error('Error auto-initializing profile:', error);
         const errorMessage = error instanceof Error ? error.message : 'An error occurred initializing profile';

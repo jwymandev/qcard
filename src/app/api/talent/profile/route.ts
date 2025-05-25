@@ -44,10 +44,35 @@ export async function GET() {
   try {
     console.log("Fetching profile for user:", session.user.id);
     
-    // Get user profile with related data - use authPrisma for reliability
-    const user = await authPrisma.user.findUnique({
-      where: { id: session.user.id }
-    });
+    // Ensure Prisma engine environment variables are set
+    // This can help with Prisma query engine issues
+    if (!process.env.PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING) {
+      console.log("Setting PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1");
+      process.env.PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING = '1';
+    }
+    
+    // Try both DB clients to handle potential Prisma engine issues
+    let user = null;
+    
+    try {
+      // Try authPrisma first (more reliable)
+      console.log("Trying to find user with authPrisma");
+      user = await authPrisma.user.findUnique({
+        where: { id: session.user.id }
+      });
+    } catch (authPrismaError) {
+      console.error("Error finding user with authPrisma:", authPrismaError);
+      
+      // Fall back to regular prisma
+      try {
+        console.log("Falling back to regular prisma to find user");
+        user = await prisma.user.findUnique({
+          where: { id: session.user.id }
+        });
+      } catch (prismaError) {
+        console.error("Error finding user with regular prisma:", prismaError);
+      }
+    }
     
     if (!user) {
       console.error("User not found in database:", session.user.id);
@@ -65,14 +90,36 @@ export async function GET() {
     // Get the profile directly from the database for debugging
     console.log("Fetching raw profile data");
     
-    // Get profile with relations - use authPrisma for reliability
-    const profile = await authPrisma.profile.findUnique({
-      where: { userId: user.id },
-      include: {
-        Skill: true,
-        Location: true
+    // Try to get profile using both clients for redundancy
+    let profile = null;
+    
+    try {
+      // Try authPrisma first (more reliable)
+      console.log("Trying to find profile with authPrisma");
+      profile = await authPrisma.profile.findUnique({
+        where: { userId: user.id },
+        include: {
+          Skill: true,
+          Location: true
+        }
+      });
+    } catch (authPrismaError) {
+      console.error("Error finding profile with authPrisma:", authPrismaError);
+      
+      // Fall back to regular prisma
+      try {
+        console.log("Falling back to regular prisma to find profile");
+        profile = await prisma.profile.findUnique({
+          where: { userId: user.id },
+          include: {
+            Skill: true,
+            Location: true
+          }
+        });
+      } catch (prismaError) {
+        console.error("Error finding profile with regular prisma:", prismaError);
       }
-    });
+    }
     
     if (profile) {
       console.log("Found profile with relations:", {

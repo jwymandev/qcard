@@ -15,64 +15,99 @@ export default function TalentDashboard() {
   const [needsInitialization, setNeedsInitialization] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  useEffect(() => {
-    // Skip if still loading or no session available
-    if (status === 'loading') return;
-    
-    async function fetchDashboardData() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        if (status === 'unauthenticated') {
-          console.log("User is not authenticated, redirecting to sign-in");
-          router.push('/sign-in');
-          return;
-        }
-        
-        if (!session?.user?.id) {
-          console.log("Session missing user ID");
-          setError("Session data is missing. Please sign in again.");
-          setIsLoading(false);
-          return;
-        }
-        
-        // Check tenant type directly from the session
-        if (session?.user?.tenantType !== 'TALENT') {
-          console.log("User is not a talent account, redirecting");
-          router.push('/studio/dashboard');
-          return;
-        }
-        
-        console.log("Fetching profile data for talent dashboard");
-        
-        // Get profile data
-        try {
-          const profileResponse = await fetch('/api/talent/profile');
-          
-          if (profileResponse.ok) {
-            setProfileData(await profileResponse.json());
-          } else if (profileResponse.status === 404) {
-            // Profile needs initialization
-            console.log("Profile not found (needs initialization)");
-            setNeedsInitialization(true);
-          } else {
-            console.error("Error fetching profile:", await profileResponse.text());
-          }
-        } catch (profileError) {
-          console.error("Profile fetch error:", profileError);
-          // Don't block dashboard on profile error
-        }
-        
+  // Fetch dashboard data function (defined outside of useEffect so it can be called elsewhere)
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Skip if still loading or no session available
+      if (status === 'loading') {
+        console.log("Session still loading, deferring dashboard data fetch");
         setIsLoading(false);
-      } catch (error) {
-        console.error("Dashboard initialization error:", error);
-        setError("Failed to load dashboard data. Please refresh the page.");
-        setIsLoading(false);
+        return;
       }
+      
+      if (status === 'unauthenticated') {
+        console.log("User is not authenticated, redirecting to sign-in");
+        router.push('/sign-in');
+        return;
+      }
+      
+      if (!session?.user?.id) {
+        console.log("Session missing user ID");
+        setError("Session data is missing. Please sign in again.");
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check tenant type directly from the session
+      if (session?.user?.tenantType !== 'TALENT') {
+        console.log("User is not a talent account, redirecting");
+        router.push('/studio/dashboard');
+        return;
+      }
+      
+      console.log("Fetching profile data for talent dashboard");
+      console.log("Session user ID:", session.user.id);
+      console.log("Session user email:", session.user.email);
+      
+      // Get profile data with improved error handling
+      try {
+        console.log("Making request to /api/talent/profile");
+        const profileResponse = await fetch('/api/talent/profile', {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        console.log("Profile response status:", profileResponse.status);
+        
+        if (profileResponse.ok) {
+          const profileJson = await profileResponse.json();
+          console.log("Profile data received:", JSON.stringify(profileJson).substring(0, 100) + "...");
+          setProfileData(profileJson);
+          setNeedsInitialization(false); // Explicitly reset initialization flag
+        } else if (profileResponse.status === 404) {
+          // Profile needs initialization
+          console.log("Profile not found (needs initialization)");
+          setNeedsInitialization(true);
+        } else {
+          // Try to get error details
+          let errorText = '';
+          try {
+            errorText = await profileResponse.text();
+          } catch (textError) {
+            errorText = "Could not extract error details";
+          }
+          console.error("Error fetching profile:", errorText);
+          
+          // If we get a 500 error, it might be a Prisma engine issue
+          if (profileResponse.status === 500) {
+            console.error("Possible server error - may be related to Prisma engine issue");
+            setError("Server error loading profile. This may be a temporary issue.");
+          }
+        }
+      } catch (profileError) {
+        console.error("Profile fetch error:", profileError);
+        // Don't block dashboard on profile error, but add an error message
+        setError("Error loading profile data. The application may not work correctly.");
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Dashboard initialization error:", error);
+      setError("Failed to load dashboard data. Please refresh the page.");
+      setIsLoading(false);
     }
-    
-    fetchDashboardData();
+  };
+  
+  // Call fetchDashboardData when session/status changes
+  useEffect(() => {
+    if (status !== 'loading') {
+      fetchDashboardData();
+    }
   }, [status, session, router]);
   
   if (isLoading) {
@@ -105,7 +140,13 @@ export default function TalentDashboard() {
   
   // Show auto initialization screen if needed
   if (needsInitialization) {
-    return <AutoInitProfile />;
+    console.log("Talent dashboard: Profile needs initialization, showing AutoInitProfile component");
+    return <AutoInitProfile onComplete={() => {
+      // Reset needs initialization state after profile is initialized
+      setNeedsInitialization(false);
+      // Refetch profile data to ensure it's loaded correctly
+      fetchDashboardData();
+    }} />;
   }
   
   return (

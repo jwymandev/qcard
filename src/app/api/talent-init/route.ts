@@ -57,31 +57,81 @@ export async function POST() {
       }
     }
     
-    // Check if user has a profile - use authPrisma for reliability
+    // Ensure Prisma engine environment variables are set
+    // This can help with Prisma query engine issues
+    if (!process.env.PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING) {
+      console.log("Setting PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1");
+      process.env.PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING = '1';
+    }
+    
+    // Check if user has a profile - try both clients for redundancy
     console.log("Checking for existing profile...");
     
     // First check: Try to find user by ID to handle potential session mismatch
-    let userToCheck = await authPrisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { id: true, email: true }
-    });
+    let userToCheck = null;
+    
+    try {
+      // Try authPrisma first (more reliable)
+      console.log("Trying to find user with authPrisma");
+      userToCheck = await authPrisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { id: true, email: true }
+      });
+    } catch (authPrismaError) {
+      console.error("Error finding user with authPrisma:", authPrismaError);
+      
+      // Fall back to regular prisma
+      try {
+        console.log("Falling back to regular prisma to find user");
+        userToCheck = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { id: true, email: true }
+        });
+      } catch (prismaError) {
+        console.error("Error finding user with regular prisma:", prismaError);
+      }
+    }
     
     // If user not found by ID but we have email, try to find by email
     if (!userToCheck && session.user.email) {
       console.log("SESSION MISMATCH CHECK - User not found by ID, trying email lookup");
       
-      const userByEmail = await authPrisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true, email: true }
-      });
-      
-      if (userByEmail) {
-        console.log("SESSION MISMATCH RESOLVED - Found user by email:", userByEmail);
-        userToCheck = userByEmail;
+      try {
+        // Try authPrisma first
+        const userByEmail = await authPrisma.user.findUnique({
+          where: { email: session.user.email },
+          select: { id: true, email: true }
+        });
         
-        // Update session ID to match actual user ID
-        console.log(`Updating session ID from ${session.user.id} to ${userByEmail.id}`);
-        session.user.id = userByEmail.id;
+        if (userByEmail) {
+          console.log("SESSION MISMATCH RESOLVED - Found user by email:", userByEmail);
+          userToCheck = userByEmail;
+          
+          // Update session ID to match actual user ID
+          console.log(`Updating session ID from ${session.user.id} to ${userByEmail.id}`);
+          session.user.id = userByEmail.id;
+        }
+      } catch (error) {
+        console.error("Error finding user by email with authPrisma:", error);
+        
+        // Try regular prisma as fallback
+        try {
+          const userByEmail = await prisma.user.findUnique({
+            where: { email: session.user.email },
+            select: { id: true, email: true }
+          });
+          
+          if (userByEmail) {
+            console.log("SESSION MISMATCH RESOLVED with regular prisma - Found user by email:", userByEmail);
+            userToCheck = userByEmail;
+            
+            // Update session ID to match actual user ID
+            console.log(`Updating session ID from ${session.user.id} to ${userByEmail.id}`);
+            session.user.id = userByEmail.id;
+          }
+        } catch (prismaError) {
+          console.error("Error finding user by email with regular prisma:", prismaError);
+        }
       }
     }
     
@@ -161,22 +211,50 @@ export async function POST() {
       }, { status: 404 });
     }
     
-    // Create a new profile for the user with error handling
+    // Create a new profile for the user with error handling and fallbacks
     try {
-      // Create profile without trying to include images in the response - use authPrisma for reliability
-      console.log("Creating new profile with authPrisma for user ID:", session.user.id);
-      const newProfile = await authPrisma.profile.create({
-        data: {
-          id: crypto.randomUUID(),
-          userId: session.user.id,
-          availability: true, // Default to available
-          updatedAt: new Date(),
-        },
-        include: {
-          Location: true,
-          Skill: true,
-        },
-      });
+      // Create profile without trying to include images in the response
+      console.log("Creating new profile for user ID:", session.user.id);
+      let newProfile = null;
+      
+      // Try with authPrisma first
+      try {
+        console.log("Attempting to create profile with authPrisma");
+        newProfile = await authPrisma.profile.create({
+          data: {
+            id: crypto.randomUUID(),
+            userId: session.user.id,
+            availability: true, // Default to available
+            updatedAt: new Date(),
+          },
+          include: {
+            Location: true,
+            Skill: true,
+          },
+        });
+      } catch (authError) {
+        console.error("Error creating profile with authPrisma:", authError);
+        
+        // Fall back to regular prisma
+        try {
+          console.log("Falling back to regular prisma for profile creation");
+          newProfile = await prisma.profile.create({
+            data: {
+              id: crypto.randomUUID(),
+              userId: session.user.id,
+              availability: true, // Default to available
+              updatedAt: new Date(),
+            },
+            include: {
+              Location: true,
+              Skill: true,
+            },
+          });
+        } catch (prismaError) {
+          console.error("Error creating profile with regular prisma:", prismaError);
+          throw prismaError; // Re-throw to be caught by outer catch
+        }
+      }
       
       // Profile was created successfully
       console.log("Profile created successfully for user", session.user.id);
