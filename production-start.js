@@ -3,10 +3,27 @@
 /**
  * Production Start Script for QCard
  * Handles database URL configuration and proper process startup
+ * Also fixes Prisma engine issues at runtime
  */
 
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
+
+// Try to run the Prisma runtime fix at startup
+try {
+  console.log('Running Prisma runtime fix at startup...');
+  const fixPrismaPath = path.join(__dirname, 'scripts', 'fix-prisma-runtime.js');
+  
+  if (fs.existsSync(fixPrismaPath)) {
+    require(fixPrismaPath);
+  } else {
+    console.warn('Prisma runtime fix script not found at', fixPrismaPath);
+  }
+} catch (error) {
+  console.error('Error running Prisma runtime fix:', error);
+  // Continue with startup even if the fix fails
+}
 
 // Configure database connection using our dedicated setup script
 // Function to find Prisma engine files

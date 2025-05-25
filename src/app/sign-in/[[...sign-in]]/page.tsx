@@ -11,6 +11,7 @@ export default function SignInPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [csrfToken, setCsrfToken] = useState('');
+  const [pageReady, setPageReady] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const showDebugMode = searchParams?.get('debug') === 'true';
@@ -18,36 +19,58 @@ export default function SignInPage() {
   const isNewlyRegistered = searchParams?.get('registered') === 'true';
   const callbackUrl = searchParams?.get('callbackUrl') || '/role-redirect';
   
-  // Use a simplified approach in development to avoid CSRF issues
+  // Handle CSRF token setup
   useEffect(() => {
+    console.log('Setting up CSRF token...');
+    
     // In development, we're using skipCSRFCheck in auth.ts
     // so we don't need to fetch a real token
     if (process.env.NODE_ENV === 'development') {
       setCsrfToken('development_csrf_token');
       console.log('Using development CSRF token');
+      setPageReady(true);
       return;
     }
     
-    // Only attempt to fetch a real token in production
-    async function fetchCsrfToken() {
+    // Fetch CSRF token for production with better error handling
+    async function setupCsrf() {
       try {
         // Try to get the CSRF token from auth providers endpoint
+        console.log('Fetching CSRF token...');
         const response = await fetch('/api/auth/providers');
-        const data = await response.json();
-        if (data.csrf) {
-          setCsrfToken(data.csrf);
-          console.log('CSRF token fetched from providers');
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.csrf) {
+            setCsrfToken(data.csrf);
+            console.log('CSRF token fetched successfully');
+          } else {
+            console.warn('No CSRF token in providers response, using fallback');
+            setCsrfToken('fallback_token');
+          }
         } else {
-          console.warn('No CSRF token in providers response');
+          console.warn(`Failed to fetch providers (${response.status}), using fallback token`);
           setCsrfToken('fallback_token');
         }
       } catch (error) {
-        console.error('Failed to fetch CSRF token:', error);
-        setCsrfToken('error_fallback_token');
+        console.error('Error fetching CSRF token:', error);
+        setCsrfToken('fallback_token');
+      } finally {
+        // Set page as ready regardless of result
+        setPageReady(true);
       }
     }
     
-    fetchCsrfToken();
+    // Try to fetch CSRF token with a timeout
+    const timeoutId = setTimeout(() => {
+      console.log('CSRF token fetch timeout, using fallback');
+      setCsrfToken('fallback_token');
+      setPageReady(true);
+    }, 3000);
+    
+    setupCsrf().finally(() => clearTimeout(timeoutId));
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,51 +85,46 @@ export default function SignInPage() {
       setIsLoading(true);
       setError('');
       
-      // Simplified approach: just use NextAuth directly
-      console.log("Attempting sign-in with next-auth...");
+      console.log("Attempting sign-in...");
       
-      // Simplest possible approach - direct signin with redirect
+      // Use Next-Auth's signIn directly for maximum reliability
       try {
-        console.log(`Signing in user: ${email}`);
+        // Import directly to avoid client-auth layer which might add complexity
+        const { signIn: nextAuthSignIn } = await import('next-auth/react');
         
-        // Use client-auth signIn helper which wraps NextAuth signIn
-        const result = await signIn({
+        console.log(`Signing in user: ${email}`);
+        console.log(`Using CSRF token: ${csrfToken ? 'present' : 'none'}`);
+        
+        const signInPayload = {
+          redirect: false,
           email,
           password,
-          redirect: false,
-          callbackUrl
-        });
+          callbackUrl,
+          csrfToken
+        };
+        
+        // Use NextAuth's signIn directly for maximum compatibility
+        const result = await nextAuthSignIn('credentials', signInPayload);
         
         console.log("Sign-in result:", result);
         
         if (result?.error) {
-          // Handle specific errors with more user-friendly messages
+          console.log("Sign-in error:", result.error);
+          
+          // Provide user-friendly error messages
           if (result.error === 'CredentialsSignin') {
-            // Check if the email exists first to provide a more specific error
-            try {
-              const checkEmail = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
-              const emailData = await checkEmail.json();
-              
-              if (emailData.exists) {
-                setError('Incorrect password. Please try again.');
-              } else {
-                setError('User not found. Please check your email or create an account.');
-              }
-            } catch (e) {
-              // Fallback to generic message if email check fails
-              setError('Invalid email or password. Please try again.');
-            }
+            setError('Invalid email or password. Please try again.');
           } else {
-            // For other errors, show a friendly message
             setError(result.error);
           }
           setIsLoading(false);
         } else if (result?.ok) {
           // Success! Now redirect
           console.log("Sign-in successful, redirecting...");
-          window.location.href = callbackUrl;
+          window.location.href = result.url || callbackUrl;
         } else {
           // Unexpected result
+          console.warn("Unexpected sign-in result:", result);
           setError('An unexpected error occurred. Please try again.');
           setIsLoading(false);
         }
@@ -198,6 +216,19 @@ export default function SignInPage() {
     );
   };
   
+  // Show loading state while page is initializing
+  if (!pageReady) {
+    return (
+      <div className="flex justify-center items-center min-h-[calc(100vh-4rem)]">
+        <div className="text-center">
+          <div className="inline-block w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p>Loading sign-in page...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Render the normal sign-in page once ready
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
