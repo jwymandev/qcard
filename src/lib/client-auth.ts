@@ -22,41 +22,6 @@ export interface SignInResponse {
 }
 
 /**
- * Fetch CSRF token from NextAuth
- * This is required for secure authentication
- */
-async function fetchCSRFToken(): Promise<string> {
-  try {
-    console.log('Fetching CSRF token from NextAuth...');
-    
-    // Use NextAuth's dedicated CSRF endpoint
-    const response = await fetch('/api/auth/csrf', {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch CSRF token: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.csrfToken) {
-      console.log('Successfully fetched CSRF token');
-      return data.csrfToken;
-    } else {
-      throw new Error('No CSRF token in response');
-    }
-  } catch (error) {
-    console.error('Error fetching CSRF token:', error);
-    throw new Error('Failed to fetch CSRF token for secure authentication');
-  }
-}
-
-/**
  * Sign in with credentials
  * This is a client-side wrapper for NextAuth's signIn function
  */
@@ -64,16 +29,12 @@ export async function signIn(options: SignInOptions): Promise<SignInResponse> {
   const { email, password, redirect = false, callbackUrl = '/role-redirect' } = options;
   
   try {
-    // Always fetch a proper CSRF token from NextAuth
-    const csrfToken = await fetchCSRFToken();
-    
-    // We need to explicitly cast redirect to false to match NextAuth typing
+    // Simplified approach - let NextAuth handle CSRF internally
     const result = await nextAuthSignIn('credentials', {
       email,
       password,
       redirect: false, // Always false to handle redirection ourselves
-      callbackUrl,
-      csrfToken // Include the fetched CSRF token
+      callbackUrl
     });
     
     // Ensure we return a consistent response with proper types

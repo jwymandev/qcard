@@ -22,7 +22,8 @@ export const {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // CSRF protection enabled for security 
+  // Proper CSRF protection with DigitalOcean compatibility
+  useSecureCookies: process.env.NODE_ENV === 'production',
   cookies: {
     sessionToken: {
       name: process.env.NODE_ENV === 'production' 
@@ -33,9 +34,6 @@ export const {
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' 
-          ? undefined // Let NextAuth handle domain automatically
-          : undefined,
       },
     },
     callbackUrl: {
@@ -44,7 +42,6 @@ export const {
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === 'production',
-        domain: undefined,
       },
     },
     csrfToken: {
@@ -56,7 +53,6 @@ export const {
         sameSite: "lax", 
         path: "/",
         secure: process.env.NODE_ENV === 'production',
-        domain: undefined,
       },
     },
   },
@@ -411,6 +407,16 @@ export const {
     }),
   ],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Handle DigitalOcean App Platform URL redirects properly
+      if (process.env.NODE_ENV === 'production') {
+        // Allow same-origin redirects and specific callback URLs
+        if (url.startsWith('/')) return `${baseUrl}${url}`;
+        if (new URL(url).origin === baseUrl) return url;
+        return baseUrl;
+      }
+      return url.startsWith('/') ? `${baseUrl}${url}` : url;
+    },
     async jwt({ token, user }) {
       if (user) {
         console.log("JWT Callback - Creating token for user:", {
