@@ -130,7 +130,7 @@ export async function POST(req: Request) {
               lastName,
               phoneNumber,
               tenantId: newTenant.id,
-              role: userType === 'STUDIO' ? 'ADMIN' : 'USER', // Assign appropriate role
+              role: 'USER', // All new users start as regular users
               createdAt: now,
               updatedAt: now
             },
@@ -204,7 +204,7 @@ export async function POST(req: Request) {
             lastName,
             phoneNumber,
             tenantId: tenant.id,
-            role: userType === 'STUDIO' ? 'ADMIN' : 'USER', // Assign appropriate role
+            role: 'USER', // All new users start as regular users
             createdAt: now,
             updatedAt: now
           },
