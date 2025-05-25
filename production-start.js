@@ -261,11 +261,15 @@ function startApplication() {
   
     // First check if standalone server file exists
   const fs = require('fs');
-  const standaloneServerPath = path.join(process.cwd(), '.next/standalone/server.js');
+  const standaloneServerPath = path.join(process.cwd(), '.next-do/standalone/server.js');
+  const fallbackStandaloneServerPath = path.join(process.cwd(), '.next/standalone/server.js');
   
   if (fs.existsSync(standaloneServerPath)) {
-    console.log('Detected standalone output mode, using standalone server.js');
-    startStandaloneServer(port);
+    console.log('Detected DigitalOcean standalone output mode, using .next-do/standalone/server.js');
+    startStandaloneServer(port, '.next-do');
+  } else if (fs.existsSync(fallbackStandaloneServerPath)) {
+    console.log('Detected regular standalone output mode, using .next/standalone/server.js');
+    startStandaloneServer(port, '.next');
   } else {
     console.log('Using standard Next.js start mode');
     startRegularNext(port);
@@ -273,14 +277,26 @@ function startApplication() {
 }
 
 // Start using the standalone server.js file
-function startStandaloneServer(port) {
-  const standaloneServerPath = path.join(process.cwd(), '.next/standalone/server.js');
+function startStandaloneServer(port, buildDir = '.next') {
+  const standaloneDir = path.join(process.cwd(), buildDir, 'standalone');
+  const staticDir = path.join(process.cwd(), buildDir, 'static');
   
-  const nextProcess = spawn('node', [standaloneServerPath], {
+  console.log(`Starting standalone server from: ${standaloneDir}`);
+  console.log(`Static files should be served from: ${staticDir}`);
+  
+  // Change working directory to standalone directory for proper static file serving
+  process.chdir(standaloneDir);
+  
+  const nextProcess = spawn('node', ['server.js'], {
     stdio: 'inherit',
+    cwd: standaloneDir,
     env: {
       ...process.env,
-      PORT: port.toString()
+      PORT: port.toString(),
+      // Ensure hostname is set for DigitalOcean
+      HOSTNAME: process.env.HOSTNAME || '0.0.0.0',
+      // Ensure Next.js can find static files
+      NEXT_STATIC_DIR: staticDir
     }
   });
   

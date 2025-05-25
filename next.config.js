@@ -11,28 +11,43 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Use standalone output for DigitalOcean App Platform
   output: 'standalone',
-  // Completely disable static generation for API routes
-  // This fixes the "Dynamic server usage" errors during build
-  staticPageGenerationTimeout: 1,
-  skipMiddlewareUrlNormalize: true,
-  skipTrailingSlashRedirect: true,
+  // Use separate build directory for DO
+  distDir: '.next-do',
   // Don't set asset prefix - let Next.js handle static assets naturally
-  // assetPrefix: process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_APP_URL || '' : '',
-  // Configure API routes to be fully dynamic
+  // assetPrefix: '', // Removed problematic asset prefix
+  
+  // Prevent static generation of API routes
   experimental: {
-    serverComponentsExternalPackages: ['bcrypt'],
-    optimizePackageImports: ['@prisma/client'],
-    serverActions: {
-      allowedOrigins: ['*'],
-    },
-    // Don't try to statically generate API routes
+    // Don't attempt to statically generate API routes
     outputFileTracingExcludes: {
-      '*': ['node_modules/@swc/**'],
-    }
+      '*': [
+        'node_modules/@swc/**',
+        'node_modules/@mapbox/**', 
+        'node_modules/aws-sdk/**',
+        'node_modules/nock/**',
+        'node_modules/mock-aws-s3/**'
+      ],
+    },
   },
-  // Add webpack configuration to handle Node.js native modules
-  webpack: (config, { isServer, dev }) => {
+  // Configure environment variables (excluding NODE_ENV as it's not allowed)
+  env: {
+    NEXT_BUILD_SKIP_DB: 'true',
+    // Set a dummy database URL for build
+    DATABASE_URL: 'postgresql://placeholder:placeholder@localhost:5432/placeholder',
+  },
+  // Optimize build speed
+  swcMinify: true,
+  poweredByHeader: false,
+  // Allow skipping trailing slash redirects to improve build compatibility
+  skipTrailingSlashRedirect: true,
+  // Don't include server instrumentation for better build compatibility
+  productionBrowserSourceMaps: false,
+  // Configure modules to be bundled properly
+  transpilePackages: ['@prisma/client'],
+  // Simplified webpack configuration
+  webpack: (config, { isServer }) => {
     if (!isServer) {
       // Don't resolve Node.js modules on the client to prevent errors
       config.resolve.fallback = {
@@ -57,44 +72,8 @@ const nextConfig = {
       };
     }
     
-    // Exclude server-only packages from client-side bundles
-    if (!isServer) {
-      config.module.rules.push({
-        test: /node_modules\/(@mapbox\/node-pre-gyp|bcrypt|aws-sdk|nock|mock-aws-s3)/,
-        use: 'null-loader',
-      });
-      
-      // Don't override public path - let Next.js handle it
-      // if (!dev) {
-      //   config.output = {
-      //     ...config.output,
-      //     publicPath: `${process.env.NEXT_PUBLIC_APP_URL || ''}/_next/`,
-      //   };
-      // }
-    }
-    
     return config;
   },
-  
-  // Production deployment settings
-  env: {
-    PORT: process.env.PORT || '8080',
-    // Add flag to skip database connection during build
-    // Only set this during the build command, not for development
-    NEXT_BUILD_SKIP_DB: process.env.NODE_ENV === 'production' ? 'true' : 'false',
-    SKIP_API_ROUTES: 'true',
-    NEXT_PUBLIC_SKIP_API_ROUTES: 'true',
-    // Set a dummy database URL for build
-    DATABASE_URL: process.env.NODE_ENV === 'production' ? 
-      (process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder') : 
-      process.env.DATABASE_URL,
-    // Ensure app URL is available
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || ''
-  },
-  // Ensure we're listening on the right port for DigitalOcean
-  serverRuntimeConfig: {
-    port: parseInt(process.env.PORT || '8080', 10)
-  }
 };
 
 module.exports = nextConfig;

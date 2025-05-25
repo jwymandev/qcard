@@ -13,28 +13,33 @@ npm ci
 
 # Build the application
 echo "🏗️ Building the application..."
-npm run build
+npm run build:do
 
 # Run Prisma fix script
 echo "🔧 Running Prisma deployment fix..."
 node scripts/prisma-deployment-fix.js
 
+# Fix static file location for standalone mode
+echo "📂 Copying static files to correct location for standalone mode..."
+mkdir -p .next-do/standalone/.next
+cp -r .next-do/static .next-do/standalone/.next/static
+
 # Copy the Prisma schema to the standalone directory
 echo "📄 Copying Prisma schema and engines..."
-mkdir -p .next/standalone/.prisma/client
-cp -r node_modules/.prisma/client/libquery_engine-* .next/standalone/.prisma/client/
-cp prisma/schema.prisma .next/standalone/.prisma/client/
-cp prisma/schema.prisma .next/standalone/prisma/schema.prisma 2>/dev/null || mkdir -p .next/standalone/prisma && cp prisma/schema.prisma .next/standalone/prisma/schema.prisma
+mkdir -p .next-do/standalone/.prisma/client
+cp -r node_modules/.prisma/client/libquery_engine-* .next-do/standalone/.prisma/client/ 2>/dev/null || echo "No Prisma engines found"
+cp prisma/schema.prisma .next-do/standalone/.prisma/client/
+mkdir -p .next-do/standalone/prisma && cp prisma/schema.prisma .next-do/standalone/prisma/schema.prisma
 
 # Generate a simple production start script
 echo "📝 Creating production start script..."
-cat > .next/standalone/start.sh << EOL
+cat > .next-do/standalone/start.sh << EOL
 #!/bin/bash
 export DATABASE_URL=\${DATABASE_URL}
 echo "Starting QCard application..."
 node server.js
 EOL
-chmod +x .next/standalone/start.sh
+chmod +x .next-do/standalone/start.sh
 
 # Create a Dockerfile for DigitalOcean
 echo "🐳 Creating Dockerfile..."
@@ -43,18 +48,14 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copy the standalone build
-COPY .next/standalone ./
+# Copy the standalone build (which now includes static files in the right place)
+COPY .next-do/standalone ./
 
-# Copy static files - CRITICAL for client-side JavaScript
-COPY .next/static ./.next/static
+# Copy public files
 COPY public ./public
 
-# Ensure static files are properly accessible and have correct permissions
-RUN mkdir -p /app/.next/static && \
-    mkdir -p /app/public && \
-    chmod -R 755 /app/.next/static && \
-    chmod -R 755 /app/public
+# Ensure files are properly accessible
+RUN chmod -R 755 /app/public
 
 # Set environment variables
 ENV NODE_ENV production
