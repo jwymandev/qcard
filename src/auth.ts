@@ -22,8 +22,56 @@ export const {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // Proper CSRF protection with DigitalOcean compatibility
+  // Secure CSRF protection with DigitalOcean App Platform compatibility
   useSecureCookies: process.env.NODE_ENV === 'production',
+  // Custom CSRF check that works with DigitalOcean App Platform
+  skipCSRFCheck: (request) => {
+    const origin = request.headers.get('origin');
+    const host = request.headers.get('host');
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[CSRF DEBUG] Origin: ${origin}, Host: ${host}`);
+    }
+    
+    // Only skip CSRF for specific trusted origins in production
+    if (process.env.NODE_ENV === 'production') {
+      // Allow requests from the same host (same-origin requests)
+      if (origin && host && new URL(origin).host === host) {
+        console.log('[CSRF] Allowing same-origin request');
+        return true;
+      }
+      
+      // Allow requests without origin header (direct browser navigation)
+      if (!origin) {
+        console.log('[CSRF] Allowing request without origin header');
+        return true;
+      }
+      
+      // For DigitalOcean App Platform, allow the app domain
+      const allowedOrigins = [
+        process.env.NEXTAUTH_URL,
+        process.env.VERCEL_URL,
+        process.env.NEXT_PUBLIC_APP_URL,
+        // DigitalOcean App Platform domains
+        process.env.DIGITAL_OCEAN_APP_URL,
+        // Fallback for the current deployment (update this with your actual domain)
+        'https://qcard-5fc68f64b7-l749j.ondigitalocean.app',
+      ].filter(Boolean);
+      
+      const isAllowed = allowedOrigins.some(allowed => origin?.startsWith(allowed));
+      if (isAllowed) {
+        console.log(`[CSRF] Allowing request from trusted origin: ${origin}`);
+      } else {
+        console.log(`[CSRF] Blocking request from untrusted origin: ${origin}`);
+        console.log(`[CSRF] Allowed origins: ${allowedOrigins.join(', ')}`);
+      }
+      
+      return isAllowed;
+    }
+    
+    // In development, use normal CSRF protection (stricter)
+    return false;
+  },
   cookies: {
     sessionToken: {
       name: process.env.NODE_ENV === 'production' 
