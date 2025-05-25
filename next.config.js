@@ -29,11 +29,12 @@ const nextConfig = {
       ],
     },
   },
-  // Configure environment variables (excluding NODE_ENV as it's not allowed)
+  // Configure environment variables for build time only
   env: {
-    NEXT_BUILD_SKIP_DB: 'true',
-    // Set a dummy database URL for build
-    DATABASE_URL: 'postgresql://placeholder:placeholder@localhost:5432/placeholder',
+    // Only use mock during build, respect runtime environment variable
+    NEXT_BUILD_SKIP_DB: process.env.NEXT_BUILD_SKIP_DB || 'true',
+    // Set a dummy database URL for build if no real one is provided
+    DATABASE_URL: process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder',
   },
   // Optimize build speed
   swcMinify: true,
