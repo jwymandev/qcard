@@ -9,33 +9,230 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 // Configure database connection using our dedicated setup script
+// Function to find Prisma engine files
+function findPrismaEngines() {
+  const fs = require('fs');
+  const path = require('path');
+  
+  const enginePaths = [
+    // Standard locations
+    path.join(process.cwd(), 'node_modules', '.prisma', 'client'),
+    path.join(process.cwd(), '.prisma', 'client'),
+    
+    // Next.js standalone locations
+    path.join(process.cwd(), '.next', 'server'),
+    path.join(process.cwd(), '.next', 'standalone', 'node_modules', '.prisma', 'client'),
+    path.join(process.cwd(), '.next', 'standalone', '.prisma', 'client'),
+    
+    // DigitalOcean workspace locations
+    '/workspace/node_modules/.prisma/client',
+    '/workspace/.next/standalone/.prisma/client',
+    '/workspace/.next/standalone/node_modules/.prisma/client',
+    
+    // Additional locations
+    '/tmp/prisma-engines'
+  ];
+  
+  const engines = [];
+  
+  for (const enginePath of enginePaths) {
+    try {
+      if (fs.existsSync(enginePath)) {
+        const files = fs.readdirSync(enginePath);
+        const engineFiles = files.filter(file => 
+          file.includes('libquery_engine-') || 
+          file.includes('query-engine') ||
+          file.includes('query_engine')
+        );
+        
+        for (const engineFile of engineFiles) {
+          engines.push(path.join(enginePath, engineFile));
+        }
+      }
+    } catch (error) {
+      console.error(`[qcard] Error checking ${enginePath}:`, error.message);
+    }
+  }
+  
+  return engines;
+}
+
+// Function to create required directories
+function createRequiredDirectories() {
+  const fs = require('fs');
+  const path = require('path');
+  
+  const directories = [
+    '/tmp/prisma-engines',
+    path.join(process.cwd(), 'node_modules', '.prisma', 'client'),
+    path.join(process.cwd(), '.prisma', 'client'),
+    '/workspace/node_modules/.prisma/client',
+    '/workspace/.next/standalone/.prisma/client'
+  ];
+  
+  for (const dir of directories) {
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`[qcard] Created directory: ${dir}`);
+      }
+    } catch (error) {
+      console.error(`[qcard] Error creating directory ${dir}:`, error.message);
+    }
+  }
+}
+
+// Function to copy engines to required locations
+function copyEnginesToRequiredLocations(engines) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  if (engines.length === 0) {
+    console.error('[qcard] No Prisma engines found to copy!');
+    return;
+  }
+  
+  const targetDirs = [
+    '/tmp/prisma-engines',
+    path.join(process.cwd(), 'node_modules', '.prisma', 'client'),
+    path.join(process.cwd(), '.prisma', 'client'),
+    '/workspace/node_modules/.prisma/client',
+    '/workspace/.next/standalone/.prisma/client'
+  ];
+  
+  let successCount = 0;
+  
+  for (const engine of engines) {
+    const fileName = path.basename(engine);
+    
+    for (const targetDir of targetDirs) {
+      try {
+        // Skip if the target already exists
+        const targetPath = path.join(targetDir, fileName);
+        if (fs.existsSync(targetPath)) continue;
+        
+        // Skip if directory doesn't exist
+        if (!fs.existsSync(targetDir)) continue;
+        
+        fs.copyFileSync(engine, targetPath);
+        try {
+          fs.chmodSync(targetPath, 0o755); // Make executable
+        } catch (chmodError) {
+          console.warn(`[qcard] Warning: Could not make ${targetPath} executable:`, chmodError.message);
+        }
+        successCount++;
+        console.log(`[qcard] Copied ${fileName} to ${targetDir}`);
+      } catch (error) {
+        console.error(`[qcard] Error copying ${engine} to ${targetDir}:`, error.message);
+      }
+    }
+  }
+  
+  console.log(`[qcard] Copied ${successCount} engine files`);
+}
+
+// Function to set environment variables for Prisma
+function setPrismaEnvironment(engines) {
+  if (engines.length > 0) {
+    // Find debian engine as it's likely what we need on DigitalOcean
+    const debianEngine = engines.find(engine => engine.includes('debian-openssl-3.0.x'));
+    
+    if (debianEngine) {
+      process.env.PRISMA_QUERY_ENGINE_LIBRARY = debianEngine;
+      console.log(`[qcard] Set PRISMA_QUERY_ENGINE_LIBRARY to ${debianEngine}`);
+    } else {
+      // Just use the first engine if no debian one is found
+      process.env.PRISMA_QUERY_ENGINE_LIBRARY = engines[0];
+      console.log(`[qcard] Set PRISMA_QUERY_ENGINE_LIBRARY to ${engines[0]}`);
+    }
+  }
+  
+  // Set Prisma to skip engine resolution
+  process.env.PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING = '1';
+}
+
 function setupDatabaseConnection() {
   try {
-    // Use the pre-start script to set up the database connection
-    const setupResult = require('./scripts/pre-start');
+    console.log('[qcard] Setting up Prisma engine paths...');
     
-    if (setupResult.databaseUrl) {
-      console.log('✅ Database connection string configured successfully');
-      return true;
+    // Create required directories
+    createRequiredDirectories();
+    
+    // Find Prisma engines
+    console.log('[qcard] Looking for Prisma engines...');
+    const engines = findPrismaEngines();
+    
+    if (engines.length > 0) {
+      console.log(`[qcard] Found ${engines.length} Prisma engines`);
+      
+      // Copy engines to required locations
+      copyEnginesToRequiredLocations(engines);
+      
+      // Set environment variables
+      setPrismaEnvironment(engines);
     } else {
-      console.error('❌ Failed to configure database connection string');
+      console.warn('[qcard] ⚠️ No Prisma engines found! Will try to continue anyway.');
+    }
+  
+    // Now continue with regular database connection setup
+    try {
+      // Use the pre-start script to set up the database connection
+      const setupResult = require('./scripts/pre-start');
+      
+      if (setupResult.databaseUrl) {
+        console.log('✅ Database connection string configured successfully');
+        return true;
+      } else {
+        console.error('❌ Failed to configure database connection string');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error in database setup:', error.message);
+      
+      // Fallback to original method if pre-start script fails
+      console.log('Falling back to direct environment variable check...');
+      
+      if (process.env.DATABASE_URL &&
+          (process.env.DATABASE_URL.startsWith('postgresql://') || 
+           process.env.DATABASE_URL.startsWith('postgres://'))) {
+        console.log('✅ Using existing DATABASE_URL');
+        return true;
+      }
+      
+      console.error('❌ No valid database connection string available');
       return false;
     }
-  } catch (error) {
-    console.error('❌ Error in database setup:', error.message);
+  } catch (prismaError) {
+    console.error('[qcard] Error setting up Prisma engines:', prismaError);
     
-    // Fallback to original method if pre-start script fails
-    console.log('Falling back to direct environment variable check...');
-    
-    if (process.env.DATABASE_URL &&
-        (process.env.DATABASE_URL.startsWith('postgresql://') || 
-         process.env.DATABASE_URL.startsWith('postgres://'))) {
-      console.log('✅ Using existing DATABASE_URL');
-      return true;
+    // Continue with regular database connection even if Prisma engine setup fails
+    try {
+      // Use the pre-start script to set up the database connection
+      const setupResult = require('./scripts/pre-start');
+      
+      if (setupResult.databaseUrl) {
+        console.log('✅ Database connection string configured successfully');
+        return true;
+      } else {
+        console.error('❌ Failed to configure database connection string');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error in database setup:', error.message);
+      
+      // Fallback to original method if pre-start script fails
+      console.log('Falling back to direct environment variable check...');
+      
+      if (process.env.DATABASE_URL &&
+          (process.env.DATABASE_URL.startsWith('postgresql://') || 
+           process.env.DATABASE_URL.startsWith('postgres://'))) {
+        console.log('✅ Using existing DATABASE_URL');
+        return true;
+      }
+      
+      console.error('❌ No valid database connection string available');
+      return false;
     }
-    
-    console.error('❌ No valid database connection string available');
-    return false;
   }
 }
 

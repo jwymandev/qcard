@@ -50,7 +50,13 @@ function createTargetDirs() {
   const targetDirs = [
     path.join(process.cwd(), '.next', 'standalone', 'node_modules', '.prisma', 'client'),
     path.join(process.cwd(), '.next', 'standalone', '.next', 'server'),
-    path.join(process.cwd(), '.next', 'standalone', '.prisma', 'client')
+    path.join(process.cwd(), '.next', 'standalone', '.prisma', 'client'),
+    // DigitalOcean workspace paths
+    '/workspace/node_modules/.prisma/client',
+    '/workspace/.next/standalone/.prisma/client',
+    '/workspace/.next/standalone/node_modules/.prisma/client',
+    // Special temp directory for Prisma
+    '/tmp/prisma-engines'
   ];
   
   for (const dir of targetDirs) {
@@ -108,7 +114,11 @@ function createEnvFile() {
   const envPath = path.join(process.cwd(), '.next', 'standalone', '.env');
   
   try {
-    fs.writeFileSync(envPath, 'DATABASE_URL=${DATABASE_URL}\n');
+    const envContent = `DATABASE_URL=\${DATABASE_URL}
+PRISMA_QUERY_ENGINE_LIBRARY=/tmp/prisma-engines/libquery_engine-debian-openssl-3.0.x.so.node
+PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
+`;
+    fs.writeFileSync(envPath, envContent);
     console.log(`Created .env file at ${envPath}`);
   } catch (error) {
     console.error(`Error creating .env file:`, error);
