@@ -1,6 +1,4 @@
 /** @type {import('next').NextConfig} */
-const path = require('path');
-
 const nextConfig = {
   reactStrictMode: true,
   images: {
@@ -17,6 +15,9 @@ const nextConfig = {
   output: 'standalone',
   // Use separate build directory for DO
   distDir: '.next-do',
+  // Don't set asset prefix - let Next.js handle static assets naturally
+  // assetPrefix: '', // Removed problematic asset prefix
+  
   // Prevent static generation of API routes
   experimental: {
     // Don't attempt to statically generate API routes
@@ -29,8 +30,6 @@ const nextConfig = {
         'node_modules/mock-aws-s3/**'
       ],
     },
-    // Avoid compiling API routes
-    disableOptimizedLoading: true,
   },
   // Configure environment variables (excluding NODE_ENV as it's not allowed)
   env: {
@@ -47,7 +46,7 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
   // Configure modules to be bundled properly
   transpilePackages: ['@prisma/client'],
-  // Add webpack configuration to handle Node.js native modules
+  // Simplified webpack configuration
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Don't resolve Node.js modules on the client to prevent errors
@@ -71,39 +70,6 @@ const nextConfig = {
         'aws-sdk': false,
         nock: false
       };
-      
-      // Handle HTML and other non-JS files with ignore-loader
-      config.module.rules.push({
-        test: /\.html$/,
-        use: 'ignore-loader'
-      });
-      
-      // Specifically handle the problematic node-pre-gyp HTML file
-      config.module.rules.push({
-        test: /node_modules\/@mapbox\/node-pre-gyp\/lib\/util\/nw-pre-gyp\/index\.html$/,
-        use: 'ignore-loader'
-      });
-      
-      // Add a fallback path to our loaders directory
-      config.resolveLoader = config.resolveLoader || {};
-      config.resolveLoader.modules = [
-        ...(config.resolveLoader.modules || []),
-        'node_modules',
-        path.resolve(__dirname),
-        path.resolve(__dirname, 'scripts')
-      ];
-      
-      // Add direct alias for ignore-loader
-      config.resolveLoader.alias = {
-        ...config.resolveLoader.alias,
-        'ignore-loader': path.resolve(__dirname, 'ignore-loader.js')
-      };
-      
-      // Explicitly ignore all native modules and their dependencies
-      config.module.rules.push({
-        test: /node_modules\/(@mapbox\/node-pre-gyp|bcrypt|aws-sdk|nock|mock-aws-s3)/,
-        loader: 'ignore-loader',
-      });
     }
     
     return config;

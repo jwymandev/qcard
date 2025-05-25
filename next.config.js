@@ -17,8 +17,8 @@ const nextConfig = {
   staticPageGenerationTimeout: 1,
   skipMiddlewareUrlNormalize: true,
   skipTrailingSlashRedirect: true,
-  // Configure asset paths for production
-  assetPrefix: process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_APP_URL || '' : '',
+  // Don't set asset prefix - let Next.js handle static assets naturally
+  // assetPrefix: process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_APP_URL || '' : '',
   // Configure API routes to be fully dynamic
   experimental: {
     serverComponentsExternalPackages: ['bcrypt'],
@@ -64,13 +64,13 @@ const nextConfig = {
         use: 'null-loader',
       });
       
-      // Set public path for assets in production
-      if (!dev) {
-        config.output = {
-          ...config.output,
-          publicPath: `${process.env.NEXT_PUBLIC_APP_URL || ''}/_next/`,
-        };
-      }
+      // Don't override public path - let Next.js handle it
+      // if (!dev) {
+      //   config.output = {
+      //     ...config.output,
+      //     publicPath: `${process.env.NEXT_PUBLIC_APP_URL || ''}/_next/`,
+      //   };
+      // }
     }
     
     return config;
