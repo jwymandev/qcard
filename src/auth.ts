@@ -22,17 +22,20 @@ export const {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // Important: Disable CSRF check in all environments to fix login issues
-  skipCSRFCheck: true, 
+  // CSRF protection enabled for security 
   cookies: {
     sessionToken: {
-      name: `next-auth.session-token`,
+      name: process.env.NODE_ENV === 'production' 
+        ? `__Secure-next-auth.session-token` 
+        : `next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === 'production', // Only secure in production
-        domain: undefined, // Don't set domain to avoid issues
+        secure: process.env.NODE_ENV === 'production',
+        domain: process.env.NODE_ENV === 'production' 
+          ? undefined // Let NextAuth handle domain automatically
+          : undefined,
       },
     },
     callbackUrl: {
@@ -40,17 +43,19 @@ export const {
       options: {
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === 'production', // Only secure in production
+        secure: process.env.NODE_ENV === 'production',
         domain: undefined,
       },
     },
     csrfToken: {
-      name: `next-auth.csrf-token`,
+      name: process.env.NODE_ENV === 'production'
+        ? `__Host-next-auth.csrf-token`
+        : `next-auth.csrf-token`,
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "lax", 
         path: "/",
-        secure: process.env.NODE_ENV === 'production', // Only secure in production
+        secure: process.env.NODE_ENV === 'production',
         domain: undefined,
       },
     },

@@ -10,7 +10,6 @@ export default function SignInPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [csrfToken, setCsrfToken] = useState('');
   const [pageReady, setPageReady] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,15 +18,9 @@ export default function SignInPage() {
   const isNewlyRegistered = searchParams?.get('registered') === 'true';
   const callbackUrl = searchParams?.get('callbackUrl') || '/role-redirect';
   
-  // Set the page as ready immediately
+  // Set the page as ready immediately - CSRF handling is now done in client-auth
   useEffect(() => {
     console.log('Setting up sign-in page...');
-    
-    // Skip CSRF token fetching entirely - we'll use CSRF protection disabled mode
-    setCsrfToken('disabled_csrf_token');
-    console.log('Using fallback CSRF token (protection disabled)');
-    
-    // Set page as ready immediately
     setPageReady(true);
   }, []);
 
@@ -45,33 +38,29 @@ export default function SignInPage() {
       
       console.log("Attempting sign-in with credentials...");
       
-      // Direct form submission approach - simpler and more reliable
-      const form = e.target as HTMLFormElement;
+      // Use the proper signIn function from client-auth
+      const result = await signIn({
+        email,
+        password,
+        redirect: false,
+        callbackUrl
+      });
       
-      // Add CSRF token to form if not already present
-      if (!form.csrfToken) {
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = 'csrfToken';
-        csrfInput.value = csrfToken;
-        form.appendChild(csrfInput);
+      if (result.error) {
+        console.error('Sign-in failed:', result.error);
+        setError(result.error === 'CredentialsSignin' 
+          ? 'Invalid email or password' 
+          : 'An error occurred during sign in. Please try again.');
+        setIsLoading(false);
+      } else if (result.ok) {
+        console.log('Sign-in successful, redirecting...');
+        // Successful sign-in - redirect to callback URL
+        router.push(callbackUrl);
+      } else {
+        console.error('Sign-in failed with unknown error');
+        setError('An error occurred during sign in. Please try again.');
+        setIsLoading(false);
       }
-      
-      // Submit form directly to NextAuth endpoint
-      form.action = '/api/auth/callback/credentials';
-      form.method = 'post';
-      
-      // Add callbackUrl to form if not already present
-      if (!form.callbackUrl) {
-        const callbackInput = document.createElement('input');
-        callbackInput.type = 'hidden';
-        callbackInput.name = 'callbackUrl';
-        callbackInput.value = callbackUrl;
-        form.appendChild(callbackInput);
-      }
-      
-      // Regular form submission (most reliable approach)
-      form.submit();
       
     } catch (error) {
       console.error("Sign-in error:", error);
@@ -265,7 +254,6 @@ export default function SignInPage() {
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <input type="hidden" name="remember" defaultValue="true" />
-          <input type="hidden" name="csrfToken" value={csrfToken} />
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email-address" className="sr-only">
