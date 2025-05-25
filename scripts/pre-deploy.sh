@@ -46,9 +46,15 @@ WORKDIR /app
 # Copy the standalone build
 COPY .next/standalone ./
 
-# Copy the public folder
+# Copy static files - CRITICAL for client-side JavaScript
 COPY .next/static ./.next/static
 COPY public ./public
+
+# Ensure static files are properly accessible and have correct permissions
+RUN mkdir -p /app/.next/static && \
+    mkdir -p /app/public && \
+    chmod -R 755 /app/.next/static && \
+    chmod -R 755 /app/public
 
 # Set environment variables
 ENV NODE_ENV production

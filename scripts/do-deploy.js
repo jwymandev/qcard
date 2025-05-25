@@ -113,7 +113,7 @@ async function main() {
         NEXT_TELEMETRY_DISABLED: '1',
         NEXT_SKIP_API_ROUTES: '1',
         SKIP_API_ROUTES: '1',
-        NEXT_DISABLE_STATIC_GENERATION: 'true',
+        // NEXT_DISABLE_STATIC_GENERATION: 'true', // REMOVED - This was preventing client-side JS generation
         DATABASE_URL: 'postgresql://placeholder:placeholder@localhost:5432/placeholder'
       },
       timeout: 900000 // 15 minute timeout for build (increased from 10)
