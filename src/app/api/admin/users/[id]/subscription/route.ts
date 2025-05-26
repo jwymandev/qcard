@@ -220,8 +220,13 @@ export async function POST(
     });
   } catch (error) {
     console.error(`Error creating subscription for user ${params.id}:`, error);
+    console.error('Full error object:', JSON.stringify(error, null, 2));
     return NextResponse.json(
-      { error: 'Failed to create subscription', details: error instanceof Error ? error.message : String(error) },
+      { 
+        error: 'Failed to create subscription', 
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
