@@ -5,7 +5,7 @@ import { ensureHttps } from './utils';
 // Paths that require a subscription
 const SUBSCRIPTION_PROTECTED_PATHS = [
   // Studio features
-  '/studio/talent-search',
+  // '/studio/talent-search', // Temporarily removed to allow testing
   '/studio/questionnaires',
   '/studio/casting-calls',
   

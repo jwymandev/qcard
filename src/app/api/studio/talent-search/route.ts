@@ -37,6 +37,20 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
     
+    // Debug: Check total talent profiles
+    const totalTalentProfiles = await authPrisma.profile.count({
+      where: {
+        User: {
+          NOT: {
+            Tenant: {
+              type: 'STUDIO'
+            }
+          }
+        }
+      }
+    });
+    console.log(`Total talent profiles in database: ${totalTalentProfiles}`);
+    
     // Build where clause based on search parameters
     let whereClause: any = {
       User: {

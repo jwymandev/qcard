@@ -16,6 +16,15 @@ interface UserDetail {
   tenantId: string;
   createdAt: string;
   updatedAt: string;
+  subscription?: {
+    id: string;
+    status: string;
+    planId: string;
+    currentPeriodStart: string;
+    currentPeriodEnd: string;
+    cancelAtPeriodEnd: boolean;
+    isLifetime: boolean;
+  } | null;
 }
 
 export default function UserDetailPage() {
@@ -26,6 +35,8 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchUser() {
@@ -145,6 +156,98 @@ export default function UserDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Subscription management functions
+  const grantLifetimeSubscription = async () => {
+    if (!confirm('Grant lifetime subscription to this user?')) return;
+    
+    setSubscriptionLoading(true);
+    setSubscriptionError(null);
+    
+    try {
+      const url = user?.subscription ? 
+        `/api/admin/users/${userId}/subscription` : 
+        `/api/admin/users/${userId}/subscription`;
+      const method = user?.subscription ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          isLifetime: true,
+          status: 'ACTIVE',
+          planId: 'lifetime'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to grant lifetime subscription');
+      }
+      
+      // Refresh user data
+      window.location.reload();
+    } catch (error) {
+      setSubscriptionError(error instanceof Error ? error.message : 'Failed to grant subscription');
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const updateSubscriptionStatus = async (status: string) => {
+    if (!user?.subscription) {
+      setSubscriptionError('User has no subscription to update');
+      return;
+    }
+    
+    setSubscriptionLoading(true);
+    setSubscriptionError(null);
+    
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/subscription`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update subscription status');
+      }
+      
+      // Refresh user data
+      window.location.reload();
+    } catch (error) {
+      setSubscriptionError(error instanceof Error ? error.message : 'Failed to update subscription');
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const removeSubscription = async () => {
+    if (!confirm('Remove subscription from this user? This cannot be undone.')) return;
+    
+    setSubscriptionLoading(true);
+    setSubscriptionError(null);
+    
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/subscription`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to remove subscription');
+      }
+      
+      // Refresh user data
+      window.location.reload();
+    } catch (error) {
+      setSubscriptionError(error instanceof Error ? error.message : 'Failed to remove subscription');
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
 
   const handleDeleteUser = () => {
     setShowDeleteModal(true);
@@ -383,6 +486,115 @@ export default function UserDetailPage() {
               <dt className="text-sm font-medium text-gray-500">Updated At</dt>
               <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                 {new Date(user.updatedAt).toLocaleString()}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+      {/* Subscription Management Section */}
+      <div className="bg-white shadow overflow-hidden rounded-lg mt-6">
+        <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
+          <h3 className="text-lg leading-6 font-medium text-gray-900">Subscription Management</h3>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">Manage user subscription and access privileges</p>
+        </div>
+        
+        <div className="border-t border-gray-200">
+          {subscriptionError && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+              <p className="text-sm text-red-700">{subscriptionError}</p>
+            </div>
+          )}
+          
+          <dl>
+            <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt className="text-sm font-medium text-gray-500">Subscription Status</dt>
+              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                {user.subscription ? (
+                  <div className="space-y-2">
+                    <div>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                          ${user.subscription.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 
+                            user.subscription.status === 'CANCELED' ? 'bg-red-100 text-red-800' : 
+                            'bg-yellow-100 text-yellow-800'}`}>
+                        {user.subscription.status}
+                      </span>
+                      {user.subscription.isLifetime && (
+                        <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                          LIFETIME
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Plan: {user.subscription.planId} | 
+                      Expires: {user.subscription.isLifetime ? 'Never' : new Date(user.subscription.currentPeriodEnd).toLocaleDateString()}
+                    </div>
+                  </div>
+                ) : (
+                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                    NO SUBSCRIPTION
+                  </span>
+                )}
+              </dd>
+            </div>
+            
+            <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt className="text-sm font-medium text-gray-500">Admin Actions</dt>
+              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                <div className="flex flex-wrap gap-2">
+                  {!user.subscription ? (
+                    <button
+                      onClick={grantLifetimeSubscription}
+                      disabled={subscriptionLoading}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                    >
+                      {subscriptionLoading ? 'Processing...' : 'Grant Lifetime Access'}
+                    </button>
+                  ) : (
+                    <>
+                      {!user.subscription.isLifetime && (
+                        <button
+                          onClick={grantLifetimeSubscription}
+                          disabled={subscriptionLoading}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                        >
+                          {subscriptionLoading ? 'Processing...' : 'Make Lifetime'}
+                        </button>
+                      )}
+                      
+                      {user.subscription.status !== 'ACTIVE' && (
+                        <button
+                          onClick={() => updateSubscriptionStatus('ACTIVE')}
+                          disabled={subscriptionLoading}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                        >
+                          {subscriptionLoading ? 'Processing...' : 'Activate'}
+                        </button>
+                      )}
+                      
+                      {user.subscription.status === 'ACTIVE' && (
+                        <button
+                          onClick={() => updateSubscriptionStatus('CANCELED')}
+                          disabled={subscriptionLoading}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50"
+                        >
+                          {subscriptionLoading ? 'Processing...' : 'Cancel'}
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={removeSubscription}
+                        disabled={subscriptionLoading}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                      >
+                        {subscriptionLoading ? 'Processing...' : 'Remove Subscription'}
+                      </button>
+                    </>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Use these controls to grant special access or manage subscription status for this user.
+                </p>
               </dd>
             </div>
           </dl>
