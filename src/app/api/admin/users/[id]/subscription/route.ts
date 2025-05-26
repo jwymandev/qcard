@@ -5,11 +5,16 @@ import { z } from 'zod';
 
 // Validation schema for subscription updates
 const updateSubscriptionSchema = z.object({
-  status: z.enum(['ACTIVE', 'CANCELED', 'PAST_DUE', 'UNPAID']).optional(),
-  isLifetime: z.boolean().optional(),
+  status: z.enum(['ACTIVE', 'CANCELED', 'PAST_DUE', 'UNPAID', 'INCOMPLETE']).optional(),
   planId: z.string().optional(),
   currentPeriodEnd: z.string().datetime().optional(),
   cancelAtPeriodEnd: z.boolean().optional(),
+});
+
+const createSubscriptionSchema = z.object({
+  planId: z.string(),
+  status: z.enum(['ACTIVE', 'CANCELED', 'PAST_DUE', 'UNPAID', 'INCOMPLETE']).optional(),
+  isLifetime: z.boolean().optional(),
 });
 
 // PUT /api/admin/users/[id]/subscription - Update user subscription
@@ -46,13 +51,13 @@ export async function PUT(
     
     const validatedData = result.data;
     
-    // Find the user and their tenant
+    // Find the user and their subscriptions
     const user = await authPrisma.user.findUnique({
       where: { id: params.id },
       include: {
-        Tenant: {
+        subscriptions: {
           include: {
-            subscription: true
+            plan: true
           }
         }
       }
@@ -65,10 +70,13 @@ export async function PUT(
       );
     }
     
-    if (!user.Tenant) {
+    // Get the most recent active subscription
+    const activeSubscription = user.subscriptions.find(sub => sub.status === 'ACTIVE') || user.subscriptions[0];
+    
+    if (!activeSubscription) {
       return NextResponse.json(
-        { error: 'User has no tenant' },
-        { status: 400 }
+        { error: 'User has no subscription to update' },
+        { status: 404 }
       );
     }
     
@@ -79,16 +87,6 @@ export async function PUT(
     
     if (validatedData.status !== undefined) {
       updateData.status = validatedData.status;
-    }
-    
-    if (validatedData.isLifetime !== undefined) {
-      updateData.isLifetime = validatedData.isLifetime;
-      // If setting to lifetime, ensure status is active and extend period
-      if (validatedData.isLifetime) {
-        updateData.status = 'ACTIVE';
-        updateData.currentPeriodEnd = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000); // 100 years
-        updateData.cancelAtPeriodEnd = false;
-      }
     }
     
     if (validatedData.planId !== undefined) {
@@ -103,31 +101,14 @@ export async function PUT(
       updateData.cancelAtPeriodEnd = validatedData.cancelAtPeriodEnd;
     }
     
-    let subscription;
-    
-    if (user.Tenant.subscription) {
-      // Update existing subscription
-      subscription = await authPrisma.subscription.update({
-        where: { id: user.Tenant.subscription.id },
-        data: updateData
-      });
-    } else {
-      // Create new subscription
-      subscription = await authPrisma.subscription.create({
-        data: {
-          tenantId: user.Tenant.id,
-          status: validatedData.status || 'ACTIVE',
-          isLifetime: validatedData.isLifetime || false,
-          planId: validatedData.planId || 'basic',
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: validatedData.currentPeriodEnd ? 
-            new Date(validatedData.currentPeriodEnd) : 
-            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-          cancelAtPeriodEnd: validatedData.cancelAtPeriodEnd || false,
-          ...updateData
-        }
-      });
-    }
+    // Update subscription
+    const subscription = await authPrisma.subscription.update({
+      where: { id: activeSubscription.id },
+      data: updateData,
+      include: {
+        plan: true
+      }
+    });
     
     console.log(`Updated subscription for user ${params.id}:`, subscription);
     
@@ -166,17 +147,23 @@ export async function POST(
     }
     
     const body = await request.json();
-    const { isLifetime = false, planId = 'basic', status = 'ACTIVE' } = body;
     
-    // Find the user and their tenant
+    // Validate input data
+    const result = createSubscriptionSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: 'Invalid input data', details: result.error.format() },
+        { status: 400 }
+      );
+    }
+    
+    const { planId, status = 'ACTIVE', isLifetime = false } = result.data;
+    
+    // Find the user
     const user = await authPrisma.user.findUnique({
       where: { id: params.id },
       include: {
-        Tenant: {
-          include: {
-            subscription: true
-          }
-        }
+        subscriptions: true
       }
     });
     
@@ -187,32 +174,41 @@ export async function POST(
       );
     }
     
-    if (!user.Tenant) {
+    // Check if user already has an active subscription
+    const activeSubscription = user.subscriptions.find(sub => sub.status === 'ACTIVE');
+    if (activeSubscription) {
       return NextResponse.json(
-        { error: 'User has no tenant' },
-        { status: 400 }
+        { error: 'User already has an active subscription' },
+        { status: 409 }
       );
     }
     
-    if (user.Tenant.subscription) {
+    // Verify the plan exists
+    const plan = await authPrisma.subscriptionPlan.findUnique({
+      where: { id: planId }
+    });
+    
+    if (!plan) {
       return NextResponse.json(
-        { error: 'User already has a subscription' },
-        { status: 409 }
+        { error: 'Subscription plan not found' },
+        { status: 404 }
       );
     }
     
     // Create new subscription
     const subscription = await authPrisma.subscription.create({
       data: {
-        tenantId: user.Tenant.id,
-        status,
-        isLifetime,
+        userId: user.id,
         planId,
+        status,
         currentPeriodStart: new Date(),
         currentPeriodEnd: isLifetime ? 
           new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000) : // 100 years for lifetime
           new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         cancelAtPeriodEnd: false
+      },
+      include: {
+        plan: true
       }
     });
     
@@ -252,15 +248,11 @@ export async function DELETE(
       );
     }
     
-    // Find the user and their tenant
+    // Find the user and their subscriptions
     const user = await authPrisma.user.findUnique({
       where: { id: params.id },
       include: {
-        Tenant: {
-          include: {
-            subscription: true
-          }
-        }
+        subscriptions: true
       }
     });
     
@@ -271,22 +263,29 @@ export async function DELETE(
       );
     }
     
-    if (!user.Tenant?.subscription) {
+    const activeSubscription = user.subscriptions.find(sub => sub.status === 'ACTIVE');
+    
+    if (!activeSubscription) {
       return NextResponse.json(
-        { error: 'User has no subscription to remove' },
+        { error: 'User has no active subscription to remove' },
         { status: 404 }
       );
     }
     
-    // Delete the subscription
-    await authPrisma.subscription.delete({
-      where: { id: user.Tenant.subscription.id }
+    // Cancel the subscription (don't delete, just cancel)
+    await authPrisma.subscription.update({
+      where: { id: activeSubscription.id },
+      data: {
+        status: 'CANCELED',
+        canceledAt: new Date(),
+        cancelAtPeriodEnd: true
+      }
     });
     
-    console.log(`Deleted subscription for user ${params.id}`);
+    console.log(`Canceled subscription for user ${params.id}`);
     
     return NextResponse.json({
-      message: 'Subscription removed successfully'
+      message: 'Subscription canceled successfully'
     });
   } catch (error) {
     console.error(`Error removing subscription for user ${params.id}:`, error);
