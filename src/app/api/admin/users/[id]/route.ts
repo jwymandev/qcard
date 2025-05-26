@@ -39,11 +39,7 @@ export async function GET(
     const user = await authPrisma.user.findUnique({
       where: { id: params.id },
       include: {
-        Tenant: {
-          include: {
-            subscription: true
-          }
-        }
+        Tenant: true
       }
     });
     
@@ -66,16 +62,7 @@ export async function GET(
       tenantType: user.Tenant?.type,
       tenantName: user.Tenant?.name,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      subscription: user.Tenant?.subscription ? {
-        id: user.Tenant.subscription.id,
-        status: user.Tenant.subscription.status,
-        planId: user.Tenant.subscription.planId,
-        currentPeriodStart: user.Tenant.subscription.currentPeriodStart,
-        currentPeriodEnd: user.Tenant.subscription.currentPeriodEnd,
-        cancelAtPeriodEnd: user.Tenant.subscription.cancelAtPeriodEnd,
-        isLifetime: user.Tenant.subscription.isLifetime
-      } : null
+      updatedAt: user.updatedAt
     };
     
     return NextResponse.json(userData);
