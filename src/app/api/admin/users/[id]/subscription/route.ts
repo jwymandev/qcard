@@ -12,7 +12,7 @@ const updateSubscriptionSchema = z.object({
 });
 
 const createSubscriptionSchema = z.object({
-  planId: z.string(),
+  planId: z.string().optional(), // Made optional since lifetime doesn't need a specific plan
   status: z.enum(['ACTIVE', 'CANCELED', 'PAST_DUE', 'UNPAID', 'INCOMPLETE']).optional(),
   isLifetime: z.boolean().optional(),
 });
@@ -183,15 +183,60 @@ export async function POST(
       );
     }
     
-    // Verify the plan exists
-    const plan = await authPrisma.subscriptionPlan.findUnique({
-      where: { id: planId }
-    });
+    let finalPlanId = planId;
     
-    if (!plan) {
+    // For lifetime subscriptions, find or create the best plan
+    if (isLifetime) {
+      // First try to find a lifetime plan
+      let lifetimePlan = await authPrisma.subscriptionPlan.findFirst({
+        where: {
+          OR: [
+            { name: { contains: 'Lifetime', mode: 'insensitive' } },
+            { interval: 'lifetime' }
+          ]
+        }
+      });
+      
+      // If no lifetime plan exists, find the highest-priced plan (premium)
+      if (!lifetimePlan) {
+        lifetimePlan = await authPrisma.subscriptionPlan.findFirst({
+          where: { isActive: true },
+          orderBy: { price: 'desc' }
+        });
+      }
+      
+      // If still no plan, create a default lifetime plan
+      if (!lifetimePlan) {
+        lifetimePlan = await authPrisma.subscriptionPlan.create({
+          data: {
+            name: 'Lifetime Access',
+            description: 'Lifetime access to all features',
+            price: 0, // Free for admin-granted lifetime access
+            interval: 'lifetime',
+            features: ['all_features', 'priority_support', 'advanced_analytics', 'lifetime_access'],
+            isActive: true
+          }
+        });
+        console.log(`Created lifetime plan: ${lifetimePlan.id}`);
+      }
+      
+      finalPlanId = lifetimePlan.id;
+    } else if (planId) {
+      // Verify the specified plan exists
+      const plan = await authPrisma.subscriptionPlan.findUnique({
+        where: { id: planId }
+      });
+      
+      if (!plan) {
+        return NextResponse.json(
+          { error: 'Subscription plan not found' },
+          { status: 404 }
+        );
+      }
+    } else {
       return NextResponse.json(
-        { error: 'Subscription plan not found' },
-        { status: 404 }
+        { error: 'Either planId or isLifetime must be specified' },
+        { status: 400 }
       );
     }
     
@@ -199,7 +244,7 @@ export async function POST(
     const subscription = await authPrisma.subscription.create({
       data: {
         userId: user.id,
-        planId,
+        planId: finalPlanId,
         status,
         currentPeriodStart: new Date(),
         currentPeriodEnd: isLifetime ? 
