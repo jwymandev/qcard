@@ -47,6 +47,23 @@ export default function AutoInitStudio() {
         
         if (!response.ok) {
           const data = await response.json();
+          
+          // Check if this is a stale session issue (user not found)
+          if (response.status === 404 && data.error?.includes('User not found')) {
+            console.error('Stale session detected - user ID in session does not exist in database');
+            // Force sign out to clear stale session
+            window.location.href = '/api/auth/signout?callbackUrl=/sign-in';
+            return;
+          }
+          
+          // Check if user has no tenant (corrupted session)
+          if (response.status === 400 && data.error?.includes('no tenant')) {
+            console.error('Corrupted session detected - user has no tenant');
+            // Force sign out to clear corrupted session
+            window.location.href = '/api/auth/signout?callbackUrl=/sign-in';
+            return;
+          }
+          
           throw new Error(data.error || 'Failed to initialize studio account');
         }
         

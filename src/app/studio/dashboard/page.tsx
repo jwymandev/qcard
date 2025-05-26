@@ -56,6 +56,12 @@ export default function StudioDashboard() {
           }
         } catch (error) {
           console.error("Error loading studio dashboard:", error);
+          
+          // Check if this might be a network error or auth issue
+          if (error instanceof Error && error.message.includes('fetch')) {
+            console.error('Network error - might be a connectivity issue');
+          }
+          
           // Show auto init instead of redirecting away
           setNeedsInitialization(true);
           setIsLoading(false);

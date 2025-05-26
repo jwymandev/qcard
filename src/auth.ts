@@ -45,11 +45,9 @@ export const {
       },
     },
     csrfToken: {
-      name: process.env.NODE_ENV === 'production'
-        ? `__Host-next-auth.csrf-token`
-        : `next-auth.csrf-token`,
+      name: `next-auth.csrf-token`, // Use consistent naming for DigitalOcean compatibility
       options: {
-        httpOnly: true, // Proper security: keep CSRF token HTTP-only
+        httpOnly: false, // NextAuth v5 needs client access for CSRF validation
         sameSite: "lax", 
         path: "/",
         secure: process.env.NODE_ENV === 'production',

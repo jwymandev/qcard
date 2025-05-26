@@ -25,12 +25,24 @@ export async function POST() {
     });
     
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      console.error(`Auto-init: User not found for ID: ${session.user.id}`);
+      console.error("This indicates stale session data - user should sign out and sign back in");
+      return NextResponse.json({ 
+        error: "User not found", 
+        details: "Session contains invalid user ID - please sign out and sign back in",
+        sessionUserId: session.user.id
+      }, { status: 404 });
     }
     
     // If tenant doesn't exist or isn't STUDIO type, we can't create a studio
     if (!user.Tenant) {
-      return NextResponse.json({ error: "User has no tenant" }, { status: 400 });
+      console.error(`Auto-init: User ${user.id} has no tenant associated`);
+      console.error("This indicates corrupted session data - user should sign out and sign back in");
+      return NextResponse.json({ 
+        error: "User has no tenant", 
+        details: "Session contains user without tenant - please sign out and sign back in",
+        userId: user.id
+      }, { status: 400 });
     }
     
     if (user.Tenant.type !== "STUDIO") {
