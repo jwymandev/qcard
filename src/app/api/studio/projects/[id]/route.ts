@@ -52,7 +52,7 @@ export async function GET(
     }
     
     // Get the project with related data
-    const project = await prisma.project.findUnique({
+    const project = await authPrisma.project.findUnique({
       where: {
         id: projectId,
         studioId: studio.id  // Ensure project belongs to the studio
@@ -194,7 +194,7 @@ export async function PUT(
     }
     
     // Check if the project exists and belongs to this studio
-    const existingProject = await prisma.project.findFirst({
+    const existingProject = await authPrisma.project.findFirst({
       where: {
         id: projectId,
         studioId: studio.id
@@ -221,7 +221,7 @@ export async function PUT(
     }
     
     // Update the project
-    const updatedProject = await prisma.project.update({
+    const updatedProject = await authPrisma.project.update({
       where: { id: projectId },
       data: updateData,
     });
@@ -274,7 +274,7 @@ export async function DELETE(
     }
     
     // Check if the project exists and belongs to this studio
-    const existingProject = await prisma.project.findFirst({
+    const existingProject = await authPrisma.project.findFirst({
       where: {
         id: projectId,
         studioId: studio.id
@@ -286,7 +286,7 @@ export async function DELETE(
     }
     
     // Instead of actually deleting, we archive the project
-    const archivedProject = await prisma.project.update({
+    const archivedProject = await authPrisma.project.update({
       where: { id: projectId },
       data: {
         isArchived: true,
