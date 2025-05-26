@@ -8,17 +8,27 @@
  * Falls back to DATABASE_URL environment variable if it exists
  */
 export function getDatabaseUrl(): string {
-  // If DATABASE_URL is already provided, use it
+  // If DATABASE_URL is already provided, validate it
   if (process.env.DATABASE_URL) {
     // Check if the URL is a PostgreSQL URL
     if (process.env.DATABASE_URL.startsWith('postgresql://') || process.env.DATABASE_URL.startsWith('postgres://')) {
-      // Log database connection info (without credentials)
-      const sanitizedUrl = sanitizeDatabaseUrl(process.env.DATABASE_URL);
-      console.log(`Using database connection from DATABASE_URL: ${sanitizedUrl}`);
-      return process.env.DATABASE_URL;
+      // Check for placeholder/invalid values
+      const isPlaceholder = process.env.DATABASE_URL.includes('placeholder') || 
+                           process.env.DATABASE_URL.includes('localhost:5432') ||
+                           process.env.DATABASE_URL.includes('your_') ||
+                           process.env.DATABASE_URL.includes('example');
+      
+      if (isPlaceholder) {
+        console.warn('DATABASE_URL contains placeholder values, attempting to construct from components');
+      } else {
+        // Log database connection info (without credentials)
+        const sanitizedUrl = sanitizeDatabaseUrl(process.env.DATABASE_URL);
+        console.log(`Using database connection from DATABASE_URL: ${sanitizedUrl}`);
+        return process.env.DATABASE_URL;
+      }
+    } else {
+      console.warn('DATABASE_URL is not in a recognized PostgreSQL format, attempting to construct from components');
     }
-    
-    console.warn('DATABASE_URL is not in a recognized PostgreSQL format, attempting to construct from components');
   } else {
     console.warn('DATABASE_URL environment variable is not set');
   }
