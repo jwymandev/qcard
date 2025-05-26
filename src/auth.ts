@@ -432,25 +432,15 @@ export const {
         // Store email in token for emergency fallback lookups
         token.email = user.email;
       } else {
-        // Token refresh - reduce logging to prevent spam
-        if (Math.random() < 0.01) { // Log only 1% of token refreshes
-          console.log("JWT Callback - Refreshing token (no user data):", {
-            tokenId: token.id,
-            tokenEmail: token.email
-          });
-        }
+        // Token refresh - only log if there are issues
+        console.log("JWT Callback - Refreshing token (no user data)");
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
-        // Reduce session callback logging to prevent spam
-        if (Math.random() < 0.01) { // Log only 1% of session callbacks
-          console.log("Session Callback - Creating session from token:", {
-            tokenId: token.id,
-            tokenEmail: token.email
-          });
-        }
+        // Only log session creation for debugging
+        console.log("Session Callback - Creating session from token");
         
         session.user.id = token.id as string;
         session.user.role = token.role as string || 'USER';

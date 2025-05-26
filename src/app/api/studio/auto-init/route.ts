@@ -9,24 +9,37 @@ import crypto from 'crypto';
  * Special endpoint to initialize studio for any STUDIO tenant type user
  * This endpoint is used by the init-studio-auto component and startup scripts
  */
-export async function POST() {
+export async function POST(request: Request) {
+  // Get the session without triggering additional callbacks
   const session = await auth();
   
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   
+  // Add caching headers to prevent duplicate requests
+  const headers = new Headers({
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
+  
   try {
-    // Check if the user exists and has the STUDIO tenant type - use authPrisma for reliability
-    console.log("Auto-init: Checking if user exists with ID:", session.user.id);
+    // Single query to get user, tenant, and studio in one database call to reduce auth callback triggers
+    console.log("Auto-init: Checking user, tenant, and studio with ID:", session.user.id);
     const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
-      include: { Tenant: true },
+      include: { 
+        Tenant: {
+          include: {
+            Studio: true // Include studio in the same query
+          }
+        }
+      },
     });
     
     if (!user) {
       console.error(`Auto-init: User not found for ID: ${session.user.id}`);
-      console.error("This indicates stale session data - user should sign out and sign back in");
       return NextResponse.json({ 
         error: "User not found", 
         details: "Session contains invalid user ID - please sign out and sign back in",
@@ -34,10 +47,8 @@ export async function POST() {
       }, { status: 404 });
     }
     
-    // If tenant doesn't exist or isn't STUDIO type, we can't create a studio
     if (!user.Tenant) {
       console.error(`Auto-init: User ${user.id} has no tenant associated`);
-      console.error("This indicates corrupted session data - user should sign out and sign back in");
       return NextResponse.json({ 
         error: "User has no tenant", 
         details: "Session contains user without tenant - please sign out and sign back in",
@@ -52,18 +63,15 @@ export async function POST() {
       }, { status: 400 });
     }
     
-    // Check if a studio already exists for this tenant to avoid duplicates - use authPrisma for reliability
-    console.log("Auto-init: Checking if studio exists for tenant ID:", user.Tenant.id);
-    const existingStudio = await authPrisma.studio.findFirst({
-      where: { tenantId: user.Tenant.id },
-    });
+    // Check if studio already exists (from the included data)
+    const existingStudio = user.Tenant.Studio;
     
     if (existingStudio) {
       // Studio already exists, just return it
       return NextResponse.json({ 
         message: "Studio already initialized",
         studio: existingStudio
-      });
+      }, { headers });
     }
     
     // Create a new studio record for this tenant
@@ -93,7 +101,7 @@ export async function POST() {
     return NextResponse.json({ 
       message: "Studio initialized successfully",
       studio
-    });
+    }, { headers });
   } catch (error) {
     console.error("Error initializing studio:", error);
     return NextResponse.json({ 

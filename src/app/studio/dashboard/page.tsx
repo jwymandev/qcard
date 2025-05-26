@@ -11,11 +11,12 @@ export default function StudioDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [studioData, setStudioData] = useState(null);
   const [needsInitialization, setNeedsInitialization] = useState(false);
+  const [checkComplete, setCheckComplete] = useState(false);
   
   useEffect(() => {
     async function checkUserRole() {
-      // Skip if still loading
-      if (status === 'loading') return;
+      // Skip if still loading or already completed check
+      if (status === 'loading' || checkComplete) return;
       
       if (status === 'unauthenticated') {
         console.log("Not authenticated, redirecting to sign-in");
@@ -25,6 +26,9 @@ export default function StudioDashboard() {
       
       if (status === 'authenticated' && session?.user?.id) {
         try {
+          // Mark check as starting to prevent re-runs
+          setCheckComplete(true);
+          
           // Check tenant type directly from the session
           if (session?.user?.tenantType !== 'STUDIO') {
             console.log("Not a studio user, redirecting to talent dashboard");
@@ -34,8 +38,12 @@ export default function StudioDashboard() {
           
           console.log("Fetching studio profile data...");
           
-          // Get studio data
-          const studioResponse = await fetch('/api/studio/profile');
+          // Get studio data with cache control
+          const studioResponse = await fetch('/api/studio/profile', {
+            headers: {
+              'Cache-Control': 'no-cache',
+            },
+          });
           console.log("Studio profile response status:", studioResponse.status);
           
           if (studioResponse.ok) {
@@ -70,7 +78,7 @@ export default function StudioDashboard() {
     }
     
     checkUserRole();
-  }, [status, session]);
+  }, [status, session?.user?.id, session?.user?.tenantType]); // Only depend on specific values, not entire session object
   
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;

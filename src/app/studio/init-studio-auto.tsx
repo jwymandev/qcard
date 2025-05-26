@@ -15,6 +15,7 @@ export default function AutoInitStudio() {
   const [error, setError] = useState<string | null>(null);
   const [initAttempted, setInitAttempted] = useState(false);
   const [returnUrl, setReturnUrl] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   // Get return URL from query parameters or storage
   useEffect(() => {
@@ -34,15 +35,20 @@ export default function AutoInitStudio() {
   // Automatically initialize studio when component loads
   useEffect(() => {
     async function autoInitialize() {
-      if (status !== 'authenticated' || !session?.user?.id || initAttempted) return;
+      if (status !== 'authenticated' || !session?.user?.id || initAttempted || isInitializing) return;
 
       try {
         console.log("Auto-initializing studio account...");
         setInitAttempted(true);
+        setIsInitializing(true);
 
         // Try the auto-init endpoint first as it's more robust
         const response = await fetch('/api/studio/auto-init', {
           method: 'POST',
+          credentials: 'include', // Ensure cookies are sent
+          headers: {
+            'Cache-Control': 'no-cache', // Prevent caching issues
+          },
         });
         
         if (!response.ok) {
@@ -81,12 +87,14 @@ export default function AutoInitStudio() {
         console.error('Error auto-initializing studio:', error);
         const errorMessage = error instanceof Error ? error.message : 'An error occurred initializing studio';
         setError(errorMessage);
+      } finally {
+        setIsInitializing(false);
       }
     }
 
     // Run auto-initialization
     autoInitialize();
-  }, [session, status, router, initAttempted]);
+  }, [session?.user?.id, status, initAttempted]); // Only depend on specific session values, not entire object
 
   // If there's an error, show error screen
   if (error) {
