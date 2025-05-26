@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { z } from 'zod';
 
 // Validation schema for updating a studio profile
@@ -24,7 +25,7 @@ export async function GET() {
   
   try {
     // Find the user and their tenant
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -51,7 +52,7 @@ export async function GET() {
     }
     
     // Find the studio associated with this tenant
-    const studio = await prisma.studio.findFirst({
+    const studio = await authPrisma.studio.findFirst({
       where: { tenantId: user.Tenant.id },
       include: { Location: true }
     });
@@ -97,7 +98,7 @@ export async function PATCH(request: Request) {
     const validatedData = result.data;
     
     // Find the user and their tenant
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -107,7 +108,7 @@ export async function PATCH(request: Request) {
     }
     
     // Find the studio associated with this tenant
-    let studio = await prisma.studio.findFirst({
+    let studio = await authPrisma.studio.findFirst({
       where: { tenantId: user.Tenant.id },
     });
     
@@ -119,14 +120,14 @@ export async function PATCH(request: Request) {
     const { locationIds, ...studioData } = validatedData;
     
     // Update basic studio data
-    await prisma.studio.update({
+    await authPrisma.studio.update({
       where: { id: studio.id },
       data: studioData,
     });
     
     // Update location relations if provided
     if (locationIds) {
-      await prisma.studio.update({
+      await authPrisma.studio.update({
         where: { id: studio.id },
         data: {
           Location: {
@@ -137,7 +138,7 @@ export async function PATCH(request: Request) {
     }
     
     // Get the updated studio with all relations
-    const updatedStudio = await prisma.studio.findUnique({
+    const updatedStudio = await authPrisma.studio.findUnique({
       where: { id: studio.id },
       include: {
         Location: true,

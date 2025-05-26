@@ -26,9 +26,6 @@ export default function StudioDashboard() {
       
       if (status === 'authenticated' && session?.user?.id) {
         try {
-          // Mark check as starting to prevent re-runs
-          setCheckComplete(true);
-          
           // Check tenant type directly from the session
           if (session?.user?.tenantType !== 'STUDIO') {
             console.log("Not a studio user, redirecting to talent dashboard");
@@ -51,16 +48,19 @@ export default function StudioDashboard() {
             console.log("Studio profile data received");
             setStudioData(data);
             setIsLoading(false);
+            setCheckComplete(true); // Only mark complete on success
           } else if (studioResponse.status === 404) {
             // Studio data doesn't exist, needs initialization
             console.log("Studio profile not found, needs initialization");
             setNeedsInitialization(true);
             setIsLoading(false);
+            setCheckComplete(true); // Mark complete to prevent re-runs
           } else {
             // Other error - try initialization as fallback
             console.log("Error fetching studio profile, trying initialization as fallback");
             setNeedsInitialization(true);
             setIsLoading(false);
+            setCheckComplete(true); // Mark complete to prevent re-runs
           }
         } catch (error) {
           console.error("Error loading studio dashboard:", error);
@@ -73,6 +73,7 @@ export default function StudioDashboard() {
           // Show auto init instead of redirecting away
           setNeedsInitialization(true);
           setIsLoading(false);
+          setCheckComplete(true); // Mark complete to prevent re-runs
         }
       }
     }

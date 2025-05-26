@@ -37,10 +37,26 @@ export default function AutoInitStudio() {
     async function autoInitialize() {
       if (status !== 'authenticated' || !session?.user?.id || initAttempted || isInitializing) return;
 
+      // Check if we recently initialized to prevent loops
+      const recentInit = sessionStorage.getItem('studioInitRecent');
+      if (recentInit) {
+        const initTime = parseInt(recentInit);
+        const now = Date.now();
+        // Prevent re-init for 30 seconds
+        if (now - initTime < 30000) {
+          console.log("Recent initialization detected, skipping...");
+          router.replace('/studio/dashboard');
+          return;
+        }
+      }
+
       try {
         console.log("Auto-initializing studio account...");
         setInitAttempted(true);
         setIsInitializing(true);
+        
+        // Mark initialization as recent
+        sessionStorage.setItem('studioInitRecent', Date.now().toString());
 
         // Try the auto-init endpoint first as it's more robust
         const response = await fetch('/api/studio/auto-init', {
@@ -78,11 +94,12 @@ export default function AutoInitStudio() {
         // Redirect back to the page they were trying to access, or dashboard if none
         const redirectUrl = returnUrl || '/studio/dashboard';
         
-        // Clear stored URLs
+        // Clear stored URLs and recent init flag
         localStorage.removeItem('studioInitReturnUrl');
+        sessionStorage.removeItem('studioInitRecent');
         
-        // Redirect and reload to refresh session data
-        window.location.href = redirectUrl;
+        // Use Next.js router for client-side navigation instead of full page reload
+        router.replace(redirectUrl);
       } catch (error) {
         console.error('Error auto-initializing studio:', error);
         const errorMessage = error instanceof Error ? error.message : 'An error occurred initializing studio';
