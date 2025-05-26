@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { z } from 'zod';
@@ -14,7 +15,7 @@ const updateApplicationSchema = z.object({
 
 // Helper function to check if a studio has access to an application
 async function canAccessApplication(userId: string, applicationId: string) {
-  const user = await prisma.user.findUnique({
+  const user = await authPrisma.user.findUnique({
     where: { id: userId },
     include: { Tenant: true },
   });
@@ -23,7 +24,7 @@ async function canAccessApplication(userId: string, applicationId: string) {
     return false;
   }
   
-  const studio = await prisma.studio.findFirst({
+  const studio = await authPrisma.studio.findFirst({
     where: { tenantId: user.Tenant.id },
   });
   

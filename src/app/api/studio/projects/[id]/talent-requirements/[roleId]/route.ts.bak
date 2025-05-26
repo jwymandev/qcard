@@ -29,7 +29,7 @@ export async function GET(
     
     // If studio, check if the project belongs to this studio
     if (user.Tenant.type === "STUDIO") {
-      const studio = await authPrisma.studio.findFirst({
+      const studio = await prisma.studio.findFirst({
         where: { tenantId: user.Tenant.id },
       });
       
@@ -91,7 +91,7 @@ export async function PATCH(
     }
     
     // Find the studio associated with this tenant
-    const studio = await authPrisma.studio.findFirst({
+    const studio = await prisma.studio.findFirst({
       where: { tenantId: user.Tenant.id },
     });
     
@@ -170,7 +170,7 @@ export async function DELETE(
     }
     
     // Find the studio associated with this tenant
-    const studio = await authPrisma.studio.findFirst({
+    const studio = await prisma.studio.findFirst({
       where: { tenantId: user.Tenant.id },
     });
     

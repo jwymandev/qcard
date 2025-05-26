@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 
@@ -15,7 +16,7 @@ export async function GET() {
   
   try {
     // Find the user and their tenant
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -25,7 +26,7 @@ export async function GET() {
     }
     
     // Find the studio associated with this tenant
-    const studio = await prisma.studio.findFirst({
+    const studio = await authPrisma.studio.findFirst({
       where: { tenantId: user.Tenant.id },
     });
     

@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   }
   
   // Check if the user belongs to a studio tenant
-  const user = await prisma.user.findUnique({
+  const user = await authPrisma.user.findUnique({
     where: { id: session.user.id },
     include: { Tenant: true },
   });

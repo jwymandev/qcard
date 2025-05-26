@@ -29,7 +29,7 @@ async function canAccessCastingCall(userId: string, castingCallId: string) {
     return false;
   }
   
-  const studio = await authPrisma.studio.findFirst({
+  const studio = await prisma.studio.findFirst({
     where: { tenantId: user.Tenant.id },
   });
   

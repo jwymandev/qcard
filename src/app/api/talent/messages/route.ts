@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
     const unreadOnly = url.searchParams.get('unread') === 'true';
 
     // Find the user and their profile
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: {
         Tenant: true,
@@ -210,7 +211,7 @@ export async function POST(request: Request) {
     }
     
     // Find the user and their profile
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { 
         Tenant: true,

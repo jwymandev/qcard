@@ -34,7 +34,7 @@ export async function GET(
     }
     
     // Find the studio associated with this tenant
-    const studio = await authPrisma.studio.findFirst({
+    const studio = await prisma.studio.findFirst({
       where: { tenantId: user.Tenant.id },
     });
     
@@ -167,7 +167,7 @@ export async function POST(
     }
     
     // Find the studio
-    const studio = await authPrisma.studio.findFirst({
+    const studio = await prisma.studio.findFirst({
       where: { tenantId: user.Tenant.id }
     });
     

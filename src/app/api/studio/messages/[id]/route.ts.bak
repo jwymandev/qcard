@@ -21,7 +21,7 @@ async function canAccessMessage(userId: string, messageId: string) {
     return false;
   }
   
-  const studio = await authPrisma.studio.findFirst({
+  const studio = await prisma.studio.findFirst({
     where: { tenantId: user.Tenant.id },
   });
   

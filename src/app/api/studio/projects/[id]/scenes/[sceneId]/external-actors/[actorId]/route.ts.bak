@@ -33,7 +33,7 @@ export async function GET(
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
     
-    const studio = await authPrisma.studio.findUnique({
+    const studio = await prisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     
@@ -108,7 +108,7 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateExternalActorSchema.parse(body);
     
-    const studio = await authPrisma.studio.findUnique({
+    const studio = await prisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     
@@ -200,7 +200,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
     
-    const studio = await authPrisma.studio.findUnique({
+    const studio = await prisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     

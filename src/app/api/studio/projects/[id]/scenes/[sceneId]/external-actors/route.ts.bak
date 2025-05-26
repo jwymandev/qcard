@@ -42,7 +42,7 @@ export async function GET(
     }
     
     // Verify ownership of scene
-    const studio = await authPrisma.studio.findUnique({
+    const studio = await prisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     
@@ -114,7 +114,7 @@ export async function POST(
     const validatedData = createExternalActorSchema.parse(body);
     
     // Verify ownership of scene and external actor
-    const studio = await authPrisma.studio.findUnique({
+    const studio = await prisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     

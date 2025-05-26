@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Only studio accounts can send invitations' }, { status: 403 });
     }
     
-    const studio = await authPrisma.studio.findFirst({
+    const studio = await prisma.studio.findFirst({
       where: { tenantId: user.Tenant.id },
     });
     

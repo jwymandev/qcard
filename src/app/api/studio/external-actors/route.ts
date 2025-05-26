@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { parse as csvParse } from 'csv-parse/sync';
 
 // Schema for validating CSV row data
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
     }
     
     // Get the studio ID from the user's tenant
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Not a studio user' }, { status: 403 });
     }
     
-    const studio = await prisma.studio.findUnique({
+    const studio = await authPrisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     
@@ -157,7 +158,7 @@ export async function POST(request: Request) {
     }
     
     // Get the studio ID from the user's tenant
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -166,7 +167,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not a studio user' }, { status: 403 });
     }
     
-    const studio = await prisma.studio.findUnique({
+    const studio = await authPrisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     
@@ -457,7 +458,7 @@ export async function DELETE(request: Request) {
     }
     
     // Get the studio ID from the user's tenant
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -466,7 +467,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Not a studio user' }, { status: 403 });
     }
     
-    const studio = await prisma.studio.findUnique({
+    const studio = await authPrisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     

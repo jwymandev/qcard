@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { z } from 'zod';
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     const showArchived = searchParams.get('archived') === 'true';
     
     // Find the user and their tenant
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
     }
     
     // Find the studio associated with this tenant
-    const studio = await prisma.studio.findFirst({
+    const studio = await authPrisma.studio.findFirst({
       where: { tenantId: user.Tenant.id },
     });
     
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
     const validatedData = result.data;
     
     // Find the user and their tenant
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -149,7 +150,7 @@ export async function POST(request: Request) {
     }
     
     // Find the studio associated with this tenant
-    const studio = await prisma.studio.findFirst({
+    const studio = await authPrisma.studio.findFirst({
       where: { tenantId: user.Tenant.id },
     });
     

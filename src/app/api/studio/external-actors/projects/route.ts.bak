@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not a studio user' }, { status: 403 });
     }
     
-    const studio = await authPrisma.studio.findUnique({
+    const studio = await prisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     
@@ -143,7 +143,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Not a studio user' }, { status: 403 });
     }
     
-    const studio = await authPrisma.studio.findUnique({
+    const studio = await prisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     
@@ -242,7 +242,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Not a studio user' }, { status: 403 });
     }
     
-    const studio = await authPrisma.studio.findUnique({
+    const studio = await prisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     

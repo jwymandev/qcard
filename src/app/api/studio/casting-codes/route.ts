@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import { authPrisma } from '@/lib/secure-db-connection';
 import { z } from 'zod';
 import crypto from 'crypto';
 
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
     }
     
     // Get studio ID from user's tenant
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
     
-    const studio = await prisma.studio.findUnique({
+    const studio = await authPrisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
     
@@ -129,7 +130,7 @@ export async function POST(request: Request) {
     console.log("POST /api/studio/casting-codes: Authenticated as user ID:", session.user.id);
 
     // Get studio ID from user's tenant
-    const user = await prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: session.user.id },
       include: { Tenant: true },
     });
@@ -141,7 +142,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
-    const studio = await prisma.studio.findUnique({
+    const studio = await authPrisma.studio.findUnique({
       where: { tenantId: user.tenantId! },
     });
 
