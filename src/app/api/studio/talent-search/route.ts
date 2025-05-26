@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     
     // Execute the search query
     const [profiles, totalCount] = await Promise.all([
-      prisma.profile.findMany({
+      authPrisma.profile.findMany({
         where: whereClause,
         include: {
           User: {
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
         skip,
         take: limit,
       }),
-      prisma.profile.count({
+      authPrisma.profile.count({
         where: whereClause,
       }),
     ]);

@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     // Note: isArchived filter temporarily disabled until Prisma client is updated
     
     // Get projects for this studio
-    const projects = await prisma.project.findMany({
+    const projects = await authPrisma.project.findMany({
       where: whereClause,
       include: {
         ProjectMember: {
@@ -199,7 +199,7 @@ export async function POST(request: Request) {
     });
     
     // Create the project with ID and other data
-    const project = await prisma.project.create({
+    const project = await authPrisma.project.create({
       data: {
         id: projectId,
         ...projectData,

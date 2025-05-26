@@ -100,7 +100,7 @@ export async function GET(request: Request) {
     let externalActors;
     
     if (projectId) {
-      externalActors = await prisma.externalActor.findMany({
+      externalActors = await authPrisma.externalActor.findMany({
         where: {
           ...filter,
           projects: {
@@ -122,7 +122,7 @@ export async function GET(request: Request) {
         },
       });
     } else {
-      externalActors = await prisma.externalActor.findMany({
+      externalActors = await authPrisma.externalActor.findMany({
         where: filter,
         include: {
           projects: {
@@ -295,7 +295,7 @@ export async function POST(request: Request) {
             ];
           }
           
-          const existingActor = await prisma.externalActor.findFirst({
+          const existingActor = await authPrisma.externalActor.findFirst({
             where: existingActorQuery,
           });
           
@@ -307,14 +307,14 @@ export async function POST(request: Request) {
           // Check if a user with this email already exists in the system (only if email is provided)
           let existingUser = null;
           if (validatedRow.email) {
-            existingUser = await prisma.user.findUnique({
+            existingUser = await authPrisma.user.findUnique({
               where: { email: validatedRow.email },
               include: { Profile: true },
             });
           }
           
           // Create the external actor
-          await prisma.externalActor.create({
+          await authPrisma.externalActor.create({
             data: {
               email: validatedRow.email,
               firstName: validatedRow.firstName,
@@ -361,7 +361,7 @@ export async function POST(request: Request) {
         ];
       }
       
-      const existingActor = await prisma.externalActor.findFirst({
+      const existingActor = await authPrisma.externalActor.findFirst({
         where: existingActorQuery,
       });
       
@@ -375,14 +375,14 @@ export async function POST(request: Request) {
       // Check if a user with this email already exists in the system (only if email provided)
       let existingUser = null;
       if (validatedData.email) {
-        existingUser = await prisma.user.findUnique({
+        existingUser = await authPrisma.user.findUnique({
           where: { email: validatedData.email },
           include: { Profile: true },
         });
       }
       
       // Create the external actor
-      const externalActor = await prisma.externalActor.create({
+      const externalActor = await authPrisma.externalActor.create({
         data: {
           email: validatedData.email,
           firstName: validatedData.firstName,

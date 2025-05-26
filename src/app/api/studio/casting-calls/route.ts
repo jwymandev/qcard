@@ -48,7 +48,7 @@ export async function GET() {
     }
     
     // Get all casting calls for this studio
-    const castingCalls = await prisma.castingCall.findMany({
+    const castingCalls = await authPrisma.castingCall.findMany({
       where: { studioId: studio.id },
       include: {
         Location: {
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
     // If location is provided but no region, try to get the region from the location
     let regionId = validatedData.regionId;
     if (!regionId && validatedData.locationId) {
-      const location = await prisma.location.findUnique({
+      const location = await authPrisma.location.findUnique({
         where: { id: validatedData.locationId },
         select: { regionId: true }
       });
@@ -156,7 +156,7 @@ export async function POST(request: Request) {
     const castingCallId = crypto.randomUUID();
     
     // Create the casting call
-    const castingCall = await prisma.castingCall.create({
+    const castingCall = await authPrisma.castingCall.create({
       data: {
         id: castingCallId,
         title: validatedData.title,
