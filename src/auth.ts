@@ -22,18 +22,8 @@ export const {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // Secure CSRF protection with DigitalOcean App Platform compatibility
+  // Proper CSRF protection configuration
   useSecureCookies: process.env.NODE_ENV === 'production',
-  // EMERGENCY: Completely disable CSRF checks to fix login issues  
-  skipCSRFCheck: (request) => {
-    // Always skip CSRF checks - this is temporary for development
-    console.log(`[CSRF EMERGENCY] Skipping all CSRF checks for development - URL: ${request?.url || 'unknown'}`);
-    return true;
-  },
-  // Additional CSRF bypass settings
-  experimental: {
-    enableWebAuthn: false,
-  },
   cookies: {
     sessionToken: {
       name: process.env.NODE_ENV === 'production' 
@@ -59,7 +49,7 @@ export const {
         ? `__Host-next-auth.csrf-token`
         : `next-auth.csrf-token`,
       options: {
-        httpOnly: false, // Make CSRF token accessible
+        httpOnly: true, // Proper security: keep CSRF token HTTP-only
         sameSite: "lax", 
         path: "/",
         secure: process.env.NODE_ENV === 'production',

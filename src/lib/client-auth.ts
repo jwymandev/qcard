@@ -23,18 +23,30 @@ export interface SignInResponse {
 
 /**
  * Sign in with credentials
- * This is a client-side wrapper for NextAuth's signIn function
+ * This is a client-side wrapper for NextAuth's signIn function with proper CSRF handling
  */
 export async function signIn(options: SignInOptions): Promise<SignInResponse> {
   const { email, password, redirect = false, callbackUrl = '/role-redirect' } = options;
   
   try {
-    // Simplified approach - let NextAuth handle CSRF internally
+    console.log('[CSRF] Starting sign-in process with CSRF protection');
+    
+    // Step 1: Ensure we have a CSRF token
+    await ensureCSRFToken();
+    
+    // Step 2: Use NextAuth's signIn function (it should handle CSRF automatically)
+    console.log('[CSRF] Calling NextAuth signIn with credentials');
     const result = await nextAuthSignIn('credentials', {
       email,
       password,
       redirect: false, // Always false to handle redirection ourselves
       callbackUrl
+    });
+    
+    console.log('[CSRF] NextAuth signIn result:', { 
+      ok: result?.ok, 
+      error: result?.error, 
+      status: result?.status 
     });
     
     // Ensure we return a consistent response with proper types
@@ -50,6 +62,45 @@ export async function signIn(options: SignInOptions): Promise<SignInResponse> {
       error: error instanceof Error ? error.message : 'Unknown sign-in error',
       ok: false
     };
+  }
+}
+
+/**
+ * Ensure CSRF token is available before attempting authentication
+ */
+async function ensureCSRFToken(): Promise<void> {
+  try {
+    console.log('[CSRF] Ensuring CSRF token is available');
+    
+    // Check if we already have a CSRF cookie
+    const hasCSRFCookie = document.cookie.includes('next-auth.csrf-token') || 
+                         document.cookie.includes('__Host-next-auth.csrf-token');
+    
+    if (hasCSRFCookie) {
+      console.log('[CSRF] CSRF token already exists in cookies');
+      return;
+    }
+    
+    console.log('[CSRF] No CSRF token found, fetching from server');
+    
+    // Fetch CSRF token from our endpoint
+    const response = await fetch('/api/auth/csrf', {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[CSRF] Successfully fetched CSRF token:', { 
+        success: data.success, 
+        generated: data.generated 
+      });
+    } else {
+      console.warn('[CSRF] Failed to fetch CSRF token, but continuing with sign-in');
+    }
+  } catch (error) {
+    console.warn('[CSRF] Error ensuring CSRF token:', error);
+    // Don't throw - let the sign-in attempt continue
   }
 }
 
