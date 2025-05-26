@@ -432,19 +432,25 @@ export const {
         // Store email in token for emergency fallback lookups
         token.email = user.email;
       } else {
-        console.log("JWT Callback - Refreshing token (no user data):", {
-          tokenId: token.id,
-          tokenEmail: token.email
-        });
+        // Token refresh - reduce logging to prevent spam
+        if (Math.random() < 0.01) { // Log only 1% of token refreshes
+          console.log("JWT Callback - Refreshing token (no user data):", {
+            tokenId: token.id,
+            tokenEmail: token.email
+          });
+        }
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
-        console.log("Session Callback - Creating session from token:", {
-          tokenId: token.id,
-          tokenEmail: token.email
-        });
+        // Reduce session callback logging to prevent spam
+        if (Math.random() < 0.01) { // Log only 1% of session callbacks
+          console.log("Session Callback - Creating session from token:", {
+            tokenId: token.id,
+            tokenEmail: token.email
+          });
+        }
         
         session.user.id = token.id as string;
         session.user.role = token.role as string || 'USER';
@@ -457,35 +463,8 @@ export const {
           session.user.email = token.email as string;
         }
         
-        // IMPORTANT: Validate that the user actually exists in the database
-        // This can help catch issues with session/database mismatches early
-        if (process.env.NODE_ENV === 'development') {
-          try {
-            const userCheck = await authPrisma.user.findUnique({
-              where: { id: session.user.id },
-              select: { id: true, email: true }
-            });
-            
-            if (!userCheck) {
-              console.warn(`SESSION VALIDATION WARNING: User with ID ${session.user.id} not found in database!`);
-              
-              // If we have email, try to find by email as fallback
-              if (session.user.email) {
-                const userByEmail = await authPrisma.user.findUnique({
-                  where: { email: session.user.email },
-                  select: { id: true, email: true }
-                });
-                
-                if (userByEmail) {
-                  console.warn(`SESSION MISMATCH: Found user by email with different ID: ${userByEmail.id}`);
-                  // Don't automatically fix it here, let the routes handle it
-                }
-              }
-            }
-          } catch (validationError) {
-            console.error("Error validating session user:", validationError);
-          }
-        }
+        // Database validation removed to prevent infinite loops
+        // Validation will be handled at the route level instead
       }
       return session;
     },
