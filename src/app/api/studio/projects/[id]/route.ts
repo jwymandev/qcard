@@ -98,7 +98,6 @@ export async function GET(
             }
           }
         },
-        talentRequirements: true,
       },
     });
     
@@ -129,8 +128,7 @@ export async function GET(
         _count: {
           applications: call.Application?.length || 0
         }
-      })),
-      talentRequirements: project.talentRequirements || []
+      }))
     };
     
     return NextResponse.json(mappedProject);
