@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { prisma } from '@/lib/db';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { authPrisma } from '@/lib/secure-db-connection';
+import { createAuditLog, extractRequestInfo, AUDIT_ACTIONS } from '@/lib/audit-log';
 
 // GET /api/auth/impersonate
 export async function GET(request: Request) {
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     }
 
     // Get the user to impersonate
-    const userToImpersonate = await prisma.user.findUnique({
+    const userToImpersonate = await authPrisma.user.findUnique({
       where: { id: userId },
       include: {
         Tenant: true
@@ -48,17 +48,23 @@ export async function GET(request: Request) {
       );
     }
 
-    // Record this impersonation for audit purposes
-    try {
-      // Try to log to an audit table if it exists
-      await prisma.$executeRaw`
-        INSERT INTO "audit_log" ("action", "admin_id", "target_id", "details", "created_at")
-        VALUES ('IMPERSONATE_LOGIN', ${adminId}, ${userId}, ${{adminEmail: session.user.email, targetEmail: userToImpersonate.email}}, NOW())
-      `;
-    } catch (err: unknown) {
-      // If table doesn't exist, just log the error but continue
-      console.warn('Could not log admin impersonation login:', err);
-    }
+    // Extract request information for audit logging
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    
+    // Create audit log entry for the actual login
+    await createAuditLog({
+      action: AUDIT_ACTIONS.USER_IMPERSONATE_LOGIN,
+      adminId,
+      targetId: userId,
+      details: {
+        adminEmail: session.user.email,
+        targetEmail: userToImpersonate.email,
+        targetName: `${userToImpersonate.firstName || ''} ${userToImpersonate.lastName || ''}`.trim(),
+        tenantType: userToImpersonate.Tenant?.type
+      },
+      ipAddress,
+      userAgent
+    });
 
     // Set cookie or session for impersonation
     // This would integrate with your NextAuth setup

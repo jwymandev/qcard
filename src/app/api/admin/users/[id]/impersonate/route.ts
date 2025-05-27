@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 import { authPrisma } from '@/lib/secure-db-connection';
 import { requireAdmin } from '@/lib/admin-helpers';
-import { signOut } from '@/auth';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { createAuditLog, extractRequestInfo, AUDIT_ACTIONS } from '@/lib/audit-log';
 
 // POST /api/admin/users/[id]/impersonate
 export async function POST(
@@ -44,17 +42,23 @@ export async function POST(
       );
     }
     
-    // Create an impersonation record to track this action for security
-    try {
-      // Try to log to an audit table if it exists - use authPrisma for reliable database access
-      await authPrisma.$executeRaw`
-        INSERT INTO "audit_log" ("action", "admin_id", "target_id", "details", "created_at")
-        VALUES ('IMPERSONATE', ${adminId}, ${params.id}, ${{adminEmail: session.user.email, targetEmail: userToImpersonate.email}}, NOW())
-      `;
-    } catch (err: unknown) {
-      // If this table doesn't exist, just log the error but continue
-      console.warn('Could not log admin impersonation action:', err);
-    }
+    // Extract request information for audit logging
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    
+    // Create audit log entry
+    await createAuditLog({
+      action: AUDIT_ACTIONS.USER_IMPERSONATE,
+      adminId,
+      targetId: params.id,
+      details: {
+        adminEmail: session.user.email,
+        targetEmail: userToImpersonate.email,
+        targetName: `${userToImpersonate.firstName || ''} ${userToImpersonate.lastName || ''}`.trim(),
+        tenantType: userToImpersonate.Tenant?.type
+      },
+      ipAddress,
+      userAgent
+    });
     
     // In a real implementation, you'd create a special impersonation session
     // For this demo, we'll return the user details to impersonate

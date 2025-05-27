@@ -310,6 +310,9 @@ model User {
   Tenant        Tenant?        @relation(fields: [tenantId], references: [id])
   // Added relationship for subscriptions
   subscriptions Subscription[]
+  // Audit log relations
+  adminAuditLogs  AuditLog[]   @relation("AuditLogAdmin")
+  targetAuditLogs AuditLog[]   @relation("AuditLogTarget")
 }
 
 model VerificationToken {
@@ -617,4 +620,26 @@ model FeatureFlag {
   defaultValue    Boolean   @default(false) // Default setting for users without subscription
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+// Audit Log for tracking admin actions
+model AuditLog {
+  id          String    @id @default(uuid())
+  action      String    // Action performed (e.g., "IMPERSONATE", "USER_CREATE", "SUBSCRIPTION_GRANT")
+  adminId     String    // ID of admin who performed the action
+  targetId    String?   // ID of the target user/resource (optional)
+  details     Json?     // Additional details about the action
+  ipAddress   String?   // IP address of the admin
+  userAgent   String?   // User agent of the admin
+  createdAt   DateTime  @default(now())
+  
+  // Relations
+  admin       User      @relation("AuditLogAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  target      User?     @relation("AuditLogTarget", fields: [targetId], references: [id], onDelete: SetNull)
+  
+  // Indexes for better query performance
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([targetId])
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { authPrisma } from '@/lib/secure-db-connection';
 import { requireAdmin } from '@/lib/admin-helpers';
+import { createAuditLog, extractRequestInfo, AUDIT_ACTIONS } from '@/lib/audit-log';
 
 // POST /api/admin/users/[id]/grant-lifetime - Grant lifetime access to user
 export async function POST(
@@ -59,6 +60,24 @@ export async function POST(
       
       console.log(`Updated existing subscription to lifetime for user ${params.id}`);
       
+      // Create audit log entry
+      const { ipAddress, userAgent } = extractRequestInfo(request);
+      await createAuditLog({
+        action: AUDIT_ACTIONS.SUBSCRIPTION_GRANT_LIFETIME,
+        adminId: session.user.id,
+        targetId: params.id,
+        details: {
+          adminEmail: session.user.email,
+          targetEmail: user.email,
+          targetName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          subscriptionId: updatedSubscription.id,
+          planName: updatedSubscription.plan.name,
+          actionType: 'update_existing'
+        },
+        ipAddress,
+        userAgent
+      });
+      
       return NextResponse.json({
         message: 'User granted lifetime access (updated existing subscription)',
         subscription: updatedSubscription
@@ -107,6 +126,24 @@ export async function POST(
       });
       
       console.log(`Created lifetime subscription for user ${params.id}:`, subscription);
+      
+      // Create audit log entry
+      const { ipAddress, userAgent } = extractRequestInfo(request);
+      await createAuditLog({
+        action: AUDIT_ACTIONS.SUBSCRIPTION_GRANT_LIFETIME,
+        adminId: session.user.id,
+        targetId: params.id,
+        details: {
+          adminEmail: session.user.email,
+          targetEmail: user.email,
+          targetName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          subscriptionId: subscription.id,
+          planName: subscription.plan.name,
+          actionType: 'create_new'
+        },
+        ipAddress,
+        userAgent
+      });
       
       return NextResponse.json({
         message: 'User granted lifetime access',
