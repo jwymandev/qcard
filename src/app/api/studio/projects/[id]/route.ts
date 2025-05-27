@@ -75,12 +75,7 @@ export async function GET(
         },
         CastingCall: {
           include: {
-            Location: {
-              include: {
-                region: true
-              }
-            },
-            region: true,
+            Location: true,
             Application: {
               include: {
                 Profile: {
@@ -122,7 +117,6 @@ export async function GET(
         createdAt: call.createdAt,
         updatedAt: call.updatedAt,
         location: call.Location,
-        region: call.region,
         applications: call.Application || [],
         // Include the application count
         _count: {

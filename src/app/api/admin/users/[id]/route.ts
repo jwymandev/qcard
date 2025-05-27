@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { authPrisma } from '@/lib/secure-db-connection';
 import { requireAdmin } from '@/lib/admin-helpers';
 import { z } from 'zod';
-import bcrypt from 'bcrypt';
+import bcrypt from '@/lib/bcrypt-wrapper';
 
 // Validation schema for user updates
 const updateUserSchema = z.object({
