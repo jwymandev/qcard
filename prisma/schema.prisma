@@ -51,6 +51,7 @@ model CastingCall {
   studioId     String
   locationId   String?
   projectId    String?
+  regionId     String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime
   Application  Application[]
@@ -58,17 +59,20 @@ model CastingCall {
   Location     Location?     @relation(fields: [locationId], references: [id])
   Studio       Studio        @relation(fields: [studioId], references: [id])
   Skill        Skill[]
+  region       Region?       @relation(fields: [regionId], references: [id])
 }
 
 model Location {
   id          String        @id
   name        String
+  regionId    String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime
   CastingCall CastingCall[]
   Scene       Scene[]
   Profile     Profile[]
   Studio      Studio[]
+  region      Region?       @relation(fields: [regionId], references: [id])
 }
 
 model Message {
@@ -134,6 +138,7 @@ model Profile {
   QuestionnaireResponse                     QuestionnaireResponse[]
   convertedFromExternalActor                ExternalActor[]
   projectInvitations                        ProjectInvitation[]
+  ProfileRegion                             ProfileRegion[]
 }
 
 model ProfileImage {
@@ -262,6 +267,7 @@ model Studio {
   externalActors                           ExternalActor[]
   // Added relationship for subscriptions
   subscriptions                            Subscription[]
+  StudioRegion                             StudioRegion[]
 }
 
 model StudioNote {
@@ -642,4 +648,45 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@index([targetId])
+}
+
+// Region model for geographic regions
+model Region {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  locations     Location[]
+  castingCalls  CastingCall[]
+  ProfileRegion ProfileRegion[]
+  StudioRegion  StudioRegion[]
+}
+
+// Many-to-many relationship between Profile and Region
+model ProfileRegion {
+  id        String   @id @default(uuid())
+  profileId String
+  regionId  String
+  createdAt DateTime @default(now())
+  
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  region    Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  
+  @@unique([profileId, regionId])
+}
+
+// Many-to-many relationship between Studio and Region
+model StudioRegion {
+  id        String   @id @default(uuid())
+  studioId  String
+  regionId  String
+  createdAt DateTime @default(now())
+  
+  studio    Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  region    Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  
+  @@unique([studioId, regionId])
 }
