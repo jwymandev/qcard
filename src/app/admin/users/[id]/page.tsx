@@ -176,8 +176,8 @@ export default function UserDetailPage() {
         credentials: 'include',
         body: JSON.stringify({
           isLifetime: true,
-          status: 'ACTIVE',
-          planId: 'lifetime'
+          status: 'ACTIVE'
+          // Don't send planId - let the API find/create the lifetime plan
         })
       });
       

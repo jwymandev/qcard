@@ -15,6 +15,15 @@ const createSubscriptionSchema = z.object({
   planId: z.string().optional(), // Made optional since lifetime doesn't need a specific plan
   status: z.enum(['ACTIVE', 'CANCELED', 'PAST_DUE', 'UNPAID', 'INCOMPLETE']).optional(),
   isLifetime: z.boolean().optional(),
+}).refine((data) => {
+  // If not lifetime, planId should be a valid UUID
+  if (!data.isLifetime && data.planId) {
+    return z.string().uuid().safeParse(data.planId).success;
+  }
+  return true;
+}, {
+  message: "planId must be a valid UUID when not using lifetime subscription",
+  path: ["planId"]
 });
 
 // PUT /api/admin/users/[id]/subscription - Update user subscription
@@ -146,11 +155,15 @@ export async function POST(
       );
     }
     
+    console.log('Admin access verified, parsing request body...');
     const body = await request.json();
+    console.log('Request body parsed:', body);
     
     // Validate input data
+    console.log('Validating input data...');
     const result = createSubscriptionSchema.safeParse(body);
     if (!result.success) {
+      console.log('Validation failed:', result.error.format());
       return NextResponse.json(
         { error: 'Invalid input data', details: result.error.format() },
         { status: 400 }
@@ -158,14 +171,17 @@ export async function POST(
     }
     
     const { planId, status = 'ACTIVE', isLifetime = false } = result.data;
+    console.log('Validated data:', { planId, status, isLifetime });
     
     // Find the user
+    console.log('Finding user in database...');
     const user = await authPrisma.user.findUnique({
       where: { id: params.id },
       include: {
         subscriptions: true
       }
     });
+    console.log('User found:', user ? `${user.email} with ${user.subscriptions.length} subscriptions` : 'null');
     
     if (!user) {
       return NextResponse.json(
@@ -187,7 +203,9 @@ export async function POST(
     
     // For lifetime subscriptions, find or create the best plan
     if (isLifetime) {
+      console.log('Processing lifetime subscription request...');
       // First try to find a lifetime plan
+      console.log('Looking for existing lifetime plan...');
       let lifetimePlan = await authPrisma.subscriptionPlan.findFirst({
         where: {
           OR: [
@@ -196,17 +214,21 @@ export async function POST(
           ]
         }
       });
+      console.log('Lifetime plan search result:', lifetimePlan ? `Found: ${lifetimePlan.name}` : 'None found');
       
       // If no lifetime plan exists, find the highest-priced plan (premium)
       if (!lifetimePlan) {
+        console.log('No lifetime plan found, looking for highest-priced plan...');
         lifetimePlan = await authPrisma.subscriptionPlan.findFirst({
           where: { isActive: true },
           orderBy: { price: 'desc' }
         });
+        console.log('Highest-priced plan result:', lifetimePlan ? `Found: ${lifetimePlan.name} ($${lifetimePlan.price})` : 'None found');
       }
       
       // If still no plan, create a default lifetime plan
       if (!lifetimePlan) {
+        console.log('No plans found, creating default lifetime plan...');
         lifetimePlan = await authPrisma.subscriptionPlan.create({
           data: {
             name: 'Lifetime Access',
@@ -241,6 +263,13 @@ export async function POST(
     }
     
     // Create new subscription
+    console.log('Creating new subscription with data:', {
+      userId: user.id,
+      planId: finalPlanId,
+      status,
+      isLifetime
+    });
+    
     const subscription = await authPrisma.subscription.create({
       data: {
         userId: user.id,
@@ -256,6 +285,7 @@ export async function POST(
         plan: true
       }
     });
+    console.log('Subscription created successfully:', subscription.id);
     
     console.log(`Created subscription for user ${params.id}:`, subscription);
     
