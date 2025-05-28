@@ -168,6 +168,8 @@ model Project {
   Scene              Scene[]
   ProjectInvitation  ProjectInvitation[]
   externalActors     ExternalActorProject[]
+  castingCodes       CastingCode[]
+  talentRequirements TalentRequirement[]
 }
 
 model ProjectMember {
@@ -212,6 +214,7 @@ model Scene {
   Location     Location?     @relation(fields: [locationId], references: [id])
   Project      Project       @relation(fields: [projectId], references: [id])
   SceneTalent  SceneTalent[]
+  talentRequirements TalentRequirement[]
 }
 
 model SceneTalent {
@@ -268,6 +271,7 @@ model Studio {
   // Added relationship for subscriptions
   subscriptions                            Subscription[]
   StudioRegion                             StudioRegion[]
+  castingCodes                             CastingCode[]
 }
 
 model StudioNote {
@@ -592,6 +596,7 @@ model Subscription {
   studio              Studio?           @relation(fields: [studioId], references: [id], onDelete: SetNull)
   plan                SubscriptionPlan  @relation(fields: [planId], references: [id])
   features            SubscriptionFeature[]
+  regionSubscriptions UserRegionSubscription[]
 }
 
 // Subscription statuses
@@ -725,6 +730,7 @@ model UserRegionSubscription {
   id                 String                 @id @default(uuid())
   userId             String
   regionPlanId       String
+  mainSubscriptionId String?
   status             SubscriptionStatus     @default(ACTIVE)
   stripeItemId       String?
   currentPeriodStart DateTime
@@ -735,6 +741,67 @@ model UserRegionSubscription {
   // Relations
   user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   regionPlan         RegionSubscriptionPlan @relation(fields: [regionPlanId], references: [id])
+  mainSubscription   Subscription?          @relation(fields: [mainSubscriptionId], references: [id], onDelete: SetNull)
   
   @@unique([userId, regionPlanId])
+}
+
+// Casting Code model for QR code functionality
+model CastingCode {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  description  String?
+  studioId     String
+  projectId    String?
+  isActive     Boolean  @default(true)
+  expiresAt    DateTime?
+  surveyFields Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  studio       Studio                   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  project      Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  submissions  CastingCodeSubmission[]
+}
+
+// Casting Code Submissions for QR code applications
+model CastingCodeSubmission {
+  id             String     @id @default(uuid())
+  castingCodeId  String
+  name           String
+  email          String
+  phone          String?
+  surveyResponses Json?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  
+  // Relations
+  castingCode    CastingCode @relation(fields: [castingCodeId], references: [id], onDelete: Cascade)
+}
+
+// Talent Requirements for projects and scenes
+model TalentRequirement {
+  id               String   @id @default(uuid())
+  projectId        String?
+  sceneId          String?
+  roleId           String?
+  title            String
+  description      String?
+  minAge           String?
+  maxAge           String?
+  gender           String?
+  ethnicity        String?
+  height           String?
+  skills           String?
+  otherRequirements String?
+  surveyFields     Json?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Relations
+  project          Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scene            Scene?   @relation(fields: [sceneId], references: [id], onDelete: Cascade)
 }
