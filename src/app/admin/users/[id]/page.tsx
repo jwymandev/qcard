@@ -159,19 +159,20 @@ export default function UserDetailPage() {
 
   // Subscription management functions
   const grantLifetimeSubscription = async () => {
-    if (!confirm('Grant lifetime subscription to this user?')) return;
+    const hasExistingSubscription = user?.subscription;
+    const confirmMessage = hasExistingSubscription 
+      ? 'Grant lifetime subscription to this user? This will cancel their current subscription to stop billing.'
+      : 'Grant lifetime subscription to this user?';
+      
+    if (!confirm(confirmMessage)) return;
     
     setSubscriptionLoading(true);
     setSubscriptionError(null);
     
     try {
-      const url = user?.subscription ? 
-        `/api/admin/users/${userId}/subscription` : 
-        `/api/admin/users/${userId}/subscription`;
-      const method = user?.subscription ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
+      // Always use POST for lifetime subscriptions - API will handle existing subscriptions
+      const response = await fetch(`/api/admin/users/${userId}/subscription`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
@@ -182,7 +183,16 @@ export default function UserDetailPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to grant lifetime subscription');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to grant lifetime subscription');
+      }
+      
+      const result = await response.json();
+      console.log('Lifetime subscription granted:', result);
+      
+      // Show success message if previous subscription was canceled
+      if (result.previousSubscriptionCanceled) {
+        alert('Lifetime subscription granted successfully! Previous subscription has been canceled to stop billing.');
       }
       
       // Refresh user data

@@ -141,6 +141,7 @@ export async function POST(
 ) {
   try {
     console.log(`POST /api/admin/users/${params.id}/subscription request received`);
+    console.log('Target user ID from URL params:', params.id);
     
     // Check admin access
     const session = await requireAdmin({ 
@@ -155,6 +156,9 @@ export async function POST(
       );
     }
     
+    console.log('Admin access verified for:', session.user.email);
+    console.log('Creating subscription for target user ID:', params.id);
+    console.log('Admin user ID (different from target):', session.user.id);
     console.log('Admin access verified, parsing request body...');
     const body = await request.json();
     console.log('Request body parsed:', body);
@@ -191,13 +195,34 @@ export async function POST(
     }
     
     // Check if user already has an active subscription
+    console.log('Checking for existing active subscriptions...');
+    console.log('User subscriptions:', user.subscriptions.map(sub => ({ id: sub.id, status: sub.status, planId: sub.planId })));
     const activeSubscription = user.subscriptions.find(sub => sub.status === 'ACTIVE');
+    
     if (activeSubscription) {
-      return NextResponse.json(
-        { error: 'User already has an active subscription' },
-        { status: 409 }
-      );
+      console.log('User has active subscription:', activeSubscription.id);
+      
+      // If granting lifetime access, cancel the existing subscription to stop charging
+      if (isLifetime) {
+        console.log('Granting lifetime access - canceling existing subscription to stop billing...');
+        await authPrisma.subscription.update({
+          where: { id: activeSubscription.id },
+          data: {
+            status: 'CANCELED',
+            canceledAt: new Date(),
+            cancelAtPeriodEnd: true // Stop charging at the end of current period
+          }
+        });
+        console.log('Existing subscription canceled successfully');
+      } else {
+        // For non-lifetime subscriptions, don't allow duplicate active subscriptions
+        return NextResponse.json(
+          { error: 'User already has an active subscription' },
+          { status: 409 }
+        );
+      }
     }
+    console.log('Proceeding with subscription creation...');
     
     let finalPlanId = planId;
     
@@ -289,9 +314,14 @@ export async function POST(
     
     console.log(`Created subscription for user ${params.id}:`, subscription);
     
+    const message = activeSubscription && isLifetime 
+      ? 'Lifetime subscription granted successfully. Previous subscription has been canceled to stop billing.'
+      : 'Subscription created successfully';
+    
     return NextResponse.json({
-      message: 'Subscription created successfully',
-      subscription
+      message,
+      subscription,
+      previousSubscriptionCanceled: activeSubscription && isLifetime ? true : false
     });
   } catch (error) {
     console.error(`Error creating subscription for user ${params.id}:`, error);
