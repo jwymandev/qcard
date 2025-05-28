@@ -204,6 +204,42 @@ export default function UserDetailPage() {
     }
   };
 
+  const revokeLifetimeSubscription = async () => {
+    if (!confirm('Revoke lifetime access from this user? This will cancel their lifetime subscription.')) return;
+    
+    setSubscriptionLoading(true);
+    setSubscriptionError(null);
+    
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/subscription`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to revoke lifetime subscription');
+      }
+      
+      const result = await response.json();
+      console.log('Subscription revoked:', result);
+      
+      // Show appropriate message based on what was revoked
+      const message = result.wasLifetime 
+        ? 'Lifetime subscription has been revoked successfully.'
+        : 'Subscription has been canceled successfully.';
+      alert(message);
+      
+      // Refresh user data
+      window.location.reload();
+    } catch (error) {
+      setSubscriptionError(error instanceof Error ? error.message : 'Failed to revoke subscription');
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
   const updateSubscriptionStatus = async (status: string) => {
     if (!user?.subscription) {
       setSubscriptionError('User has no subscription to update');
@@ -562,13 +598,21 @@ export default function UserDetailPage() {
                     </button>
                   ) : (
                     <>
-                      {!user.subscription.isLifetime && (
+                      {!user.subscription.isLifetime ? (
                         <button
                           onClick={grantLifetimeSubscription}
                           disabled={subscriptionLoading}
                           className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                         >
                           {subscriptionLoading ? 'Processing...' : 'Make Lifetime'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={revokeLifetimeSubscription}
+                          disabled={subscriptionLoading}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                        >
+                          {subscriptionLoading ? 'Processing...' : 'Revoke Lifetime Access'}
                         </button>
                       )}
                       

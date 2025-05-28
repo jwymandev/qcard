@@ -344,6 +344,7 @@ export async function DELETE(
 ) {
   try {
     console.log(`DELETE /api/admin/users/${params.id}/subscription request received`);
+    console.log('Target user ID from URL params:', params.id);
     
     // Check admin access
     const session = await requireAdmin({ 
@@ -358,13 +359,21 @@ export async function DELETE(
       );
     }
     
+    console.log('Admin access verified for:', session.user.email);
+    console.log('Revoking subscription for target user ID:', params.id);
+    
     // Find the user and their subscriptions
     const user = await authPrisma.user.findUnique({
       where: { id: params.id },
       include: {
-        subscriptions: true
+        subscriptions: {
+          include: {
+            plan: true
+          }
+        }
       }
     });
+    console.log('User found:', user ? `${user.email} with ${user.subscriptions.length} subscriptions` : 'null');
     
     if (!user) {
       return NextResponse.json(
@@ -376,11 +385,27 @@ export async function DELETE(
     const activeSubscription = user.subscriptions.find(sub => sub.status === 'ACTIVE');
     
     if (!activeSubscription) {
+      console.log('No active subscription found for user');
       return NextResponse.json(
         { error: 'User has no active subscription to remove' },
         { status: 404 }
       );
     }
+    
+    console.log('Active subscription found:', {
+      id: activeSubscription.id,
+      plan: activeSubscription.plan?.name,
+      status: activeSubscription.status
+    });
+    
+    // Check if this is a lifetime subscription
+    const isLifetimeSubscription = activeSubscription.plan?.interval === 'lifetime' ||
+                                   activeSubscription.plan?.name?.toLowerCase().includes('lifetime') ||
+                                   // Check if period end is far in the future (100+ years)
+                                   (activeSubscription.currentPeriodEnd && 
+                                    new Date(activeSubscription.currentPeriodEnd).getFullYear() > new Date().getFullYear() + 50);
+    
+    console.log('Is lifetime subscription:', isLifetimeSubscription);
     
     // Cancel the subscription (don't delete, just cancel)
     await authPrisma.subscription.update({
@@ -392,10 +417,15 @@ export async function DELETE(
       }
     });
     
-    console.log(`Canceled subscription for user ${params.id}`);
+    const message = isLifetimeSubscription 
+      ? 'Lifetime subscription revoked successfully'
+      : 'Subscription canceled successfully';
+    
+    console.log(`${message} for user ${params.id}`);
     
     return NextResponse.json({
-      message: 'Subscription canceled successfully'
+      message,
+      wasLifetime: isLifetimeSubscription
     });
   } catch (error) {
     console.error(`Error removing subscription for user ${params.id}:`, error);
